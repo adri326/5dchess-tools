@@ -1,4 +1,4 @@
-use chess5dlib::{game::*};
+use chess5dlib::{game::*, moves::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -13,6 +13,7 @@ fn main() -> std::io::Result<()> {
     file.read_to_string(&mut contents)?;
 
     let game = Game::from(json::parse(&contents).expect("Couldn't parse JSON"));
+    println!("{:#?}", probable_moves(&game, game.get_last_board(0.0).unwrap(), &vec![]));
 
     Ok(())
 }
