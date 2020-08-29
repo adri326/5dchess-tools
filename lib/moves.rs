@@ -2,6 +2,68 @@
 use super::game::*;
 use std::fmt;
 
+lazy_static! {
+    pub static ref PERMUTATIONS: Vec<Vec<(isize, isize, isize, isize)>> = {
+        [
+            (vec![
+                (2, 1, 0, 0),
+                (1, 2, 0, 0),
+                (0, 2, 1, 0),
+                (0, 1, 2, 0),
+                (0, 0, 2, 1),
+                (0, 0, 1, 2),
+                (1, 0, 0, 2),
+                (2, 0, 0, 1),
+                (2, 0, 1, 0),
+                (1, 0, 2, 0),
+                (0, 2, 0, 1),
+                (0, 1, 0, 2),
+            ], 2),
+            (vec![
+                (1, 0, 0, 0),
+                (0, 1, 0, 0),
+                (0, 0, 1, 0),
+                (0, 0, 0, 1),
+            ], 1),
+            (vec![
+                (1, 1, 0, 0),
+                (0, 1, 1, 0),
+                (0, 0, 1, 1),
+                (1, 0, 0, 1),
+                (1, 0, 1, 0),
+                (0, 1, 0, 1),
+            ], 2),
+            (vec![
+                (0, 1, 1, 1),
+                (1, 0, 1, 1),
+                (1, 1, 0, 1),
+                (1, 1, 1, 0),
+            ], 3),
+            (vec![
+                (1, 1, 1, 1),
+            ], 4),
+        ].iter().map(|(group, cardinality)| {
+            let mut res: Vec<(isize, isize, isize, isize)> = Vec::with_capacity(group.len() * 2usize.pow(*cardinality));
+            for element in group {
+                for perm_index in 0..(2usize.pow(*cardinality)) {
+                    let mut perm: Vec<isize> = Vec::with_capacity(4);
+                    let mut o = 0usize;
+                    for i in vec![element.0, element.1, element.2, element.3] {
+                        if i != 0 {
+                            perm.push(if (perm_index >> o) % 2 == 1 {-i} else {i});
+                            o += 1;
+                        } else {
+                            perm.push(0);
+                        }
+                    }
+                    res.push((perm[0], perm[1], perm[2], perm[3]));
+                }
+            }
+            res
+        }).collect()
+    };
+}
+
 #[derive(Clone, Copy)]
 pub struct Move {
     pub src: (f32, usize, usize, usize), // l, t, x, y

@@ -12,3 +12,4 @@ path = "lib/main.rs"
 
 [dependencies]
 json = "0.12.4"
+lazy_static = "1.4.0"
