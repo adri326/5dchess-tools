@@ -428,6 +428,30 @@ pub fn timeline_above(game: &Game, l: f32) -> f32 {
     }
 }
 
+pub fn shift_timeline(game: &Game, mut l: f32, dl: isize) -> f32 {
+    if game.even_initial_timelines() {
+        if l == -0.5 {
+            l = 0.0;
+        } else if l == 0.5 {
+            l = 1.0;
+        } else if l > 0.0 {
+            l += 1.0;
+        }
+        l += dl as f32;
+        if l == 0.0 {
+            -0.5
+        } else if l == 1.0 {
+            0.5
+        } else if l > 1.0 {
+            l - 1.0
+        } else {
+            l
+        }
+    } else {
+        l + dl as f32
+    }
+}
+
 pub fn write_timeline(l: f32) -> String {
     if l == -0.5 {
         String::from("-0")

@@ -263,6 +263,21 @@ fn probable_moves_for(
                 }
             }
         }
+    } else if piece.is_knight() {
+        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 0, active_player)?;
+    } else if piece.is_rook() {
+        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 1, active_player)?;
+    } else if piece.is_bishop() {
+        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 2, active_player)?;
+    } else if piece.is_unicorn() {
+        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 3, active_player)?;
+    } else if piece.is_dragon() {
+        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 4, active_player)?;
+    } else if piece.is_queen() {
+        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 1, active_player)?;
+        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 2, active_player)?;
+        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 3, active_player)?;
+        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 4, active_player)?;
     }
     Some(())
 }
@@ -306,4 +321,43 @@ fn may_en_passant(
         (Some(true), Some(true), Some(true), Some(true)) => true,
         _ => false,
     }
+}
+
+fn n_gonal(
+    game: &Game,
+    board: &Board,
+    virtual_boards: &Vec<Board>,
+    res: &mut Vec<Move>,
+    src: (f32, usize, usize, usize),
+    n: usize,
+    active_player: bool,
+) -> Option<()> {
+    for permutation in &PERMUTATIONS[n] {
+        let mut length: isize = 1;
+        loop {
+            let l0 = shift_timeline(game, src.0, permutation.0 * length);
+            let t0 = src.1 as isize + permutation.1 * length * 2;
+            let x0 = src.2 as isize + permutation.2 * length;
+            let y0 = src.3 as isize + permutation.3 * length;
+            if t0 < 0 || x0 < 0 || x0 >= game.width as isize || y0 < 0 || y0 >= game.height as isize {
+                break;
+            }
+            let dst = (l0, t0 as usize, x0 as usize, y0 as usize);
+            let piece = get(game, board, virtual_boards, dst);
+
+            if let Some(true) = piece.map(|piece| piece.is_takable_piece(active_player)) {
+                res.push(Move::new(src, dst, game, board, virtual_boards)?);
+                if piece.unwrap().is_opponent_piece(active_player) {
+                    break;
+                }
+            } else {
+                break;
+            }
+            if n == 0 {
+                break;
+            }
+            length += 1;
+        }
+    }
+    Some(())
 }
