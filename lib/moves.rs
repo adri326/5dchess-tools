@@ -74,6 +74,7 @@ pub struct Move {
     pub dst: (f32, usize, usize, usize), // l, t, x, y
     pub castle: bool,
     pub castle_long: bool,
+    pub en_passant: Option<(usize, usize)>,
     pub src_piece: Piece,
     pub dst_piece: Piece,
 }
@@ -118,13 +119,40 @@ impl Move {
         board: &Board,
         virtual_boards: &Vec<Board>,
     ) -> Option<Self> {
+        let src_piece = get(game, board, virtual_boards, src)?;
+        let dst_piece = get(game, board, virtual_boards, dst)?;
         Some(Move {
             src,
             dst,
             castle: false,
             castle_long: false,
-            src_piece: get(game, board, virtual_boards, src)?,
-            dst_piece: get(game, board, virtual_boards, dst)?,
+            en_passant: if dst.3 == src.3 || !src_piece.is_pawn() || !dst_piece.is_blank() {
+                None
+            } else {
+                Some((dst.2, if src_piece.is_blank() {dst.3 - 1} else {dst.3 + 1}))
+            },
+            src_piece,
+            dst_piece,
+        })
+    }
+
+    fn castle(
+        long: bool,
+        src: (f32, usize, usize, usize),
+        dst: (usize, usize),
+        game: &Game,
+        board: &Board,
+        virtual_boards: &Vec<Board>,
+    ) -> Option<Self> {
+        let src_piece = get(game, board, virtual_boards, src)?;
+        Some(Move {
+            src,
+            dst: (src.0, src.1, dst.0, dst.1),
+            castle: true,
+            castle_long: long,
+            en_passant: None,
+            src_piece,
+            dst_piece: if src_piece.is_white() {Piece::RookW} else {Piece::RookB}
         })
     }
 }
@@ -141,6 +169,103 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
                     piece.is_black()
                 } {
                     probable_moves_for(game, board, virtual_boards, &mut res, piece, x, y);
+                }
+            }
+        }
+    }
+
+    if board.active_player() {
+        if board.castle_w.0 {
+            // TODO: check the b and c file
+            let king_w = board.king_w.unwrap();
+            let (mut x, y) = king_w;
+            x -= 1;
+            while let Some(piece) = board.get(x, y) {
+                if let Piece::RookW = piece {
+                    res.push(Move::castle(
+                        true,
+                        (board.l, board.t, king_w.0, king_w.1),
+                        (x, y),
+                        game,
+                        board,
+                        virtual_boards
+                    ).unwrap());
+                } else if let Piece::Blank = piece {
+                    x -= 1;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+        if board.castle_w.1 {
+            // TODO: check the f and g file
+            let king_w = board.king_w.unwrap();
+            let (mut x, y) = king_w;
+            x += 1;
+            while let Some(piece) = board.get(x, y) {
+                if let Piece::RookW = piece {
+                    res.push(Move::castle(
+                        false,
+                        (board.l, board.t, king_w.0, king_w.1),
+                        (x, y),
+                        game,
+                        board,
+                        virtual_boards
+                    ).unwrap());
+                } else if let Piece::Blank = piece {
+                    x += 1;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+    if board.active_player() {
+        if board.castle_b.0 {
+            // TODO: check the b and c file
+            let king_b = board.king_b.unwrap();
+            let (mut x, y) = king_b;
+            x -= 1;
+            while let Some(piece) = board.get(x, y) {
+                if let Piece::RookB = piece {
+                    res.push(Move::castle(
+                        true,
+                        (board.l, board.t, king_b.0, king_b.1),
+                        (x, y),
+                        game,
+                        board,
+                        virtual_boards
+                    ).unwrap());
+                } else if let Piece::Blank = piece {
+                    x -= 1;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+        if board.castle_b.1 {
+            // TODO: check the f and g file
+            let king_b = board.king_b.unwrap();
+            let (mut x, y) = king_b;
+            x += 1;
+            while let Some(piece) = board.get(x, y) {
+                if let Piece::RookB = piece {
+                    res.push(Move::castle(
+                        false,
+                        (board.l, board.t, king_b.0, king_b.1),
+                        (x, y),
+                        game,
+                        board,
+                        virtual_boards
+                    ).unwrap());
+                } else if let Piece::Blank = piece {
+                    x += 1;
+                    continue;
+                } else {
+                    break;
                 }
             }
         }
