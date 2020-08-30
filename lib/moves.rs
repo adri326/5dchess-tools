@@ -5,52 +5,55 @@ use std::fmt;
 lazy_static! {
     pub static ref PERMUTATIONS: Vec<Vec<(isize, isize, isize, isize)>> = {
         [
-            (vec![
-                (2, 1, 0, 0),
-                (1, 2, 0, 0),
-                (0, 2, 1, 0),
-                (0, 1, 2, 0),
-                (0, 0, 2, 1),
-                (0, 0, 1, 2),
-                (1, 0, 0, 2),
-                (2, 0, 0, 1),
-                (2, 0, 1, 0),
-                (1, 0, 2, 0),
-                (0, 2, 0, 1),
-                (0, 1, 0, 2),
-            ], 2),
-            (vec![
-                (1, 0, 0, 0),
-                (0, 1, 0, 0),
-                (0, 0, 1, 0),
-                (0, 0, 0, 1),
-            ], 1),
-            (vec![
-                (1, 1, 0, 0),
-                (0, 1, 1, 0),
-                (0, 0, 1, 1),
-                (1, 0, 0, 1),
-                (1, 0, 1, 0),
-                (0, 1, 0, 1),
-            ], 2),
-            (vec![
-                (0, 1, 1, 1),
-                (1, 0, 1, 1),
-                (1, 1, 0, 1),
-                (1, 1, 1, 0),
-            ], 3),
-            (vec![
-                (1, 1, 1, 1),
-            ], 4),
-        ].iter().map(|(group, cardinality)| {
-            let mut res: Vec<(isize, isize, isize, isize)> = Vec::with_capacity(group.len() * 2usize.pow(*cardinality));
+            (
+                vec![
+                    (2, 1, 0, 0),
+                    (1, 2, 0, 0),
+                    (0, 2, 1, 0),
+                    (0, 1, 2, 0),
+                    (0, 0, 2, 1),
+                    (0, 0, 1, 2),
+                    (1, 0, 0, 2),
+                    (2, 0, 0, 1),
+                    (2, 0, 1, 0),
+                    (1, 0, 2, 0),
+                    (0, 2, 0, 1),
+                    (0, 1, 0, 2),
+                ],
+                2,
+            ),
+            (
+                vec![(1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)],
+                1,
+            ),
+            (
+                vec![
+                    (1, 1, 0, 0),
+                    (0, 1, 1, 0),
+                    (0, 0, 1, 1),
+                    (1, 0, 0, 1),
+                    (1, 0, 1, 0),
+                    (0, 1, 0, 1),
+                ],
+                2,
+            ),
+            (
+                vec![(0, 1, 1, 1), (1, 0, 1, 1), (1, 1, 0, 1), (1, 1, 1, 0)],
+                3,
+            ),
+            (vec![(1, 1, 1, 1)], 4),
+        ]
+        .iter()
+        .map(|(group, cardinality)| {
+            let mut res: Vec<(isize, isize, isize, isize)> =
+                Vec::with_capacity(group.len() * 2usize.pow(*cardinality));
             for element in group {
                 for perm_index in 0..(2usize.pow(*cardinality)) {
                     let mut perm: Vec<isize> = Vec::with_capacity(4);
                     let mut o = 0usize;
                     for i in vec![element.0, element.1, element.2, element.3] {
                         if i != 0 {
-                            perm.push(if (perm_index >> o) % 2 == 1 {-i} else {i});
+                            perm.push(if (perm_index >> o) % 2 == 1 { -i } else { i });
                             o += 1;
                         } else {
                             perm.push(0);
@@ -60,7 +63,8 @@ lazy_static! {
                 }
             }
             res
-        }).collect()
+        })
+        .collect()
     };
 }
 
@@ -78,7 +82,12 @@ impl fmt::Debug for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.castle {
             if self.castle_long {
-                write!(f, "({}T{})O-O-O", write_timeline(self.src.0), self.src.1 / 2)
+                write!(
+                    f,
+                    "({}T{})O-O-O",
+                    write_timeline(self.src.0),
+                    self.src.1 / 2
+                )
             } else {
                 write!(f, "({}T{})O-O", write_timeline(self.src.0), self.src.1 / 2)
             }
@@ -248,36 +257,108 @@ fn probable_moves_for(
                         let t1 = ((board.t as isize) + 2 * dt) as usize;
                         let x1 = ((x as isize) + dx) as usize;
                         let y1 = ((y as isize) + dy) as usize;
-                        if let Some(true) = get(game, board, virtual_boards, (l1, t1, x1, y1)).map(|p| p.is_takable_piece(active_player)) {
-                            res.push(
-                                Move::new(
-                                    src,
-                                    (l1, t1, x1, y1),
-                                    game,
-                                    board,
-                                    virtual_boards,
-                                )?
-                            );
+                        if let Some(true) = get(game, board, virtual_boards, (l1, t1, x1, y1))
+                            .map(|p| p.is_takable_piece(active_player))
+                        {
+                            res.push(Move::new(
+                                src,
+                                (l1, t1, x1, y1),
+                                game,
+                                board,
+                                virtual_boards,
+                            )?);
                         }
                     }
                 }
             }
         }
     } else if piece.is_knight() {
-        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 0, active_player)?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            0,
+            active_player,
+        )?;
     } else if piece.is_rook() {
-        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 1, active_player)?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            1,
+            active_player,
+        )?;
     } else if piece.is_bishop() {
-        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 2, active_player)?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            2,
+            active_player,
+        )?;
     } else if piece.is_unicorn() {
-        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 3, active_player)?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            3,
+            active_player,
+        )?;
     } else if piece.is_dragon() {
-        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 4, active_player)?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            4,
+            active_player,
+        )?;
     } else if piece.is_queen() {
-        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 1, active_player)?;
-        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 2, active_player)?;
-        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 3, active_player)?;
-        n_gonal(game, board, virtual_boards, res, (board.l, board.t, x, y), 4, active_player)?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            1,
+            active_player,
+        )?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            2,
+            active_player,
+        )?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            3,
+            active_player,
+        )?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            4,
+            active_player,
+        )?;
     }
     Some(())
 }
@@ -339,7 +420,8 @@ fn n_gonal(
             let t0 = src.1 as isize + permutation.1 * length * 2;
             let x0 = src.2 as isize + permutation.2 * length;
             let y0 = src.3 as isize + permutation.3 * length;
-            if t0 < 0 || x0 < 0 || x0 >= game.width as isize || y0 < 0 || y0 >= game.height as isize {
+            if t0 < 0 || x0 < 0 || x0 >= game.width as isize || y0 < 0 || y0 >= game.height as isize
+            {
                 break;
             }
             let dst = (l0, t0 as usize, x0 as usize, y0 as usize);

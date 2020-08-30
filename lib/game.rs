@@ -6,6 +6,13 @@ pub struct Game {
     pub timelines: Vec<Timeline>,
     pub width: usize,
     pub height: usize,
+    pub info: GameInfo,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct GameInfo {
+    pub present: usize,
+    pub active_player: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +32,10 @@ pub struct Board {
     pub height: usize,
     pub l: f32,
     pub t: usize,
+    pub king_w: Option<(usize, usize)>,
+    pub king_b: Option<(usize, usize)>,
+    pub castle_w: (bool, bool),
+    pub castle_b: (bool, bool),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -77,11 +88,42 @@ impl From<Object> for Game {
             .expect("Expected JSON key 'height' for Game.")
             .as_usize()
             .expect("Expected JSON element 'height' for Game to be a number");
-        Game {
+        let active_player = raw
+            .get("active_player")
+            .expect("Expected JSON key 'active_player' for Game.")
+            .as_bool()
+            .expect("Expected JSON element 'active_player' for Game to be a bool");
+        let min_timeline = timelines
+            .iter()
+            .map(|tl| tl.index)
+            .min_by_key(|x| (*x) as usize)
+            .expect("No timeline!");
+        let max_timeline = timelines
+            .iter()
+            .map(|tl| tl.index)
+            .max_by_key(|x| (*x) as usize)
+            .expect("No timeline!");
+        let timeline_width = ((-min_timeline).min(max_timeline) + 1.0).round();
+        let active_timelines = timelines
+            .iter()
+            .filter(|tl| tl.index.abs() <= timeline_width);
+        let present = active_timelines
+            .map(|tl| tl.begins_at + tl.states.len())
+            .min()
+            .expect("No timeline!");
+        let mut res = Game {
             timelines,
             width,
             height,
-        }
+            info: GameInfo {
+                active_player,
+                present,
+            },
+        };
+
+        populate_castling_rights(&mut res);
+
+        res
     }
 }
 
@@ -136,6 +178,10 @@ impl From<&Object> for Timeline {
                             height,
                             l: index,
                             t,
+                            king_w: None,
+                            king_b: None,
+                            castle_w: (false, false),
+                            castle_b: (false, false),
                         });
                     } else {
                         panic!("Expected JSON State to be an array.")
@@ -299,17 +345,28 @@ impl Piece {
     }
 
     pub fn is_opponent_piece(&self, active_player: bool) -> bool {
-        if active_player {self.is_black()} else {self.is_white()}
+        if active_player {
+            self.is_black()
+        } else {
+            self.is_white()
+        }
     }
 
     pub fn is_takable_piece(&self, active_player: bool) -> bool {
-        self.is_blank() || if active_player {self.is_black()} else {self.is_white()}
+        self.is_blank()
+            || if active_player {
+                self.is_black()
+            } else {
+                self.is_white()
+            }
     }
 }
 
 impl Game {
     pub fn even_initial_timelines(&self) -> bool {
-        self.timelines.iter().any(|tl| tl.index == 0.5 || tl.index == -0.5)
+        self.timelines
+            .iter()
+            .any(|tl| tl.index == 0.5 || tl.index == -0.5)
     }
 
     pub fn get_timeline<'a>(&'a self, l: f32) -> Option<&'a Timeline> {
@@ -321,8 +378,23 @@ impl Game {
         None
     }
 
+    pub fn get_timeline_mut<'a>(&'a mut self, l: f32) -> Option<&'a mut Timeline> {
+        for timeline in self.timelines.iter_mut() {
+            if timeline.index == l {
+                return Some(timeline);
+            }
+        }
+        None
+    }
+
     pub fn get_board<'a>(&'a self, l: f32, t: usize) -> Option<&'a Board> {
         self.get_timeline(l).map(|tl| tl.get_board(t)).flatten()
+    }
+
+    pub fn get_board_mut<'a>(&'a mut self, l: f32, t: usize) -> Option<&'a mut Board> {
+        self.get_timeline_mut(l)
+            .map(|tl| tl.get_board_mut(t))
+            .flatten()
     }
 
     pub fn get_last_board<'a>(&'a self, l: f32) -> Option<&'a Board> {
@@ -344,6 +416,14 @@ impl Timeline {
             None
         } else {
             self.states.get(t - self.begins_at)
+        }
+    }
+
+    pub fn get_board_mut<'a>(&'a mut self, t: usize) -> Option<&'a mut Board> {
+        if t < self.begins_at {
+            None
+        } else {
+            self.states.get_mut(t - self.begins_at)
         }
     }
 
@@ -408,6 +488,59 @@ impl fmt::Display for Board {
     }
 }
 
+pub fn bubble_up<'a, F>(game: &'a Game, mut l: f32, mut t: usize, mut f: F)
+where
+    F: FnMut(&'a Board) -> bool,
+{
+    while let Some(board) = game.get_board(l, t) {
+        if !f(board) {
+            break;
+        }
+        t -= 1;
+        let tl = game.get_timeline(l).unwrap();
+        if t < tl.begins_at {
+            if let Some(l2) = tl.emerges_from {
+                l = l2;
+            }
+        }
+    }
+}
+
+pub fn bubble_down<'a, F, T>(game: &'a mut Game, l: f32, mut t: usize, mut f: F, initial: T)
+where
+    F: FnMut(&'_ mut Board, T) -> (bool, T),
+    F: Copy,
+    T: Copy,
+{
+    let checkpoints: Vec<(f32, usize)> = game
+        .timelines
+        .iter()
+        .filter(|tl| tl.emerges_from == Some(l))
+        .map(|tl| (tl.index, tl.begins_at))
+        .filter(|x| x.1 > t)
+        .collect();
+    let mut previous_value: T = initial;
+    loop {
+        match game.get_board_mut(l, t) {
+            Some(b) => {
+                let res = f(b, previous_value);
+                if !res.0 {
+                    break;
+                }
+                previous_value = res.1;
+            }
+            _ => break,
+        }
+
+        t += 1;
+        checkpoints.iter().for_each(|(index, begins_at)| {
+            if *begins_at == t + 1 {
+                bubble_down(game, *index, t + 1, f, previous_value)
+            }
+        });
+    }
+}
+
 pub fn timeline_below(game: &Game, l: f32) -> f32 {
     if l == 1.0 && game.even_initial_timelines() {
         0.5
@@ -463,5 +596,170 @@ pub fn write_timeline(l: f32) -> String {
 }
 
 pub fn write_file(x: usize) -> char {
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w'][x]
+    [
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+        's', 't', 'u', 'v', 'w',
+    ][x]
+}
+
+/**
+    Populates the castling rights of every board in the game; does so by induction
+**/
+pub fn populate_castling_rights(game: &mut Game) {
+    let width = game.width;
+    let height = game.height;
+    let timeline_indices: Vec<f32> = game
+        .timelines
+        .iter()
+        .filter(|tl| tl.begins_at == 0)
+        .map(|tl| tl.index.clone())
+        .collect();
+
+    for l in timeline_indices {
+        // Extract white and black's position
+        let (king_w, king_b) = {
+            let board = game.get_board(l, 0).unwrap();
+            let kings_w: Vec<(usize, Piece)> = board
+                .pieces
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(_i, p)| *p == Piece::KingW)
+                .collect();
+            let kings_b: Vec<(usize, Piece)> = board
+                .pieces
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(_i, p)| *p == Piece::KingB)
+                .collect();
+            if kings_w.len() != 1 && kings_b.len() != 1 {
+                continue;
+            }
+            (
+                kings_w.get(0).map(|k| (k.0 % width, k.0 / width)),
+                kings_b.get(0).map(|k| (k.0 % width, k.0 / width)),
+            )
+        };
+
+        // Get rook positions
+        let (rook_w1, rook_w2, rook_b1, rook_b2) = {
+            let board = game.get_board(l, 0).unwrap();
+
+            let rooks_w: Vec<(usize, Piece)> = board
+                .pieces
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(i, p)| {
+                    *p == Piece::RookW && *i / width == king_w.map(|k| k.1).unwrap_or(height)
+                })
+                .collect();
+            let rooks_b: Vec<(usize, Piece)> = board
+                .pieces
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(i, p)| {
+                    *p == Piece::RookB && *i / width == king_b.map(|k| k.1).unwrap_or(height)
+                })
+                .collect();
+
+            let rook_w_left = rooks_w
+                .iter()
+                .filter(|(i, _p)| i % width < king_w.map(|k| k.0).unwrap_or(0))
+                .max_by_key(|(i, _p)| i % width);
+            let rook_w_right = rooks_w
+                .iter()
+                .filter(|(i, _p)| i % width > king_w.map(|k| k.0).unwrap_or(width))
+                .min_by_key(|(i, _p)| i % width);
+            let rook_b_left = rooks_b
+                .iter()
+                .filter(|(i, _p)| i % width < king_b.map(|k| k.0).unwrap_or(0))
+                .max_by_key(|(i, _p)| i % width);
+            let rook_b_right = rooks_b
+                .iter()
+                .filter(|(i, _p)| i % width > king_b.map(|k| k.0).unwrap_or(width))
+                .min_by_key(|(i, _p)| i % width);
+
+            (
+                rook_w_left.map(|(i, _p)| (i % width, i / width)),
+                rook_w_right.map(|(i, _p)| (i % width, i / width)),
+                rook_b_left.map(|(i, _p)| (i % width, i / width)),
+                rook_b_right.map(|(i, _p)| (i % width, i / width)),
+            )
+        };
+
+        // Bubble down!
+        bubble_down(
+            game,
+            l,
+            0,
+            |board, mut last_state| {
+                if last_state.0 {
+                    last_state.0 = rook_w1
+                        .map(|(x, y)| board.get(x, y))
+                        .flatten()
+                        .map(|p| p == Piece::RookW)
+                        .unwrap();
+                }
+                if last_state.1 {
+                    last_state.1 = rook_w2
+                        .map(|(x, y)| board.get(x, y))
+                        .flatten()
+                        .map(|p| p == Piece::RookW)
+                        .unwrap();
+                }
+                if last_state.2 {
+                    last_state.2 = rook_b1
+                        .map(|(x, y)| board.get(x, y))
+                        .flatten()
+                        .map(|p| p == Piece::RookB)
+                        .unwrap();
+                }
+                if last_state.3 {
+                    last_state.3 = rook_b2
+                        .map(|(x, y)| board.get(x, y))
+                        .flatten()
+                        .map(|p| p == Piece::RookB)
+                        .unwrap();
+                }
+                if last_state.0 || last_state.1 {
+                    if king_w
+                        .map(|(x, y)| board.get(x, y))
+                        .flatten()
+                        .map(|p| p != Piece::KingW)
+                        .unwrap()
+                    {
+                        last_state.0 = false;
+                        last_state.1 = false;
+                    }
+                }
+                if last_state.2 || last_state.3 {
+                    if king_b
+                        .map(|(x, y)| board.get(x, y))
+                        .flatten()
+                        .map(|p| p != Piece::KingB)
+                        .unwrap()
+                    {
+                        last_state.2 = false;
+                        last_state.3 = false;
+                    }
+                }
+
+                board.king_w = king_w;
+                board.king_b = king_b;
+                board.castle_w = (last_state.0, last_state.1);
+                board.castle_b = (last_state.2, last_state.3);
+
+                (true, last_state)
+            },
+            (
+                rook_w1.is_some() && king_w.is_some(),
+                rook_w2.is_some() && king_w.is_some(),
+                rook_b1.is_some() && king_b.is_some(),
+                rook_b2.is_some() && king_b.is_some(),
+            ),
+        );
+    }
 }
