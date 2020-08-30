@@ -13,6 +13,8 @@ pub struct Game {
 pub struct GameInfo {
     pub present: usize,
     pub active_player: bool,
+    pub min_timeline: f32,
+    pub max_timeline: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -118,6 +120,8 @@ impl From<Object> for Game {
             info: GameInfo {
                 active_player,
                 present,
+                min_timeline,
+                max_timeline,
             },
         };
 
@@ -433,11 +437,20 @@ impl Timeline {
 }
 
 impl Board {
-    pub fn get<'a>(&'a self, x: usize, y: usize) -> Option<Piece> {
+    pub fn get(&self, x: usize, y: usize) -> Option<Piece> {
         if x >= self.width || y >= self.height {
             None
         } else {
             self.pieces.get(x + y * self.width).copied()
+        }
+    }
+
+    pub fn set(&mut self, x: usize, y: usize, piece: Piece) -> Option<()> {
+        if x >= self.width || y >= self.height {
+            None
+        } else {
+            self.pieces[x + y * self.width] = piece;
+            Some(())
         }
     }
 

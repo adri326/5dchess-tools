@@ -13,10 +13,13 @@ fn main() -> std::io::Result<()> {
     file.read_to_string(&mut contents)?;
 
     let game = Game::from(json::parse(&contents).expect("Couldn't parse JSON"));
-    println!(
-        "{:#?}",
-        probable_moves(&game, game.get_last_board(0.0).unwrap(), &vec![])
-    );
+
+    for boards in probable_moves(&game, game.get_last_board(0.0).unwrap(), &vec![])
+        .into_iter()
+        .map(|m| m.generate_vboards(&game, &game.info, &vec![]).unwrap().1)
+    {
+        println!("{}\n", boards[0]);
+    }
 
     Ok(())
 }

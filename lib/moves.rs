@@ -116,11 +116,10 @@ impl Move {
         src: (f32, usize, usize, usize),
         dst: (f32, usize, usize, usize),
         game: &Game,
-        board: &Board,
         virtual_boards: &Vec<Board>,
     ) -> Option<Self> {
-        let src_piece = get(game, board, virtual_boards, src)?;
-        let dst_piece = get(game, board, virtual_boards, dst)?;
+        let src_piece = get(game, virtual_boards, src)?;
+        let dst_piece = get(game, virtual_boards, dst)?;
         Some(Move {
             src,
             dst,
@@ -129,7 +128,14 @@ impl Move {
             en_passant: if dst.3 == src.3 || !src_piece.is_pawn() || !dst_piece.is_blank() {
                 None
             } else {
-                Some((dst.2, if src_piece.is_blank() {dst.3 - 1} else {dst.3 + 1}))
+                Some((
+                    dst.2,
+                    if src_piece.is_blank() {
+                        dst.3 - 1
+                    } else {
+                        dst.3 + 1
+                    },
+                ))
             },
             src_piece,
             dst_piece,
@@ -144,7 +150,7 @@ impl Move {
         board: &Board,
         virtual_boards: &Vec<Board>,
     ) -> Option<Self> {
-        let src_piece = get(game, board, virtual_boards, src)?;
+        let src_piece = get(game, virtual_boards, src)?;
         Some(Move {
             src,
             dst: (src.0, src.1, dst.0, dst.1),
@@ -152,8 +158,84 @@ impl Move {
             castle_long: long,
             en_passant: None,
             src_piece,
-            dst_piece: if src_piece.is_white() {Piece::RookW} else {Piece::RookB}
+            dst_piece: if src_piece.is_white() {
+                Piece::RookW
+            } else {
+                Piece::RookB
+            },
         })
+    }
+
+    pub fn generate_vboards(
+        &self,
+        game: &Game,
+        info: &GameInfo,
+        virtual_boards: &Vec<Board>,
+    ) -> Option<(GameInfo, Vec<Board>)> {
+        if self.castle {
+            let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
+            new_board.t += 1;
+            new_board.set(self.src.2, self.src.3, Piece::Blank);
+            new_board.set(self.dst.2, self.dst.3, Piece::Blank);
+
+            new_board.set(
+                self.src.2,
+                if self.castle_long { 2 } else { game.width - 2 },
+                if new_board.active_player() {
+                    Piece::KingB
+                } else {
+                    Piece::KingW
+                },
+            );
+            new_board.set(
+                self.dst.2,
+                if self.castle_long { 3 } else { game.width - 3 },
+                if new_board.active_player() {
+                    Piece::RookB
+                } else {
+                    Piece::RookW
+                },
+            );
+            Some((info.clone(), vec![new_board]))
+        } else if self.en_passant.is_some() {
+            let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
+            new_board.t += 1;
+            new_board.set(self.src.2, self.src.3, Piece::Blank);
+            new_board.set(self.en_passant?.0, self.en_passant?.1, Piece::Blank);
+            new_board.set(self.dst.2, self.dst.3, self.src_piece);
+            Some((info.clone(), vec![new_board]))
+        } else {
+            if self.src.0 == self.dst.0 && self.src.1 == self.dst.1 {
+                // Non-branching move
+                let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
+                new_board.t += 1;
+                new_board.set(self.src.2, self.src.3, Piece::Blank);
+                new_board.set(self.dst.2, self.dst.3, self.src_piece);
+                Some((info.clone(), vec![new_board]))
+            } else {
+                let mut new_src_board =
+                    get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
+                let mut new_dst_board =
+                    get_board(game, virtual_boards, (self.dst.0, self.dst.1))?.clone();
+
+                let mut new_info = info.clone();
+                if !is_last(game, virtual_boards, &new_dst_board) {
+                    new_dst_board.l = if new_src_board.active_player() {
+                        new_info.max_timeline = timeline_above(game, info.max_timeline);
+                        timeline_above(game, info.max_timeline)
+                    } else {
+                        new_info.max_timeline = timeline_below(game, info.min_timeline);
+                        timeline_below(game, info.min_timeline)
+                    };
+                }
+                new_src_board.t += 1;
+                new_dst_board.t += 1;
+                new_src_board.set(self.src.2, self.src.3, Piece::Blank);
+                new_dst_board.set(self.dst.2, self.dst.3, self.src_piece);
+
+                Some((new_info, vec![new_src_board, new_dst_board]))
+            }
+        }
     }
 }
 
@@ -182,14 +264,17 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
             x -= 1;
             while let Some(piece) = board.get(x, y) {
                 if let Piece::RookW = piece {
-                    res.push(Move::castle(
-                        true,
-                        (board.l, board.t, king_w.0, king_w.1),
-                        (x, y),
-                        game,
-                        board,
-                        virtual_boards
-                    ).unwrap());
+                    res.push(
+                        Move::castle(
+                            true,
+                            (board.l, board.t, king_w.0, king_w.1),
+                            (x, y),
+                            game,
+                            board,
+                            virtual_boards,
+                        )
+                        .unwrap(),
+                    );
                 } else if let Piece::Blank = piece {
                     x -= 1;
                     continue;
@@ -205,14 +290,17 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
             x += 1;
             while let Some(piece) = board.get(x, y) {
                 if let Piece::RookW = piece {
-                    res.push(Move::castle(
-                        false,
-                        (board.l, board.t, king_w.0, king_w.1),
-                        (x, y),
-                        game,
-                        board,
-                        virtual_boards
-                    ).unwrap());
+                    res.push(
+                        Move::castle(
+                            false,
+                            (board.l, board.t, king_w.0, king_w.1),
+                            (x, y),
+                            game,
+                            board,
+                            virtual_boards,
+                        )
+                        .unwrap(),
+                    );
                 } else if let Piece::Blank = piece {
                     x += 1;
                     continue;
@@ -230,14 +318,17 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
             x -= 1;
             while let Some(piece) = board.get(x, y) {
                 if let Piece::RookB = piece {
-                    res.push(Move::castle(
-                        true,
-                        (board.l, board.t, king_b.0, king_b.1),
-                        (x, y),
-                        game,
-                        board,
-                        virtual_boards
-                    ).unwrap());
+                    res.push(
+                        Move::castle(
+                            true,
+                            (board.l, board.t, king_b.0, king_b.1),
+                            (x, y),
+                            game,
+                            board,
+                            virtual_boards,
+                        )
+                        .unwrap(),
+                    );
                 } else if let Piece::Blank = piece {
                     x -= 1;
                     continue;
@@ -253,14 +344,17 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
             x += 1;
             while let Some(piece) = board.get(x, y) {
                 if let Piece::RookB = piece {
-                    res.push(Move::castle(
-                        false,
-                        (board.l, board.t, king_b.0, king_b.1),
-                        (x, y),
-                        game,
-                        board,
-                        virtual_boards
-                    ).unwrap());
+                    res.push(
+                        Move::castle(
+                            false,
+                            (board.l, board.t, king_b.0, king_b.1),
+                            (x, y),
+                            game,
+                            board,
+                            virtual_boards,
+                        )
+                        .unwrap(),
+                    );
                 } else if let Piece::Blank = piece {
                     x += 1;
                     continue;
@@ -274,21 +368,40 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
     res
 }
 
-fn get(
-    game: &Game,
-    board: &Board,
-    virtual_boards: &Vec<Board>,
-    pos: (f32, usize, usize, usize),
-) -> Option<Piece> {
-    if pos.0 == board.l && pos.1 == board.t {
-        return board.get(pos.2, pos.3);
-    }
+fn get_board<'a, 'b, 'd>(
+    game: &'a Game,
+    virtual_boards: &'b Vec<Board>,
+    pos: (f32, usize),
+) -> Option<&'d Board>
+where
+    'a: 'd,
+    'b: 'd,
+{
     for vboard in virtual_boards.iter() {
         if pos.0 == vboard.l && pos.1 == vboard.t {
-            return vboard.get(pos.2, pos.3);
+            return Some(vboard);
         }
     }
-    game.get(pos.0, pos.1, pos.2, pos.3)
+    game.get_board(pos.0, pos.1)
+}
+
+fn get(game: &Game, virtual_boards: &Vec<Board>, pos: (f32, usize, usize, usize)) -> Option<Piece> {
+    get_board(game, virtual_boards, (pos.0, pos.1))
+        .map(|b| b.get(pos.2, pos.3))
+        .flatten()
+}
+
+pub fn is_last(game: &Game, virtual_boards: &Vec<Board>, board: &Board) -> bool {
+    if let Some(tl) = game.get_timeline(board.l) {
+        tl.states.len() + tl.begins_at <= board.t
+    } else {
+        for vboard in virtual_boards.iter() {
+            if vboard.l == board.l && vboard.t > board.t {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 fn probable_moves_for(
@@ -306,26 +419,24 @@ fn probable_moves_for(
         let dy: isize = if piece.is_white() { 1 } else { -1 };
         let y1 = ((y as isize) + dy) as usize;
         let y2 = ((y as isize) + 2 * dy) as usize;
-        if get(game, board, virtual_boards, (board.l, board.t, x, y1))? == Piece::Blank {
+        if get(game, virtual_boards, (board.l, board.t, x, y1))? == Piece::Blank {
             res.push(Move::new(
                 src,
                 (board.l, board.t, x, y1),
                 game,
-                board,
                 virtual_boards,
             )?);
             if if piece.is_white() {
                 y <= 1
             } else {
                 y >= game.height - 2
-            } && get(game, board, virtual_boards, (board.l, board.t, x, y2))? == Piece::Blank
+            } && get(game, virtual_boards, (board.l, board.t, x, y2))? == Piece::Blank
             {
                 // TODO: handle 1-pawn better
                 res.push(Move::new(
                     src,
                     (board.l, board.t, x, y2),
                     game,
-                    board,
                     virtual_boards,
                 )?);
             }
@@ -333,28 +444,26 @@ fn probable_moves_for(
         // Try to take on x + 1
         if x < game.width - 1
             && (may_en_passant(game, board, virtual_boards, x + 1, y1)
-                || get(game, board, virtual_boards, (board.l, board.t, x + 1, y1))?
+                || get(game, virtual_boards, (board.l, board.t, x + 1, y1))?
                     .is_opponent_piece(active_player))
         {
             res.push(Move::new(
                 src,
                 (board.l, board.t, x + 1, y1),
                 game,
-                board,
                 virtual_boards,
             )?);
         }
         // Try to take on x - 1
         if x > 0
             && (may_en_passant(game, board, virtual_boards, x - 1, y1)
-                || get(game, board, virtual_boards, (board.l, board.t, x - 1, y1))?
+                || get(game, virtual_boards, (board.l, board.t, x - 1, y1))?
                     .is_opponent_piece(active_player))
         {
             res.push(Move::new(
                 src,
                 (board.l, board.t, x - 1, y1),
                 game,
-                board,
                 virtual_boards,
             )?);
         }
@@ -382,16 +491,10 @@ fn probable_moves_for(
                         let t1 = ((board.t as isize) + 2 * dt) as usize;
                         let x1 = ((x as isize) + dx) as usize;
                         let y1 = ((y as isize) + dy) as usize;
-                        if let Some(true) = get(game, board, virtual_boards, (l1, t1, x1, y1))
+                        if let Some(true) = get(game, virtual_boards, (l1, t1, x1, y1))
                             .map(|p| p.is_takable_piece(active_player))
                         {
-                            res.push(Move::new(
-                                src,
-                                (l1, t1, x1, y1),
-                                game,
-                                board,
-                                virtual_boards,
-                            )?);
+                            res.push(Move::new(src, (l1, t1, x1, y1), game, virtual_boards)?);
                         }
                     }
                 }
@@ -400,7 +503,6 @@ fn probable_moves_for(
     } else if piece.is_knight() {
         n_gonal(
             game,
-            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -410,7 +512,6 @@ fn probable_moves_for(
     } else if piece.is_rook() {
         n_gonal(
             game,
-            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -420,7 +521,6 @@ fn probable_moves_for(
     } else if piece.is_bishop() {
         n_gonal(
             game,
-            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -430,7 +530,6 @@ fn probable_moves_for(
     } else if piece.is_unicorn() {
         n_gonal(
             game,
-            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -440,7 +539,6 @@ fn probable_moves_for(
     } else if piece.is_dragon() {
         n_gonal(
             game,
-            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -450,7 +548,6 @@ fn probable_moves_for(
     } else if piece.is_queen() {
         n_gonal(
             game,
-            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -459,7 +556,6 @@ fn probable_moves_for(
         )?;
         n_gonal(
             game,
-            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -468,7 +564,6 @@ fn probable_moves_for(
         )?;
         n_gonal(
             game,
-            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -477,7 +572,6 @@ fn probable_moves_for(
         )?;
         n_gonal(
             game,
-            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -506,23 +600,10 @@ fn may_en_passant(
     } else {
         Piece::PawnW
     };
-    let a = get(game, board, virtual_boards, (board.l, board.t, x, dst_y)).map(|p| p == piece);
-    let b =
-        get(game, board, virtual_boards, (board.l, board.t, x, src_y)).map(|p| p == Piece::Blank);
-    let c = get(
-        game,
-        board,
-        virtual_boards,
-        (board.l, board.t - 2, x, dst_y),
-    )
-    .map(|p| p == Piece::Blank);
-    let d = get(
-        game,
-        board,
-        virtual_boards,
-        (board.l, board.t - 2, x, src_y),
-    )
-    .map(|p| p == piece);
+    let a = get(game, virtual_boards, (board.l, board.t, x, dst_y)).map(|p| p == piece);
+    let b = get(game, virtual_boards, (board.l, board.t, x, src_y)).map(|p| p == Piece::Blank);
+    let c = get(game, virtual_boards, (board.l, board.t - 2, x, dst_y)).map(|p| p == Piece::Blank);
+    let d = get(game, virtual_boards, (board.l, board.t - 2, x, src_y)).map(|p| p == piece);
     match (a, b, c, d) {
         (Some(true), Some(true), Some(true), Some(true)) => true,
         _ => false,
@@ -531,7 +612,6 @@ fn may_en_passant(
 
 fn n_gonal(
     game: &Game,
-    board: &Board,
     virtual_boards: &Vec<Board>,
     res: &mut Vec<Move>,
     src: (f32, usize, usize, usize),
@@ -550,10 +630,10 @@ fn n_gonal(
                 break;
             }
             let dst = (l0, t0 as usize, x0 as usize, y0 as usize);
-            let piece = get(game, board, virtual_boards, dst);
+            let piece = get(game, virtual_boards, dst);
 
             if let Some(true) = piece.map(|piece| piece.is_takable_piece(active_player)) {
-                res.push(Move::new(src, dst, game, board, virtual_boards)?);
+                res.push(Move::new(src, dst, game, virtual_boards)?);
                 if piece.unwrap().is_opponent_piece(active_player) {
                     break;
                 }
