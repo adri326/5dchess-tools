@@ -1,4 +1,4 @@
-use chess5dlib::{game::*, moves::*};
+use chess5dlib::{game::*, moves::*, resolve::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -23,15 +23,31 @@ fn main() -> std::io::Result<()> {
 
     // println!("{:#?}", probable_moves(&game, game.get_last_board(-1.0).unwrap(), &vec![]));
 
-    let legal = legal_movesets(&game, &vec![], &game.info);
-    println!("{:#?}", legal);
-    for (_m, i, b) in legal {
-        println!("{:#?}", i);
-        // let responses = legal_movesets(&game, &b, &i);
-        // println!("{:#?}", responses);
-        // println!("{:#?}", responses.iter().take(1).map(|(_m, i, b)| legal_movesets(&game, b, i).len()).collect::<Vec<_>>());
-        break;
-    }
+    let virtual_boards: Vec<Board> = vec![];
+
+    let opponent_boards = get_opponent_boards(&game, &virtual_boards, &game.info);
+    let board = game.get_last_board(0.0).unwrap();
+
+    let lore = generate_lore(&game, &virtual_boards, board, opponent_boards.into_iter(), &game.info);
+
+    let moves = probable_moves(&game, board, &virtual_boards).into_iter().map(|m| {
+        let (info, vboards) = m.generate_vboards(&game, &game.info, &virtual_boards).unwrap();
+        (m, info, vboards)
+    }).collect::<Vec<_>>();
+    let moves = score_moves(&game, &virtual_boards, board, &lore, moves, &game.info);
+
+    println!("{:?}", lore);
+    println!("{:#?}", moves.into_iter().rev().take(5).map(|(m, _b, _i, s)| format!("{:?} : {}", m, s)).collect::<Vec<_>>());
+
+    // let legal = legal_movesets(&game, &vec![], &game.info);
+    // println!("{:#?}", legal);
+    // for (_m, i, _b) in legal {
+    //     println!("{:#?}", i);
+    //     // let responses = legal_movesets(&game, &b, &i);
+    //     // println!("{:#?}", responses);
+    //     // println!("{:#?}", responses.iter().take(1).map(|(_m, i, b)| legal_movesets(&game, b, i).len()).collect::<Vec<_>>());
+    //     break;
+    // }
 
     Ok(())
 }

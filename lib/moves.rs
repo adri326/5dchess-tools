@@ -256,7 +256,7 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
         }
     }
 
-    if board.active_player() {
+    if board.active_player() && board.width > 5 {
         if board.castle_w.0 {
             // TODO: check the b and c file
             let king_w = board.king_w.unwrap();
@@ -308,7 +308,7 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
             }
         }
     }
-    if board.active_player() {
+    if !board.active_player() && board.width > 5 {
         if board.castle_b.0 {
             // TODO: check the b and c file
             let king_b = board.king_b.unwrap();
@@ -394,6 +394,23 @@ where
     true
 }
 
+pub fn get_opponent_boards<'a, 'b, 'c>(
+    game: &'a Game,
+    virtual_boards: &'b Vec<Board>,
+    info: &'b GameInfo,
+) -> Vec<&'c Board>
+where
+    'a: 'c,
+    'b: 'c,
+{
+    game.timelines
+        .iter()
+        .map(|tl| &tl.states[tl.states.len() - 1])
+        .filter(|b| b.active_player() == !info.active_player && is_last(game, virtual_boards, b))
+        .collect()
+}
+
+// Do not use this, it's way too slow!
 pub fn legal_movesets(
     game: &Game,
     virtual_boards: &Vec<Board>,
@@ -477,7 +494,7 @@ fn legal_movesets_rec(
             let mut n = 0usize;
             for m in probables.clone() {
                 n += 1;
-                if (remaining_boards.len() == 2) {
+                if remaining_boards.len() == 2 {
                     println!("{}/{}", n, probables.len());
                 }
                 let (mut new_info, new_vboards) =
@@ -504,16 +521,18 @@ fn legal_movesets_rec(
                         .chain(new_vboards.into_iter())
                         .collect();
                     new_moves.push(m);
-                    if new_info.present < info.present || legal_movesets_rec(
-                        game,
-                        virtual_boards,
-                        opponent_boards,
-                        res,
-                        new_moves.clone(),
-                        new_info.clone(),
-                        new_branch_vboards.clone(),
-                        remaining_boards.clone(),
-                    ) {
+                    if new_info.present < info.present
+                        || legal_movesets_rec(
+                            game,
+                            virtual_boards,
+                            opponent_boards,
+                            res,
+                            new_moves.clone(),
+                            new_info.clone(),
+                            new_branch_vboards.clone(),
+                            remaining_boards.clone(),
+                        )
+                    {
                         new_info.active_player = !new_info.active_player;
                         new_info.present += 1;
                         res.push((new_moves, new_info, new_branch_vboards));

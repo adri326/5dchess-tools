@@ -348,6 +348,22 @@ impl Piece {
         }
     }
 
+    pub fn slides(&self) -> bool {
+        match &self {
+            Piece::BishopW
+            | Piece::RookW
+            | Piece::QueenW
+            | Piece::UnicornW
+            | Piece::DragonW
+            | Piece::BishopB
+            | Piece::RookB
+            | Piece::QueenB
+            | Piece::UnicornB
+            | Piece::DragonB => true,
+            _ => false,
+        }
+    }
+
     pub fn is_opponent_piece(&self, active_player: bool) -> bool {
         if active_player {
             self.is_black()
