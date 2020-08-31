@@ -98,12 +98,12 @@ impl From<Object> for Game {
         let min_timeline = timelines
             .iter()
             .map(|tl| tl.index)
-            .min_by_key(|x| (*x) as usize)
+            .min_by_key(|x| (*x) as isize)
             .expect("No timeline!");
         let max_timeline = timelines
             .iter()
             .map(|tl| tl.index)
-            .max_by_key(|x| (*x) as usize)
+            .max_by_key(|x| (*x) as isize)
             .expect("No timeline!");
         let timeline_width = ((-min_timeline).min(max_timeline) + 1.0).round();
         let active_timelines = timelines
@@ -181,7 +181,7 @@ impl From<&Object> for Timeline {
                             width,
                             height,
                             l: index,
-                            t,
+                            t: t + begins_at,
                             king_w: None,
                             king_b: None,
                             castle_w: (false, false),
@@ -456,6 +456,15 @@ impl Board {
 
     pub fn active_player(&self) -> bool {
         self.t % 2 == 0
+    }
+
+    pub fn is_active(&self, info: &GameInfo) -> bool {
+        self.t <= info.present
+            && if self.l < 0.0 {
+                self.l >= -info.max_timeline.round() - 1.0
+            } else {
+                self.l <= -info.min_timeline.round() + 1.0
+            }
     }
 }
 

@@ -147,7 +147,6 @@ impl Move {
         src: (f32, usize, usize, usize),
         dst: (usize, usize),
         game: &Game,
-        board: &Board,
         virtual_boards: &Vec<Board>,
     ) -> Option<Self> {
         let src_piece = get(game, virtual_boards, src)?;
@@ -207,7 +206,8 @@ impl Move {
         } else {
             if self.src.0 == self.dst.0 && self.src.1 == self.dst.1 {
                 // Non-branching move
-                let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
+                let mut new_board =
+                    get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
                 new_board.t += 1;
                 new_board.set(self.src.2, self.src.3, Piece::Blank);
                 new_board.set(self.dst.2, self.dst.3, self.src_piece);
@@ -270,7 +270,6 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
                             (board.l, board.t, king_w.0, king_w.1),
                             (x, y),
                             game,
-                            board,
                             virtual_boards,
                         )
                         .unwrap(),
@@ -296,7 +295,6 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
                             (board.l, board.t, king_w.0, king_w.1),
                             (x, y),
                             game,
-                            board,
                             virtual_boards,
                         )
                         .unwrap(),
@@ -324,7 +322,6 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
                             (board.l, board.t, king_b.0, king_b.1),
                             (x, y),
                             game,
-                            board,
                             virtual_boards,
                         )
                         .unwrap(),
@@ -350,7 +347,6 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
                             (board.l, board.t, king_b.0, king_b.1),
                             (x, y),
                             game,
-                            board,
                             virtual_boards,
                         )
                         .unwrap(),
@@ -366,6 +362,168 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
     }
 
     res
+}
+
+pub fn is_move_legal<'a, U>(
+    game: &Game,
+    virtual_boards: &Vec<Board>,
+    info: &GameInfo,
+    boards: U,
+) -> bool
+where
+    U: Iterator<Item = &'a Board>,
+{
+    let active_player = !info.active_player;
+
+    for board in boards {
+        if is_last(game, virtual_boards, board) && board.active_player() == active_player {
+            for m in probable_moves(game, board, virtual_boards) {
+                if m.dst_piece
+                    == (if active_player {
+                        Piece::KingB
+                    } else {
+                        Piece::KingW
+                    })
+                {
+                    return false;
+                }
+            }
+        }
+    }
+
+    true
+}
+
+pub fn legal_movesets(
+    game: &Game,
+    virtual_boards: &Vec<Board>,
+    info: &GameInfo,
+) -> Vec<(Vec<Move>, GameInfo, Vec<Board>)> {
+    let mut boards: Vec<&Board> = game
+        .timelines
+        .iter()
+        .map(|tl| &tl.states[tl.states.len() - 1])
+        .filter(|b| b.active_player() == info.active_player && is_last(game, virtual_boards, b))
+        .collect();
+
+    let mut opponent_boards: Vec<&Board> = game
+        .timelines
+        .iter()
+        .map(|tl| &tl.states[tl.states.len() - 1])
+        .filter(|b| b.active_player() == !info.active_player && is_last(game, virtual_boards, b))
+        .collect();
+
+    for board in virtual_boards {
+        if is_last(game, virtual_boards, board) {
+            if board.active_player() == info.active_player {
+                boards.push(board);
+            } else {
+                opponent_boards.push(board);
+            }
+        }
+    }
+
+    let active_boards: Vec<&Board> = boards
+        .iter()
+        .filter(|b| b.is_active(info))
+        .map(|x| *x)
+        .collect();
+    let _inactive_boards: Vec<&Board> = boards
+        .iter()
+        .filter(|b| !b.is_active(info))
+        .map(|x| *x)
+        .collect();
+
+    let mut res: Vec<(Vec<Move>, GameInfo, Vec<Board>)> = Vec::new();
+
+    // TODO: handle inactive boards and permutations
+
+    legal_movesets_rec(
+        game,
+        virtual_boards,
+        &opponent_boards,
+        &mut res,
+        vec![],
+        info.clone(),
+        vec![],
+        active_boards,
+    );
+
+    res
+}
+
+fn legal_movesets_rec(
+    game: &Game,
+    virtual_boards: &Vec<Board>,
+    opponent_boards: &Vec<&Board>,
+    res: &mut Vec<(Vec<Move>, GameInfo, Vec<Board>)>,
+    moves: Vec<Move>,
+    info: GameInfo,
+    branch_vboards: Vec<Board>,
+    mut remaining_boards: Vec<&Board>,
+) -> bool {
+    match remaining_boards.pop() {
+        Some(board) => {
+            let merged_opponent_boards: Vec<&Board> = branch_vboards
+                .iter()
+                .chain(opponent_boards.iter().map(|b| *b))
+                .collect();
+            let merged_vboards: Vec<Board> = virtual_boards
+                .iter()
+                .chain(branch_vboards.iter())
+                .cloned()
+                .collect();
+            let probables = probable_moves(game, board, &virtual_boards);
+            let mut n = 0usize;
+            for m in probables.clone() {
+                n += 1;
+                if (remaining_boards.len() == 2) {
+                    println!("{}/{}", n, probables.len());
+                }
+                let (mut new_info, new_vboards) =
+                    m.generate_vboards(game, &info, &merged_vboards).unwrap();
+                let new_merged_vboards: Vec<Board> = virtual_boards
+                    .iter()
+                    .chain(branch_vboards.iter())
+                    .chain(new_vboards.iter())
+                    .cloned()
+                    .collect();
+                if is_move_legal(
+                    game,
+                    &new_merged_vboards,
+                    &info,
+                    merged_opponent_boards
+                        .iter()
+                        .map(|b| *b)
+                        .chain(new_vboards.iter()),
+                ) {
+                    let mut new_moves: Vec<Move> = moves.iter().cloned().collect();
+                    let new_branch_vboards: Vec<Board> = branch_vboards
+                        .iter()
+                        .cloned()
+                        .chain(new_vboards.into_iter())
+                        .collect();
+                    new_moves.push(m);
+                    if new_info.present < info.present || legal_movesets_rec(
+                        game,
+                        virtual_boards,
+                        opponent_boards,
+                        res,
+                        new_moves.clone(),
+                        new_info.clone(),
+                        new_branch_vboards.clone(),
+                        remaining_boards.clone(),
+                    ) {
+                        new_info.active_player = !new_info.active_player;
+                        new_info.present += 1;
+                        res.push((new_moves, new_info, new_branch_vboards));
+                    }
+                }
+            }
+            false
+        }
+        _ => true,
+    }
 }
 
 fn get_board<'a, 'b, 'd>(
@@ -393,15 +551,16 @@ fn get(game: &Game, virtual_boards: &Vec<Board>, pos: (f32, usize, usize, usize)
 
 pub fn is_last(game: &Game, virtual_boards: &Vec<Board>, board: &Board) -> bool {
     if let Some(tl) = game.get_timeline(board.l) {
-        tl.states.len() + tl.begins_at <= board.t
-    } else {
-        for vboard in virtual_boards.iter() {
-            if vboard.l == board.l && vboard.t > board.t {
-                return false;
-            }
+        if tl.states.len() + tl.begins_at - 1 > board.t {
+            return false;
         }
-        true
     }
+    for vboard in virtual_boards.iter() {
+        if vboard.l == board.l && vboard.t > board.t {
+            return false;
+        }
+    }
+    true
 }
 
 fn probable_moves_for(
