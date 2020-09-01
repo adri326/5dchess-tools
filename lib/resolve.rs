@@ -108,7 +108,14 @@ pub fn score_moves<'a>(
                 }
             }
 
-            if lore.enemies.iter().find(|e| e.0 == mv.dst.0 && e.1 == mv.dst.1 + 1 && e.2 == mv.dst.2 && e.3 == mv.dst.3).is_some() {
+            if lore
+                .enemies
+                .iter()
+                .find(|e| {
+                    e.0 == mv.dst.0 && e.1 == mv.dst.1 + 1 && e.2 == mv.dst.2 && e.3 == mv.dst.3
+                })
+                .is_some()
+            {
                 score += TAKE_ENEMY_REWARD;
             }
 
@@ -159,4 +166,95 @@ pub fn score_moves<'a>(
         .collect::<Vec<_>>();
     res.sort_unstable_by_key(|(_mv, _boards, _info, score)| *score);
     res
+}
+
+pub const ROOK_VALUE: f32 = 3.0;
+pub const KNIGHT_VALUE: f32 = 4.5;
+pub const QUEEN_VALUE: f32 = 12.0;
+pub const KING_VALUE: f32 = -1.0;
+pub const BISHOP_VALUE: f32 = 4.0;
+pub const UNICORN_VALUE: f32 = 3.5;
+pub const DRAGON_VALUE: f32 = 3.0;
+pub const PAWN_VALUE: f32 = 0.9;
+pub const KING_PROTECTION_VALUE: f32 = -3.0;
+
+/**
+    Checks that `moveset` is legal and gives it a score.
+**/
+pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
+    game: &Game,
+    virtual_boards: &Vec<Board>,
+    info: &GameInfo,
+    opponent_boards: T,
+    moveset: Vec<Move>,
+) -> Option<(Vec<Move>, Vec<Board>, GameInfo, f32)> {
+    let mut moveset_boards: Vec<Board> = Vec::new();
+    let mut merged_vboards: Vec<Board> = virtual_boards.clone();
+    let mut info = info.clone();
+    let active_player = info.active_player;
+    for mv in &moveset {
+        let (new_info, mut new_vboards) = mv.generate_vboards(game, &info, virtual_boards)?;
+        moveset_boards.append(&mut new_vboards);
+        info = new_info;
+    }
+
+    merged_vboards.append(&mut moveset_boards.clone());
+
+    if is_move_legal(game, &merged_vboards, &info, moveset_boards.iter())
+        && is_move_legal(game, &merged_vboards, &info, opponent_boards)
+    {
+        info.present += 1;
+        info.active_player = !info.active_player;
+
+        println!("Yay!");
+        let mut score: f32 = 0.0;
+
+        for board in &moveset_boards {
+            for (index, piece) in board.pieces.iter().enumerate() {
+                let x = index % board.width;
+                let y = index / board.width;
+                if piece.is_blank() {
+                    continue;
+                }
+                let mult: f32 = if piece.is_white() { 1.0 } else { -1.0 };
+                if piece.is_king() {
+                    score += KING_VALUE * mult;
+                    for dx in -1..=1 {
+                        for dy in -1..=1 {
+                            if dx == 0 && dy == 0 {
+                                continue;
+                            }
+                            if board
+                                .get((x as isize + dx) as usize, (y as isize + dy) as usize)
+                                .map(|p| p.is_blank() || p.is_opponent_piece(piece.is_white()))
+                                .unwrap_or(false)
+                            {
+                                score += KING_PROTECTION_VALUE * mult;
+                            }
+                        }
+                    }
+                } else if piece.is_knight() {
+                    score += KNIGHT_VALUE * mult;
+                } else if piece.is_knight() {
+                    score += KNIGHT_VALUE * mult;
+                } else if piece.is_bishop() {
+                    score += BISHOP_VALUE * mult;
+                } else if piece.is_rook() {
+                    score += ROOK_VALUE * mult;
+                } else if piece.is_queen() {
+                    score += QUEEN_VALUE * mult;
+                } else if piece.is_unicorn() {
+                    score += UNICORN_VALUE * mult;
+                } else if piece.is_dragon() {
+                    score += DRAGON_VALUE * mult;
+                } else if piece.is_pawn() {
+                    score += PAWN_VALUE * mult;
+                }
+            }
+        }
+
+        Some((moveset, moveset_boards, info, score))
+    } else {
+        None
+    }
 }

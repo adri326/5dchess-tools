@@ -394,19 +394,27 @@ where
     true
 }
 
-pub fn get_opponent_boards<'a, 'b, 'c>(
+pub fn get_opponent_boards<'a>(
     game: &'a Game,
-    virtual_boards: &'b Vec<Board>,
-    info: &'b GameInfo,
-) -> Vec<&'c Board>
-where
-    'a: 'c,
-    'b: 'c,
-{
+    virtual_boards: &'a Vec<Board>,
+    info: &'a GameInfo,
+) -> Vec<&'a Board> {
     game.timelines
         .iter()
         .map(|tl| &tl.states[tl.states.len() - 1])
         .filter(|b| b.active_player() == !info.active_player && is_last(game, virtual_boards, b))
+        .collect()
+}
+
+pub fn get_own_boards<'a>(
+    game: &'a Game,
+    virtual_boards: &'a Vec<Board>,
+    info: &'a GameInfo,
+) -> Vec<&'a Board> {
+    game.timelines
+        .iter()
+        .map(|tl| &tl.states[tl.states.len() - 1])
+        .filter(|b| b.active_player() == info.active_player && is_last(game, virtual_boards, b))
         .collect()
 }
 
