@@ -87,22 +87,22 @@ impl fmt::Debug for Move {
                     f,
                     "({}T{})O-O-O",
                     write_timeline(self.src.0),
-                    self.src.1 / 2
+                    self.src.1 / 2 + 1
                 )
             } else {
-                write!(f, "({}T{})O-O", write_timeline(self.src.0), self.src.1 / 2)
+                write!(f, "({}T{})O-O", write_timeline(self.src.0), self.src.1 / 2 + 1)
             }
         } else {
             write!(
                 f,
                 "({}T{}){}{}{} → ({}T{}){}{}{}",
                 write_timeline(self.src.0),
-                self.src.1 / 2,
+                self.src.1 / 2 + 1,
                 self.src_piece,
                 write_file(self.src.2),
                 (self.src.3 + 1),
                 write_timeline(self.dst.0),
-                self.dst.1 / 2,
+                self.dst.1 / 2 + 1,
                 self.dst_piece,
                 write_file(self.dst.2),
                 (self.dst.3 + 1),

@@ -1,7 +1,7 @@
 use crate::{game::*, moves::*};
 
-pub const JUMP_COST: i32 = -2;
-pub const JUMP_INACTIVE_COST: i32 = -6;
+pub const JUMP_COST: i32 = -8;
+pub const JUMP_INACTIVE_COST: i32 = -12;
 pub const TAKE_ENEMY_REWARD: i32 = 20;
 pub const KING_DANGER_COST: i32 = -10;
 
@@ -71,12 +71,14 @@ pub fn generate_lore<'a, 'b, T: Iterator<Item = &'b Board>>(
     res
 }
 
+#[inline]
 fn register_enemy(res: &mut Lore, mv: &Move) {
     if !res.enemies.iter().find(|e| **e == mv.src).is_some() {
         res.enemies.push(mv.src);
     }
 }
 
+#[inline]
 fn register_danger(res: &mut Lore, mv: &Move) {
     if mv.dst.0 == res.board.l && (mv.dst.1 == res.board.t + 1 || mv.dst.1 == res.board.t) {
         res.danger[mv.dst.2 + mv.dst.3 * res.board.width] += 1;
@@ -165,7 +167,11 @@ pub fn score_moves<'a>(
         })
         .collect::<Vec<_>>();
     res.sort_unstable_by_key(|(_mv, _boards, _info, score)| *score);
-    res
+    if info.active_player {
+        res.into_iter().rev().collect()
+    } else {
+        res
+    }
 }
 
 pub const ROOK_VALUE: f32 = 3.0;
@@ -176,7 +182,9 @@ pub const BISHOP_VALUE: f32 = 4.0;
 pub const UNICORN_VALUE: f32 = 3.5;
 pub const DRAGON_VALUE: f32 = 3.0;
 pub const PAWN_VALUE: f32 = 0.9;
-pub const KING_PROTECTION_VALUE: f32 = -3.0;
+pub const KING_PROTECTION_VALUE: f32 = 3.0;
+pub const BRANCH_VALUE: f32 = 10.0;
+pub const INACTIVE_BRANCH_COST: f32 = 30.0;
 
 /**
     Checks that `moveset` is legal and gives it a score.
@@ -206,7 +214,6 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
         info.present += 1;
         info.active_player = !info.active_player;
 
-        println!("Yay!");
         let mut score: f32 = 0.0;
 
         for board in &moveset_boards {
@@ -221,7 +228,12 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                     score += KING_VALUE * mult;
                     for dx in -1..=1 {
                         for dy in -1..=1 {
-                            if dx == 0 && dy == 0 {
+                            if dx == 0 && dy == 0
+                                || x == 0 && dx < 0
+                                || y == 0 && dy < 0
+                                || x == board.width - 1 && dx > 0
+                                || y == board.height - 1 && dy > 0
+                            {
                                 continue;
                             }
                             if board
@@ -229,7 +241,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                                 .map(|p| p.is_blank() || p.is_opponent_piece(piece.is_white()))
                                 .unwrap_or(false)
                             {
-                                score += KING_PROTECTION_VALUE * mult;
+                                score -= KING_PROTECTION_VALUE * mult;
                             }
                         }
                     }
@@ -250,6 +262,19 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                 } else if piece.is_pawn() {
                     score += PAWN_VALUE * mult;
                 }
+            }
+        }
+
+        if info.max_timeline > -info.min_timeline {
+            // black advantageous
+            score -= BRANCH_VALUE;
+            if info.max_timeline > -info.min_timeline + 1.0 {
+                score -= INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline - 1.0);
+            }
+        } else if info.max_timeline < -info.min_timeline {
+            score += BRANCH_VALUE;
+            if info.max_timeline < -info.min_timeline - 1.0 {
+                score += INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline + 1.0);
             }
         }
 
