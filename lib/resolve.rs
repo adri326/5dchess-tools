@@ -28,63 +28,69 @@ pub struct Lore<'a> {
     pub enemies: Vec<(f32, usize, usize, usize)>,
 }
 
-/**
-    Generates a board's "Lore" (danger map and target pieces)
-**/
-pub fn generate_lore<'a, 'b, T: Iterator<Item = &'b Board>>(
-    game: &Game,
-    virtual_boards: &Vec<Board>,
-    board: &'a Board,
-    opponent_boards: T,
-    _info: &GameInfo,
-) -> Lore<'a> {
-    let mut res = Lore {
-        board,
-        danger: vec![0; board.pieces.len()],
-        enemies: Vec::new(),
-    };
+impl<'a> Lore<'a> {
+    /**
+        Generates a board's "Lore" (danger map and target pieces)
+    **/
+    pub fn new<'b, T: Iterator<Item = &'b Board>>(
+        game: &Game,
+        virtual_boards: &Vec<Board>,
+        board: &'a Board,
+        opponent_boards: T,
+        _info: &GameInfo,
+    ) -> Lore<'a> {
+        let mut res = Lore {
+            board,
+            danger: vec![0; board.pieces.len()],
+            enemies: Vec::new(),
+        };
 
-    let mut noop_board = board.clone();
-    noop_board.t += 1;
+        let mut noop_board = board.clone();
+        noop_board.t += 1;
 
-    let mut n_virtual_boards = virtual_boards.clone();
-    n_virtual_boards.push(noop_board.clone());
+        let mut n_virtual_boards = virtual_boards.clone();
+        n_virtual_boards.push(noop_board.clone());
 
-    for b in opponent_boards {
-        let probables = probable_moves(game, b, &n_virtual_boards);
+        for b in opponent_boards {
+            let probables = probable_moves(game, b, &n_virtual_boards);
+            for mv in probables {
+                if mv.dst_piece.is_king() {
+                    res.register_enemy(&mv);
+                }
+                res.register_danger(&mv);
+            }
+        }
+
+        let probables = probable_moves(game, &noop_board, &n_virtual_boards);
         for mv in probables {
             if mv.dst_piece.is_king() {
-                register_enemy(&mut res, &mv);
+                res.register_enemy(&mv);
             }
-            register_danger(&mut res, &mv);
+            res.register_danger(&mv);
+        }
+
+        res
+    }
+
+
+    #[inline]
+    fn register_enemy(&mut self, mv: &Move) {
+        if !self.enemies.iter().find(|e| **e == mv.src).is_some() {
+            self.enemies.push(mv.src);
         }
     }
 
-    let probables = probable_moves(game, &noop_board, &n_virtual_boards);
-    for mv in probables {
-        if mv.dst_piece.is_king() {
-            register_enemy(&mut res, &mv);
+    #[inline]
+    fn register_danger(&mut self, mv: &Move) {
+        if mv.dst.0 == self.board.l && (mv.dst.1 == self.board.t + 1 || mv.dst.1 == self.board.t) {
+            self.danger[mv.dst.2 + mv.dst.3 * self.board.width] += 1;
         }
-        register_danger(&mut res, &mv);
-    }
-
-    res
-}
-
-#[inline]
-fn register_enemy(res: &mut Lore, mv: &Move) {
-    if !res.enemies.iter().find(|e| **e == mv.src).is_some() {
-        res.enemies.push(mv.src);
     }
 }
 
-#[inline]
-fn register_danger(res: &mut Lore, mv: &Move) {
-    if mv.dst.0 == res.board.l && (mv.dst.1 == res.board.t + 1 || mv.dst.1 == res.board.t) {
-        res.danger[mv.dst.2 + mv.dst.3 * res.board.width] += 1;
-    }
-}
-
+/**
+    Gives each move in a set of moves (all of which happen on one board) a score and sorts them.
+**/
 #[allow(unused_variables)]
 pub fn score_moves<'a>(
     game: &Game,

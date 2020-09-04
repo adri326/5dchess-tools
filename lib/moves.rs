@@ -431,7 +431,7 @@ pub fn legal_movesets<'a>(
     let ranked_moves = get_own_boards(&game, &virtual_boards, &game.info)
         .into_iter()
         .map(|board| {
-            let lore = generate_lore(
+            let lore = Lore::new(
                 &game,
                 &virtual_boards,
                 board,
@@ -450,7 +450,7 @@ pub fn legal_movesets<'a>(
         })
         .collect::<Vec<_>>();
 
-    generate_movesets(&game, &virtual_boards, &info, ranked_moves).score()
+    MovesetIter::new(&game, &virtual_boards, &info, ranked_moves).score()
 }
 
 fn get_board<'a, 'b, 'd>(
