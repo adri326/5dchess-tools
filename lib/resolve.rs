@@ -36,7 +36,7 @@ pub fn generate_lore<'a, 'b, T: Iterator<Item = &'b Board>>(
     virtual_boards: &Vec<Board>,
     board: &'a Board,
     opponent_boards: T,
-    info: &GameInfo,
+    _info: &GameInfo,
 ) -> Lore<'a> {
     let mut res = Lore {
         board,
@@ -85,6 +85,7 @@ fn register_danger(res: &mut Lore, mv: &Move) {
     }
 }
 
+#[allow(unused_variables)]
 pub fn score_moves<'a>(
     game: &Game,
     virtual_boards: &Vec<Board>,
@@ -199,7 +200,6 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
     let mut moveset_boards: Vec<Board> = Vec::new();
     let mut merged_vboards: Vec<Board> = virtual_boards.clone();
     let mut info = info.clone();
-    let active_player = info.active_player;
     for mv in &moveset {
         let (new_info, mut new_vboards) = mv.generate_vboards(game, &info, virtual_boards)?;
         moveset_boards.append(&mut new_vboards);

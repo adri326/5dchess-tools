@@ -1,5 +1,5 @@
 // Handles moves
-use super::game::*;
+use super::{game::*, moveset::*, resolve::*};
 use std::fmt;
 
 lazy_static! {
@@ -90,7 +90,12 @@ impl fmt::Debug for Move {
                     self.src.1 / 2 + 1
                 )
             } else {
-                write!(f, "({}T{})O-O", write_timeline(self.src.0), self.src.1 / 2 + 1)
+                write!(
+                    f,
+                    "({}T{})O-O",
+                    write_timeline(self.src.0),
+                    self.src.1 / 2 + 1
+                )
             }
         } else {
             write!(
@@ -418,139 +423,34 @@ pub fn get_own_boards<'a>(
         .collect()
 }
 
-// Do not use this, it's way too slow!
-pub fn legal_movesets(
-    game: &Game,
-    virtual_boards: &Vec<Board>,
-    info: &GameInfo,
-) -> Vec<(Vec<Move>, GameInfo, Vec<Board>)> {
-    let mut boards: Vec<&Board> = game
-        .timelines
-        .iter()
-        .map(|tl| &tl.states[tl.states.len() - 1])
-        .filter(|b| b.active_player() == info.active_player && is_last(game, virtual_boards, b))
-        .collect();
+pub fn legal_movesets<'a>(
+    game: &'a Game,
+    info: &'a GameInfo,
+    virtual_boards: &'a Vec<Board>,
+) -> impl Iterator<Item = (Vec<Move>, Vec<Board>, GameInfo, f32)> + 'a {
+    let ranked_moves = get_own_boards(&game, &virtual_boards, &game.info)
+        .into_iter()
+        .map(|board| {
+            let lore = generate_lore(
+                &game,
+                &virtual_boards,
+                board,
+                get_opponent_boards(&game, &virtual_boards, &game.info).into_iter(),
+                &game.info,
+            );
+            let probables = probable_moves(&game, board, &virtual_boards)
+                .into_iter()
+                .map(|mv| {
+                    let (new_info, new_vboards) =
+                        mv.generate_vboards(&game, &info, &virtual_boards).unwrap();
+                    (mv, new_info, new_vboards)
+                })
+                .collect::<Vec<_>>();
+            score_moves(&game, &virtual_boards, board, &lore, probables, &info)
+        })
+        .collect::<Vec<_>>();
 
-    let mut opponent_boards: Vec<&Board> = game
-        .timelines
-        .iter()
-        .map(|tl| &tl.states[tl.states.len() - 1])
-        .filter(|b| b.active_player() == !info.active_player && is_last(game, virtual_boards, b))
-        .collect();
-
-    for board in virtual_boards {
-        if is_last(game, virtual_boards, board) {
-            if board.active_player() == info.active_player {
-                boards.push(board);
-            } else {
-                opponent_boards.push(board);
-            }
-        }
-    }
-
-    let active_boards: Vec<&Board> = boards
-        .iter()
-        .filter(|b| b.is_active(info))
-        .map(|x| *x)
-        .collect();
-    let _inactive_boards: Vec<&Board> = boards
-        .iter()
-        .filter(|b| !b.is_active(info))
-        .map(|x| *x)
-        .collect();
-
-    let mut res: Vec<(Vec<Move>, GameInfo, Vec<Board>)> = Vec::new();
-
-    // TODO: handle inactive boards and permutations
-
-    legal_movesets_rec(
-        game,
-        virtual_boards,
-        &opponent_boards,
-        &mut res,
-        vec![],
-        info.clone(),
-        vec![],
-        active_boards,
-    );
-
-    res
-}
-
-fn legal_movesets_rec(
-    game: &Game,
-    virtual_boards: &Vec<Board>,
-    opponent_boards: &Vec<&Board>,
-    res: &mut Vec<(Vec<Move>, GameInfo, Vec<Board>)>,
-    moves: Vec<Move>,
-    info: GameInfo,
-    branch_vboards: Vec<Board>,
-    mut remaining_boards: Vec<&Board>,
-) -> bool {
-    match remaining_boards.pop() {
-        Some(board) => {
-            let merged_opponent_boards: Vec<&Board> = branch_vboards
-                .iter()
-                .chain(opponent_boards.iter().map(|b| *b))
-                .collect();
-            let merged_vboards: Vec<Board> = virtual_boards
-                .iter()
-                .chain(branch_vboards.iter())
-                .cloned()
-                .collect();
-            let probables = probable_moves(game, board, &virtual_boards);
-            let mut n = 0usize;
-            for m in probables.clone() {
-                n += 1;
-                if remaining_boards.len() == 2 {
-                    println!("{}/{}", n, probables.len());
-                }
-                let (mut new_info, new_vboards) =
-                    m.generate_vboards(game, &info, &merged_vboards).unwrap();
-                let new_merged_vboards: Vec<Board> = virtual_boards
-                    .iter()
-                    .chain(branch_vboards.iter())
-                    .chain(new_vboards.iter())
-                    .cloned()
-                    .collect();
-                if is_move_legal(
-                    game,
-                    &new_merged_vboards,
-                    &info,
-                    merged_opponent_boards
-                        .iter()
-                        .map(|b| *b)
-                        .chain(new_vboards.iter()),
-                ) {
-                    let mut new_moves: Vec<Move> = moves.iter().cloned().collect();
-                    let new_branch_vboards: Vec<Board> = branch_vboards
-                        .iter()
-                        .cloned()
-                        .chain(new_vboards.into_iter())
-                        .collect();
-                    new_moves.push(m);
-                    if new_info.present < info.present
-                        || legal_movesets_rec(
-                            game,
-                            virtual_boards,
-                            opponent_boards,
-                            res,
-                            new_moves.clone(),
-                            new_info.clone(),
-                            new_branch_vboards.clone(),
-                            remaining_boards.clone(),
-                        )
-                    {
-                        new_info.active_player = !new_info.active_player;
-                        new_info.present += 1;
-                        res.push((new_moves, new_info, new_branch_vboards));
-                    }
-                }
-            }
-            false
-        }
-        _ => true,
-    }
+    generate_movesets(&game, &virtual_boards, &info, ranked_moves).score()
 }
 
 fn get_board<'a, 'b, 'd>(

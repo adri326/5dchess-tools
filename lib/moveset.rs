@@ -2,6 +2,7 @@ use crate::{game::*, moves::*, resolve::*};
 
 // TODO: optional boards
 
+#[allow(dead_code)]
 pub struct MovesetIter<'a> {
     game: &'a Game,
     virtual_boards: &'a Vec<Board>,
@@ -43,10 +44,10 @@ impl<'a> Iterator for MovesetIter<'a> {
                             .iter()
                             .enumerate()
                             .filter(|(_i, m)| m.len() >= self.moves_considered)
-                            .map(|(i, m)| (i, self.moves_considered - 1))
+                            .map(|(i, _m)| (i, self.moves_considered - 1))
                             .collect::<Vec<_>>();
 
-                        generate_combinations(self, new_moves);
+                        self.generate_combinations(new_moves);
 
                         if self.permutation_stack.len() > 0 {
                             return Some(self.permutation_stack.pop().unwrap());
@@ -62,152 +63,172 @@ impl<'a> Iterator for MovesetIter<'a> {
     }
 }
 
-fn generate_combinations<'a>(iter: &mut MovesetIter<'a>, new_moves: Vec<(usize, usize)>) {
-    for (i, nm) in new_moves.into_iter() {
-        let pre_combinations = if i > 0 {
-            generate_pre_combinations(iter, i, 0)
+impl<'a> MovesetIter<'a> {
+    pub fn generate_combinations(&mut self, new_moves: Vec<(usize, usize)>) {
+        for (i, nm) in new_moves.into_iter() {
+            let pre_combinations = if i > 0 {
+                self.generate_pre_combinations(i, 0)
+            } else {
+                vec![vec![]]
+            };
+            let post_combinations = if i < self.moves.len() - 1 {
+                self.generate_post_combinations(i, self.moves.len() - 1)
+            } else {
+                vec![vec![]]
+            };
+            for pre in pre_combinations.into_iter() {
+                for post in post_combinations.iter().cloned() {
+                    self.commit_combination(
+                        pre.iter()
+                            .cloned()
+                            .chain(vec![(i, nm)].into_iter())
+                            .chain(post.into_iter())
+                            .map(|(i, m)| {
+                                (
+                                    self.moves[i][m].0.clone(),
+                                    self.moves[i][m].2.clone(),
+                                    false,
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                    );
+                }
+            }
+        }
+    }
+
+    fn generate_pre_combinations(
+        &mut self,
+        max: usize,
+        current: usize,
+    ) -> Vec<Vec<(usize, usize)>> {
+        if current == max - 1 {
+            return (0..(self.moves[current].len().min(self.moves_considered - 1)))
+                .map(|n| vec![(current, n)])
+                .collect();
         } else {
-            vec![vec![]]
-        };
-        let post_combinations = if i < iter.moves.len() - 1 {
-            generate_post_combinations(iter, i, iter.moves.len() - 1)
+            let mut res: Vec<Vec<(usize, usize)>> = Vec::new();
+            for v in self.generate_pre_combinations(max, current + 1) {
+                for x in 0..(self.moves[current].len().min(self.moves_considered - 1)) {
+                    let mut v2 = v.clone();
+                    v2.push((current, x));
+                    res.push(v2);
+                }
+            }
+            return res;
+        }
+    }
+
+    fn generate_post_combinations(
+        &mut self,
+        min: usize,
+        current: usize,
+    ) -> Vec<Vec<(usize, usize)>> {
+        if current == min + 1 {
+            return (0..(self.moves[current].len().min(self.moves_considered - 1)))
+                .map(|n| vec![(current, n)])
+                .collect();
         } else {
-            vec![vec![]]
-        };
-        for pre in pre_combinations.into_iter() {
-            for post in post_combinations.iter().cloned() {
-                commit_combination(
-                    iter,
-                    pre.iter()
+            let mut res: Vec<Vec<(usize, usize)>> = Vec::new();
+            for v in self.generate_post_combinations(min, current - 1) {
+                for x in 0..(self.moves[current].len().min(self.moves_considered)) {
+                    let mut v2 = v.clone();
+                    v2.push((current, x));
+                    res.push(v2);
+                }
+            }
+            return res;
+        }
+    }
+
+    fn commit_combination(&mut self, combination: Vec<(Move, GameInfo, bool)>) {
+        // NOTE: the (Move, GameInfo, bool) stand for "move", "move's generated info" (used for differentiating jumps from branching moves) and "move locked" (`true` to prevent recursive iterations from cancelling its value out)
+        let normal_moves = combination
+            .iter()
+            .filter(|(m, _i, _a)| m.src.0 == m.dst.0 && m.src.1 == m.dst.1)
+            .collect::<Vec<_>>();
+        let jumping_moves = combination
+            .iter()
+            .filter(|(m, i, _a)| {
+                i.max_timeline == self.info.max_timeline
+                    && i.min_timeline == self.info.min_timeline
+                    && (m.src.0 != m.dst.0 || m.src.1 != m.dst.1)
+            })
+            .collect::<Vec<_>>();
+        let branching_moves = combination
+            .iter()
+            .filter(|(m, i, _a)| {
+                (i.max_timeline != self.info.max_timeline
+                    || i.min_timeline != self.info.min_timeline)
+                    && (m.src.0 != m.dst.0 || m.src.1 != m.dst.1)
+            })
+            .collect::<Vec<_>>();
+
+        for (k, (jumping_move, _info, locked)) in jumping_moves.iter().enumerate() {
+            if *locked {
+                continue;
+            }
+            if let Some(target_move) = combination
+                .iter()
+                .find(|(m, _i, _a)| m.src.0 == jumping_move.dst.0 && m.src.1 == jumping_move.dst.1)
+            {
+                self.commit_combination(
+                    normal_moves
+                        .clone()
+                        .into_iter()
                         .cloned()
-                        .chain(vec![(i, nm)].into_iter())
-                        .chain(post.into_iter())
-                        .map(|(i, m)| {
-                            (
-                                iter.moves[i][m].0.clone(),
-                                iter.moves[i][m].2.clone(),
-                                false,
-                            )
+                        .chain(branching_moves.clone().into_iter().cloned())
+                        .chain(jumping_moves.clone().into_iter().cloned().enumerate().map(
+                            |(k2, (m, i, a))| {
+                                if k2 <= k {
+                                    (m, i, true)
+                                } else {
+                                    (m, i, a)
+                                }
+                            },
+                        ))
+                        .filter(|(x, _, _)| {
+                            x.src.0 != target_move.0.src.0 || x.src.1 != target_move.0.src.1
                         })
                         .collect::<Vec<_>>(),
                 );
             }
         }
-    }
-}
 
-fn generate_pre_combinations<'a>(
-    iter: &mut MovesetIter<'a>,
-    max: usize,
-    current: usize,
-) -> Vec<Vec<(usize, usize)>> {
-    if current == max - 1 {
-        return (0..(iter.moves[current].len().min(iter.moves_considered - 1)))
-            .map(|n| vec![(current, n)])
-            .collect();
-    } else {
-        let mut res: Vec<Vec<(usize, usize)>> = Vec::new();
-        for v in generate_pre_combinations(iter, max, current + 1) {
-            for x in 0..(iter.moves[current].len().min(iter.moves_considered - 1)) {
-                let mut v2 = v.clone();
-                v2.push((current, x));
-                res.push(v2);
+        for permutation in permute::permutations_of(
+            &jumping_moves
+                .into_iter()
+                .chain(branching_moves.into_iter())
+                .collect::<Vec<_>>(),
+        ) {
+            let x = permutation
+                .cloned()
+                .chain(normal_moves.clone().into_iter())
+                .map(|(m, _i, _a)| m.clone())
+                .collect::<Vec<_>>();
+            if x.len() == 0 {
+                panic!("No move!");
             }
-        }
-        return res;
-    }
-}
-
-fn generate_post_combinations<'a>(
-    iter: &mut MovesetIter<'a>,
-    min: usize,
-    current: usize,
-) -> Vec<Vec<(usize, usize)>> {
-    if current == min + 1 {
-        return (0..(iter.moves[current].len().min(iter.moves_considered - 1)))
-            .map(|n| vec![(current, n)])
-            .collect();
-    } else {
-        let mut res: Vec<Vec<(usize, usize)>> = Vec::new();
-        for v in generate_post_combinations(iter, min, current - 1) {
-            for x in 0..(iter.moves[current].len().min(iter.moves_considered)) {
-                let mut v2 = v.clone();
-                v2.push((current, x));
-                res.push(v2);
-            }
-        }
-        return res;
-    }
-}
-
-fn commit_combination<'a>(iter: &mut MovesetIter<'a>, combination: Vec<(Move, GameInfo, bool)>) {
-    // NOTE: the (Move, GameInfo, bool) stand for "move", "move's generated info" (used for differentiating jumps from branching moves) and "move locked" (`true` to prevent recursive iterations from cancelling its value out)
-    let normal_moves = combination
-        .iter()
-        .filter(|(m, _i, _a)| m.src.0 == m.dst.0 && m.src.1 == m.dst.1)
-        .collect::<Vec<_>>();
-    let jumping_moves = combination
-        .iter()
-        .filter(|(m, i, _a)| {
-            i.max_timeline == iter.info.max_timeline
-                && i.min_timeline == iter.info.min_timeline
-                && (m.src.0 != m.dst.0 || m.src.1 != m.dst.1)
-        })
-        .collect::<Vec<_>>();
-    let branching_moves = combination
-        .iter()
-        .filter(|(m, i, _a)| {
-            (i.max_timeline != iter.info.max_timeline || i.min_timeline != iter.info.min_timeline)
-                && (m.src.0 != m.dst.0 || m.src.1 != m.dst.1)
-        })
-        .collect::<Vec<_>>();
-
-    for (k, (jumping_move, info, locked)) in jumping_moves.iter().enumerate() {
-        if *locked {
-            continue;
-        }
-        if let Some(target_move) = combination
-            .iter()
-            .find(|(m, _i, _a)| m.src.0 == jumping_move.dst.0 && m.src.1 == jumping_move.dst.1)
-        {
-            commit_combination(
-                iter,
-                normal_moves
-                    .clone()
-                    .into_iter()
-                    .cloned()
-                    .chain(branching_moves.clone().into_iter().cloned())
-                    .chain(jumping_moves.clone().into_iter().cloned().enumerate().map(
-                        |(k2, (m, i, a))| {
-                            if k2 <= k {
-                                (m, i, true)
-                            } else {
-                                (m, i, a)
-                            }
-                        },
-                    ))
-                    .filter(|(x, _, _)| {
-                        x.src.0 != target_move.0.src.0 || x.src.1 != target_move.0.src.1
-                    })
-                    .collect::<Vec<_>>(),
-            );
+            self.permutation_stack.push(x);
         }
     }
 
-    for permutation in permute::permutations_of(
-        &jumping_moves
-            .into_iter()
-            .chain(branching_moves.into_iter())
-            .collect::<Vec<_>>(),
-    ) {
-        let x = permutation
-            .cloned()
-            .chain(normal_moves.clone().into_iter())
-            .map(|(m, _i, _a)| m.clone())
-            .collect::<Vec<_>>();
-        if x.len() == 0 {
-            panic!("No move!");
-        }
-        iter.permutation_stack.push(x);
+    pub fn score(self) -> impl Iterator<Item = (Vec<Move>, Vec<Board>, GameInfo, f32)> + 'a
+    {
+        // NOTE: I still don't quite understand why this doesn't fail to compile
+        let game = self.game;
+        let virtual_boards = self.virtual_boards;
+        let info = self.info;
+
+        self
+            .map(move |ms| score_moveset(
+                &game,
+                &virtual_boards,
+                &info,
+                get_opponent_boards(game, virtual_boards, &info).into_iter(),
+                ms
+            ))
+            .filter(|x| x.is_some())
+            .map(|x| x.unwrap())
     }
 }
