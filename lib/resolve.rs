@@ -72,7 +72,6 @@ impl<'a> Lore<'a> {
         res
     }
 
-
     #[inline]
     fn register_enemy(&mut self, mv: &Move) {
         if !self.enemies.iter().find(|e| **e == mv.src).is_some() {
@@ -172,6 +171,7 @@ pub fn score_moves<'a>(
 
             (mv, boards, info, score)
         })
+        .filter(|(_mv, boards, info, _score)| is_move_legal(game, virtual_boards, info, boards.iter()))
         .collect::<Vec<_>>();
     res.sort_unstable_by_key(|(_mv, _boards, _info, score)| *score);
     if info.active_player {
@@ -212,7 +212,11 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
         info = new_info;
     }
 
-    let merged_vboards: Vec<&Board> = virtual_boards.iter().map(|x| *x).chain(moveset_boards.iter()).collect();
+    let merged_vboards: Vec<&Board> = virtual_boards
+        .iter()
+        .map(|x| *x)
+        .chain(moveset_boards.iter())
+        .collect();
 
     if is_move_legal(game, &merged_vboards, &info, moveset_boards.iter())
         && is_move_legal(game, &merged_vboards, &info, opponent_boards)

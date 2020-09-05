@@ -349,7 +349,7 @@ impl Piece {
     }
 
     /**
-        Wether or not the piece can move by `n` tiles in any direction until it is blocked.
+        Whether or not the piece can move by `n` tiles in any direction until it is blocked.
     **/
     pub fn slides(&self) -> bool {
         match &self {
@@ -426,6 +426,30 @@ impl Game {
 
     pub fn get<'a>(&'a self, l: f32, t: usize, x: usize, y: usize) -> Option<Piece> {
         self.get_timeline(l).map(|tl| tl.get(t, x, y)).flatten()
+    }
+
+    pub fn commit_moves(&mut self, mut boards: Vec<Board>) {
+        boards.sort_by_key(|b| b.t);
+        boards.reverse();
+        for b in boards.into_iter() {
+            if let Some(tl) = self.get_timeline_mut(b.l) {
+                if tl.get_board(b.t).is_none() {
+                    tl.states.push(b)
+                } else {
+                    panic!("Board already there: {}/{}", b.l, b.t);
+                }
+            } else {
+                self.timelines.push(Timeline {
+                    index: b.l,
+                    begins_at: b.t,
+                    width: self.width,
+                    height: self.height,
+                    emerges_from: None,
+                    states: vec![b]
+                });
+            }
+        }
+        self.info.active_player = !self.info.active_player;
     }
 }
 

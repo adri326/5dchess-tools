@@ -404,11 +404,17 @@ pub fn get_opponent_boards<'a>(
     virtual_boards: &'a Vec<&'a Board>,
     info: &'a GameInfo,
 ) -> Vec<&'a Board> {
-    game.timelines
+    let mut res: Vec<&Board> = game.timelines
         .iter()
         .map(|tl| &tl.states[tl.states.len() - 1])
         .filter(|b| b.active_player() == !info.active_player && is_last(game, virtual_boards, b))
-        .collect()
+        .collect();
+    for b in virtual_boards {
+        if b.active_player() == info.active_player && is_last(game, virtual_boards, b) {
+            res.push(b);
+        }
+    }
+    res
 }
 
 pub fn get_own_boards<'a>(
@@ -416,27 +422,35 @@ pub fn get_own_boards<'a>(
     virtual_boards: &'a Vec<&'a Board>,
     info: &'a GameInfo,
 ) -> Vec<&'a Board> {
-    game.timelines
+    let mut res: Vec<&Board> = game.timelines
         .iter()
         .map(|tl| &tl.states[tl.states.len() - 1])
         .filter(|b| b.active_player() == info.active_player && is_last(game, virtual_boards, b))
-        .collect()
+        .collect();
+    for b in virtual_boards {
+        if b.active_player() == info.active_player && is_last(game, virtual_boards, b) {
+            res.push(b);
+        }
+    }
+    res
 }
 
 pub fn legal_movesets<'a>(
     game: &'a Game,
     info: &'a GameInfo,
     virtual_boards: &'a Vec<&'a Board>,
+    max_moves_considered: usize,
+    max_movesets_considered: usize,
 ) -> impl Iterator<Item = (Vec<Move>, Vec<Board>, GameInfo, f32)> + 'a {
-    let ranked_moves = get_own_boards(&game, &virtual_boards, &game.info)
+    let ranked_moves = get_own_boards(&game, &virtual_boards, &info)
         .into_iter()
         .map(|board| {
             let lore = Lore::new(
-                &game,
-                &virtual_boards,
+                game,
+                virtual_boards,
                 board,
-                get_opponent_boards(&game, &virtual_boards, &game.info).into_iter(),
-                &game.info,
+                get_opponent_boards(&game, &virtual_boards, &info).into_iter(),
+                &info,
             );
             let probables = probable_moves(&game, board, &virtual_boards)
                 .into_iter()
@@ -450,7 +464,12 @@ pub fn legal_movesets<'a>(
         })
         .collect::<Vec<_>>();
 
-    MovesetIter::new(&game, &virtual_boards, &info, ranked_moves).score()
+    let mut iter = MovesetIter::new(&game, &virtual_boards, &info, ranked_moves);
+
+    iter.max_moves_considered = max_moves_considered;
+    iter.max_movesets_considered = max_movesets_considered;
+
+    iter.score()
 }
 
 fn get_board<'a, 'b, 'd>(
@@ -470,7 +489,11 @@ where
     game.get_board(pos.0, pos.1)
 }
 
-fn get(game: &Game, virtual_boards: &Vec<&Board>, pos: (f32, usize, usize, usize)) -> Option<Piece> {
+fn get(
+    game: &Game,
+    virtual_boards: &Vec<&Board>,
+    pos: (f32, usize, usize, usize),
+) -> Option<Piece> {
     get_board(game, virtual_boards, (pos.0, pos.1))
         .map(|b| b.get(pos.2, pos.3))
         .flatten()
@@ -562,7 +585,7 @@ fn probable_moves_for(
                             || x == 0 && dx < 0
                             || x == game.width - 1 && dx > 0
                             || y == 0 && dy < 0
-                            || y == game.height && dy > 0
+                            || y == game.height - 1 && dy > 0
                             || board.t < 2 && dt < 0
                         {
                             continue;
@@ -675,7 +698,7 @@ fn may_en_passant(
     x: usize,
     y: usize,
 ) -> bool {
-    if board.t < 2 {
+    if board.t < 2 || y == 0 || y == game.height - 1 {
         return false;
     }
     let active_player = board.active_player();

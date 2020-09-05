@@ -14,17 +14,35 @@ pub struct MovesetIter<'a> {
     pub moves_considered: usize,
     permutation_stack: Vec<Vec<Move>>,
     max_moves: usize,
+    pub max_moves_considered: usize,    // 0 for ∞
+    pub max_movesets_considered: usize, // 0 for ∞
+    pub movesets_considered: usize,
 }
 
 impl<'a> Iterator for MovesetIter<'a> {
     type Item = Vec<Move>;
     fn next(&mut self) -> Option<Vec<Move>> {
+        self.movesets_considered += 1;
+        if self.max_movesets_considered > 0
+            && self.movesets_considered > self.max_movesets_considered
+            || self.max_moves_considered > 0 && self.moves_considered > self.max_moves_considered
+        {
+            return None;
+        }
+
         match self.permutation_stack.pop() {
             Some(moveset) => Some(moveset),
             None => {
                 if self.moves_considered <= self.max_moves {
                     loop {
                         self.moves_considered += 1;
+
+                        if self.max_moves_considered > 0
+                            && self.moves_considered > self.max_moves_considered
+                        {
+                            return None;
+                        }
+
                         let new_moves = self
                             .moves
                             .iter()
@@ -67,6 +85,9 @@ impl<'a> MovesetIter<'a> {
             moves,
             moves_considered: 0,
             permutation_stack: vec![],
+            max_movesets_considered: 0,
+            max_moves_considered: 0,
+            movesets_considered: 0,
         }
     }
 
@@ -235,22 +256,22 @@ impl<'a> MovesetIter<'a> {
     /**
     Lazily applies the `score_moveset` function to the movesets and filters out the illegal movesets
     **/
-    pub fn score(self) -> impl Iterator<Item = (Vec<Move>, Vec<Board>, GameInfo, f32)> + 'a
-    {
+    pub fn score(self) -> impl Iterator<Item = (Vec<Move>, Vec<Board>, GameInfo, f32)> + 'a {
         // NOTE: I still don't quite understand why this doesn't fail to compile
         let game = self.game;
         let virtual_boards = self.virtual_boards;
         let info = self.info;
 
-        self
-            .map(move |ms| score_moveset(
+        self.map(move |ms| {
+            score_moveset(
                 &game,
                 &virtual_boards,
                 &info,
                 get_opponent_boards(game, virtual_boards, &info).into_iter(),
-                ms
-            ))
-            .filter(|x| x.is_some())
-            .map(|x| x.unwrap())
+                ms,
+            )
+        })
+        .filter(|x| x.is_some())
+        .map(|x| x.unwrap())
     }
 }
