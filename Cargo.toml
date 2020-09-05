@@ -1,6 +1,6 @@
 [package]
 name = "chess5dtools"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Adrien Burgun <adrien.burgun@orange.fr>"]
 edition = "2018"
 

@@ -34,7 +34,7 @@ impl<'a> Lore<'a> {
     **/
     pub fn new<'b, T: Iterator<Item = &'b Board>>(
         game: &Game,
-        virtual_boards: &Vec<Board>,
+        virtual_boards: &Vec<&Board>,
         board: &'a Board,
         opponent_boards: T,
         _info: &GameInfo,
@@ -49,7 +49,7 @@ impl<'a> Lore<'a> {
         noop_board.t += 1;
 
         let mut n_virtual_boards = virtual_boards.clone();
-        n_virtual_boards.push(noop_board.clone());
+        n_virtual_boards.push(&noop_board);
 
         for b in opponent_boards {
             let probables = probable_moves(game, b, &n_virtual_boards);
@@ -94,7 +94,7 @@ impl<'a> Lore<'a> {
 #[allow(unused_variables)]
 pub fn score_moves<'a>(
     game: &Game,
-    virtual_boards: &Vec<Board>,
+    virtual_boards: &Vec<&Board>,
     board: &'a Board,
     lore: &Lore<'a>,
     moves: Vec<(Move, GameInfo, Vec<Board>)>,
@@ -198,21 +198,21 @@ pub const INACTIVE_BRANCH_COST: f32 = 30.0;
 **/
 pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
     game: &Game,
-    virtual_boards: &Vec<Board>,
+    virtual_boards: &Vec<&Board>,
     info: &GameInfo,
     opponent_boards: T,
     moveset: Vec<Move>,
 ) -> Option<(Vec<Move>, Vec<Board>, GameInfo, f32)> {
     let mut moveset_boards: Vec<Board> = Vec::new();
-    let mut merged_vboards: Vec<Board> = virtual_boards.clone();
     let mut info = info.clone();
+
     for mv in &moveset {
         let (new_info, mut new_vboards) = mv.generate_vboards(game, &info, virtual_boards)?;
         moveset_boards.append(&mut new_vboards);
         info = new_info;
     }
 
-    merged_vboards.append(&mut moveset_boards.clone());
+    let merged_vboards: Vec<&Board> = virtual_boards.iter().map(|x| *x).chain(moveset_boards.iter()).collect();
 
     if is_move_legal(game, &merged_vboards, &info, moveset_boards.iter())
         && is_move_legal(game, &merged_vboards, &info, opponent_boards)

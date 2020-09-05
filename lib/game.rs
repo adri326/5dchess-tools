@@ -348,6 +348,9 @@ impl Piece {
         }
     }
 
+    /**
+        Wether or not the piece can move by `n` tiles in any direction until it is blocked.
+    **/
     pub fn slides(&self) -> bool {
         match &self {
             Piece::BishopW

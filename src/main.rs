@@ -15,7 +15,7 @@ fn main() -> std::io::Result<()> {
 
     let game = Game::from(json::parse(&contents).expect("Couldn't parse JSON"));
 
-    let virtual_boards: Vec<Board> = vec![];
+    let virtual_boards: Vec<&Board> = vec![];
 
     let mut movesets = legal_movesets(&game, &game.info, &virtual_boards).take(40).collect::<Vec<_>>();
 

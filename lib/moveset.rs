@@ -8,7 +8,7 @@ use crate::{game::*, moves::*, resolve::*};
 #[allow(dead_code)]
 pub struct MovesetIter<'a> {
     game: &'a Game,
-    virtual_boards: &'a Vec<Board>,
+    virtual_boards: &'a Vec<&'a Board>,
     info: GameInfo,
     moves: Vec<Vec<(Move, Vec<Board>, GameInfo, i32)>>,
     pub moves_considered: usize,
@@ -55,7 +55,7 @@ impl<'a> MovesetIter<'a> {
     **/
     pub fn new(
         game: &'a Game,
-        virtual_boards: &'a Vec<Board>,
+        virtual_boards: &'a Vec<&'a Board>,
         info: &'a GameInfo,
         moves: Vec<Vec<(Move, Vec<Board>, GameInfo, i32)>>,
     ) -> Self {

@@ -121,7 +121,7 @@ impl Move {
         src: (f32, usize, usize, usize),
         dst: (f32, usize, usize, usize),
         game: &Game,
-        virtual_boards: &Vec<Board>,
+        virtual_boards: &Vec<&Board>,
     ) -> Option<Self> {
         let src_piece = get(game, virtual_boards, src)?;
         let dst_piece = get(game, virtual_boards, dst)?;
@@ -152,7 +152,7 @@ impl Move {
         src: (f32, usize, usize, usize),
         dst: (usize, usize),
         game: &Game,
-        virtual_boards: &Vec<Board>,
+        virtual_boards: &Vec<&Board>,
     ) -> Option<Self> {
         let src_piece = get(game, virtual_boards, src)?;
         Some(Move {
@@ -174,7 +174,7 @@ impl Move {
         &self,
         game: &Game,
         info: &GameInfo,
-        virtual_boards: &Vec<Board>,
+        virtual_boards: &Vec<&Board>,
     ) -> Option<(GameInfo, Vec<Board>)> {
         if self.castle {
             let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
@@ -244,7 +244,7 @@ impl Move {
     }
 }
 
-pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -> Vec<Move> {
+pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) -> Vec<Move> {
     let mut res: Vec<Move> = Vec::new();
 
     for y in 0..board.height {
@@ -371,7 +371,7 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<Board>) -
 
 pub fn is_move_legal<'a, U>(
     game: &Game,
-    virtual_boards: &Vec<Board>,
+    virtual_boards: &Vec<&Board>,
     info: &GameInfo,
     boards: U,
 ) -> bool
@@ -401,7 +401,7 @@ where
 
 pub fn get_opponent_boards<'a>(
     game: &'a Game,
-    virtual_boards: &'a Vec<Board>,
+    virtual_boards: &'a Vec<&'a Board>,
     info: &'a GameInfo,
 ) -> Vec<&'a Board> {
     game.timelines
@@ -413,7 +413,7 @@ pub fn get_opponent_boards<'a>(
 
 pub fn get_own_boards<'a>(
     game: &'a Game,
-    virtual_boards: &'a Vec<Board>,
+    virtual_boards: &'a Vec<&'a Board>,
     info: &'a GameInfo,
 ) -> Vec<&'a Board> {
     game.timelines
@@ -426,7 +426,7 @@ pub fn get_own_boards<'a>(
 pub fn legal_movesets<'a>(
     game: &'a Game,
     info: &'a GameInfo,
-    virtual_boards: &'a Vec<Board>,
+    virtual_boards: &'a Vec<&'a Board>,
 ) -> impl Iterator<Item = (Vec<Move>, Vec<Board>, GameInfo, f32)> + 'a {
     let ranked_moves = get_own_boards(&game, &virtual_boards, &game.info)
         .into_iter()
@@ -455,7 +455,7 @@ pub fn legal_movesets<'a>(
 
 fn get_board<'a, 'b, 'd>(
     game: &'a Game,
-    virtual_boards: &'b Vec<Board>,
+    virtual_boards: &'b Vec<&'b Board>,
     pos: (f32, usize),
 ) -> Option<&'d Board>
 where
@@ -470,13 +470,13 @@ where
     game.get_board(pos.0, pos.1)
 }
 
-fn get(game: &Game, virtual_boards: &Vec<Board>, pos: (f32, usize, usize, usize)) -> Option<Piece> {
+fn get(game: &Game, virtual_boards: &Vec<&Board>, pos: (f32, usize, usize, usize)) -> Option<Piece> {
     get_board(game, virtual_boards, (pos.0, pos.1))
         .map(|b| b.get(pos.2, pos.3))
         .flatten()
 }
 
-pub fn is_last(game: &Game, virtual_boards: &Vec<Board>, board: &Board) -> bool {
+pub fn is_last(game: &Game, virtual_boards: &Vec<&Board>, board: &Board) -> bool {
     if let Some(tl) = game.get_timeline(board.l) {
         if tl.states.len() + tl.begins_at - 1 > board.t {
             return false;
@@ -493,7 +493,7 @@ pub fn is_last(game: &Game, virtual_boards: &Vec<Board>, board: &Board) -> bool 
 fn probable_moves_for(
     game: &Game,
     board: &Board,
-    virtual_boards: &Vec<Board>,
+    virtual_boards: &Vec<&Board>,
     res: &mut Vec<Move>,
     piece: Piece,
     x: usize,
@@ -671,7 +671,7 @@ fn probable_moves_for(
 fn may_en_passant(
     game: &Game,
     board: &Board,
-    virtual_boards: &Vec<Board>,
+    virtual_boards: &Vec<&Board>,
     x: usize,
     y: usize,
 ) -> bool {
@@ -698,7 +698,7 @@ fn may_en_passant(
 
 fn n_gonal(
     game: &Game,
-    virtual_boards: &Vec<Board>,
+    virtual_boards: &Vec<&Board>,
     res: &mut Vec<Move>,
     src: (f32, usize, usize, usize),
     n: usize,
