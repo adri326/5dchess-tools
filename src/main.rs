@@ -24,9 +24,8 @@ fn main() -> std::io::Result<()> {
         println!("");
     }
 
-
     println!("Best move:");
-    let best_move = alphabeta(&game, 4, 1000, 20);
+    let best_move = alphabeta(&game, 2, 1000, 100);
     if let Some((best, value)) = best_move {
         println!("{:?}: {}", best.0, value);
         for b in &best.1 {
@@ -38,25 +37,25 @@ fn main() -> std::io::Result<()> {
         game.info.active_player = !game.info.active_player;
     }
 
-    println!("Possible answers:");
+    // println!("Possible answers:");
 
-    let mut movesets = legal_movesets(&game, &game.info, &virtual_boards, 0, 0)
-        .take(40)
-        .collect::<Vec<_>>();
+    // let mut movesets = legal_movesets(&game, &game.info, &virtual_boards, 0, 0)
+    //     .take(40)
+    //     .collect::<Vec<_>>();
 
-    if game.info.active_player {
-        movesets.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap());
-    } else {
-        movesets.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
-    }
+    // if game.info.active_player {
+    //     movesets.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap());
+    // } else {
+    //     movesets.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
+    // }
 
-    for moveset in movesets.iter().take(3) {
-        println!("{:?}: {}", moveset.0, moveset.3);
-        for b in &moveset.1 {
-            println!("{}", b);
-            println!("");
-        }
-    }
+    // for moveset in movesets.iter().take(3) {
+    //     println!("{:?}: {}", moveset.0, moveset.3);
+    //     for b in &moveset.1 {
+    //         println!("{}", b);
+    //         println!("");
+    //     }
+    // }
 
     Ok(())
 }

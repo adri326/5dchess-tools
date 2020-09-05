@@ -1,7 +1,7 @@
 use crate::{game::*, moves::*};
 
 pub const JUMP_COST: i32 = -8;
-pub const JUMP_INACTIVE_COST: i32 = -12;
+pub const JUMP_INACTIVE_COST: i32 = -24;
 pub const TAKE_ENEMY_REWARD: i32 = 20;
 pub const KING_DANGER_COST: i32 = -10;
 
@@ -106,9 +106,9 @@ pub fn score_moves<'a>(
 
             if mv.src.0 != mv.dst.0 || mv.src.1 != mv.dst.1 {
                 if if info.active_player {
-                    info.max_timeline > -info.min_timeline + 1.0
+                    info.max_timeline >= -info.min_timeline + 1.0
                 } else {
-                    info.max_timeline < -info.min_timeline - 1.0
+                    info.max_timeline <= -info.min_timeline - 1.0
                 } {
                     score += JUMP_INACTIVE_COST;
                 } else {
@@ -207,7 +207,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
     let mut info = info.clone();
 
     for mv in &moveset {
-        let (new_info, mut new_vboards) = mv.generate_vboards(game, &info, virtual_boards)?;
+        let (new_info, mut new_vboards) = mv.generate_vboards(game, &info, &virtual_boards)?;
         moveset_boards.append(&mut new_vboards);
         info = new_info;
     }
@@ -284,7 +284,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
         } else if info.max_timeline < -info.min_timeline {
             score += BRANCH_VALUE;
             if info.max_timeline < -info.min_timeline - 1.0 {
-                score += INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline + 1.0);
+                score -= INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline + 1.0);
             }
         }
 

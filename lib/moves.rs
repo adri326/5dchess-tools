@@ -153,8 +153,9 @@ impl Move {
         dst: (usize, usize),
         game: &Game,
         virtual_boards: &Vec<&Board>,
+        white: bool,
     ) -> Option<Self> {
-        let src_piece = get(game, virtual_boards, src)?;
+        let src_piece = if white {Piece::KingW} else {Piece::KingB};
         Some(Move {
             src,
             dst: (src.0, src.1, dst.0, dst.1),
@@ -162,7 +163,7 @@ impl Move {
             castle_long: long,
             en_passant: None,
             src_piece,
-            dst_piece: if src_piece.is_white() {
+            dst_piece: if white {
                 Piece::RookW
             } else {
                 Piece::RookB
@@ -276,9 +277,11 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
                             (x, y),
                             game,
                             virtual_boards,
+                            true,
                         )
                         .unwrap(),
                     );
+                    break;
                 } else if let Piece::Blank = piece {
                     x -= 1;
                     continue;
@@ -301,9 +304,11 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
                             (x, y),
                             game,
                             virtual_boards,
+                            true,
                         )
                         .unwrap(),
                     );
+                    break;
                 } else if let Piece::Blank = piece {
                     x += 1;
                     continue;
@@ -328,9 +333,11 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
                             (x, y),
                             game,
                             virtual_boards,
+                            false,
                         )
                         .unwrap(),
                     );
+                    break;
                 } else if let Piece::Blank = piece {
                     x -= 1;
                     continue;
@@ -353,9 +360,11 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
                             (x, y),
                             game,
                             virtual_boards,
+                            false,
                         )
                         .unwrap(),
                     );
+                    break;
                 } else if let Piece::Blank = piece {
                     x += 1;
                     continue;

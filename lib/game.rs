@@ -436,6 +436,8 @@ impl Game {
                 if tl.get_board(b.t).is_none() {
                     tl.states.push(b)
                 } else {
+                    println!("{:?}", tl.get_board(b.t));
+                    println!("{:?}", b);
                     panic!("Board already there: {}/{}", b.l, b.t);
                 }
             } else {
