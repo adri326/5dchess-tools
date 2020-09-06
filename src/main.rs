@@ -38,7 +38,7 @@ fn main() -> std::io::Result<()> {
     // }
 
     println!("Best move:");
-    let best_move = alphabeta(&game, 6, 1000, 50);
+    let best_move = alphabeta(&game, 4, 250, 16, 16);
     if let Some((best, value)) = best_move {
         println!("{:?}: {}", best.0, value);
         for b in &best.1 {

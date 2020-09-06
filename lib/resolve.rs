@@ -242,7 +242,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
     let mut info = info.clone();
 
     for mv in &moveset {
-        let (new_info, mut new_vboards) = mv.generate_vboards(game, &info, &virtual_boards)?;
+        let (new_info, mut new_vboards) = mv.generate_vboards(game, &info, &virtual_boards, &moveset_boards)?;
         moveset_boards.append(&mut new_vboards);
         info = new_info;
     }

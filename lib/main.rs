@@ -8,3 +8,4 @@ pub mod tree;
 extern crate lazy_static;
 
 extern crate permute;
+extern crate crossbeam;

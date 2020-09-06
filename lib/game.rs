@@ -1,7 +1,7 @@
 use json::{object::Object, JsonValue};
 use std::fmt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Game {
     pub timelines: Vec<Timeline>,
     pub width: usize,
@@ -17,7 +17,7 @@ pub struct GameInfo {
     pub max_timeline: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Timeline {
     pub index: f32,
     pub states: Vec<Board>,

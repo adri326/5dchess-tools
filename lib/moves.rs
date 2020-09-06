@@ -68,7 +68,7 @@ lazy_static! {
     };
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Move {
     pub src: (f32, usize, usize, usize), // l, t, x, y
     pub dst: (f32, usize, usize, usize), // l, t, x, y
@@ -174,9 +174,15 @@ impl Move {
         game: &Game,
         info: &GameInfo,
         virtual_boards: &Vec<&Board>,
+        already_generated: &Vec<Board>,
     ) -> Option<(GameInfo, Vec<Board>)> {
+        let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
+
+        if !is_last(game, virtual_boards, &new_board) || already_generated.iter().find(|b| b.l == new_board.l && b.t == new_board.t + 1).is_some() {
+            return None;
+        }
+
         if self.castle {
-            let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
             new_board.t += 1;
             new_board.set(self.src.2, self.src.3, Piece::Blank);
             new_board.set(self.dst.2, self.dst.3, Piece::Blank);
@@ -201,7 +207,6 @@ impl Move {
             );
             Some((info.clone(), vec![new_board]))
         } else if self.en_passant.is_some() {
-            let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
             new_board.t += 1;
             new_board.set(self.src.2, self.src.3, Piece::Blank);
             new_board.set(self.en_passant?.0, self.en_passant?.1, Piece::Blank);
@@ -210,28 +215,43 @@ impl Move {
         } else {
             if self.src.0 == self.dst.0 && self.src.1 == self.dst.1 {
                 // Non-branching move
-                let mut new_board =
-                    get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
                 new_board.t += 1;
                 new_board.set(self.src.2, self.src.3, Piece::Blank);
                 new_board.set(self.dst.2, self.dst.3, self.src_piece);
-                Some((info.clone(), vec![new_board]))
+
+                let mut info = info.clone();
+
+                for b in already_generated {
+                    if b.t == new_board.t && b.l == new_board.l {
+                        // Uhm actually, it's a branching move
+                        new_board.l = if new_board.active_player() {
+                            info.max_timeline = timeline_above(game, info.max_timeline);
+                            info.max_timeline
+                        } else {
+                            info.min_timeline = timeline_below(game, info.min_timeline);
+                            info.min_timeline
+                        };
+                        break;
+                    }
+                }
+
+                Some((info, vec![new_board]))
             } else {
-                let mut new_src_board =
-                    get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
+                let mut new_src_board = new_board;
                 let mut new_dst_board =
                     get_board(game, virtual_boards, (self.dst.0, self.dst.1))?.clone();
 
                 let mut new_info = info.clone();
-                if !is_last(game, virtual_boards, &new_dst_board) {
+                if !is_last(game, virtual_boards, &new_dst_board) || already_generated.iter().find(|b| b.l == new_dst_board.l && b.t == new_dst_board.t + 1).is_some() {
                     new_dst_board.l = if new_src_board.active_player() {
                         new_info.max_timeline = timeline_above(game, info.max_timeline);
-                        timeline_above(game, info.max_timeline)
+                        new_info.max_timeline
                     } else {
-                        new_info.max_timeline = timeline_below(game, info.min_timeline);
-                        timeline_below(game, info.min_timeline)
+                        new_info.min_timeline = timeline_below(game, info.min_timeline);
+                        new_info.min_timeline
                     };
                 }
+
                 new_src_board.t += 1;
                 new_dst_board.t += 1;
                 new_src_board.set(self.src.2, self.src.3, Piece::Blank);
@@ -476,7 +496,7 @@ pub fn legal_movesets<'a>(
                 })
                 .map(|mv| {
                     let (new_info, new_vboards) =
-                        mv.generate_vboards(&game, &info, &virtual_boards).unwrap();
+                        mv.generate_vboards(&game, &info, &virtual_boards, &vec![]).unwrap();
                     (mv, new_info, new_vboards)
                 })
                 .collect::<Vec<_>>();

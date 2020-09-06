@@ -1,6 +1,6 @@
 [package]
 name = "chess5dtools"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Adrien Burgun <adrien.burgun@orange.fr>"]
 edition = "2018"
 
@@ -14,3 +14,4 @@ path = "lib/main.rs"
 json = "0.12.4"
 lazy_static = "1.4.0"
 permute = "0.1.0"
+crossbeam = "0.7.3"
