@@ -130,7 +130,7 @@ impl Move {
             dst,
             castle: false,
             castle_long: false,
-            en_passant: if dst.3 == src.3 || !src_piece.is_pawn() || !dst_piece.is_blank() {
+            en_passant: if dst.3 != src.3 || !src_piece.is_pawn() || !dst_piece.is_blank() {
                 None
             } else {
                 Some((
@@ -151,8 +151,6 @@ impl Move {
         long: bool,
         src: (f32, usize, usize, usize),
         dst: (usize, usize),
-        game: &Game,
-        virtual_boards: &Vec<&Board>,
         white: bool,
     ) -> Option<Self> {
         let src_piece = if white {Piece::KingW} else {Piece::KingB};
@@ -275,8 +273,6 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
                             true,
                             (board.l, board.t, king_w.0, king_w.1),
                             (x, y),
-                            game,
-                            virtual_boards,
                             true,
                         )
                         .unwrap(),
@@ -302,8 +298,6 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
                             false,
                             (board.l, board.t, king_w.0, king_w.1),
                             (x, y),
-                            game,
-                            virtual_boards,
                             true,
                         )
                         .unwrap(),
@@ -331,8 +325,6 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
                             true,
                             (board.l, board.t, king_b.0, king_b.1),
                             (x, y),
-                            game,
-                            virtual_boards,
                             false,
                         )
                         .unwrap(),
@@ -358,8 +350,6 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
                             false,
                             (board.l, board.t, king_b.0, king_b.1),
                             (x, y),
-                            game,
-                            virtual_boards,
                             false,
                         )
                         .unwrap(),
@@ -378,7 +368,7 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
     res
 }
 
-pub fn is_move_legal<'a, U>(
+pub fn is_moveset_legal<'a, U>(
     game: &Game,
     virtual_boards: &Vec<&Board>,
     info: &GameInfo,
@@ -405,6 +395,19 @@ where
         }
     }
 
+    true
+}
+
+pub fn all_boards_played(
+    game: &Game,
+    virtual_boards: &Vec<&Board>,
+    info: &GameInfo
+) -> bool {
+    for board in get_own_boards(game, virtual_boards, info) {
+        if board.t <= info.present {
+            return false;
+        }
+    }
     true
 }
 
@@ -454,6 +457,7 @@ pub fn legal_movesets<'a>(
     let ranked_moves = get_own_boards(&game, &virtual_boards, &info)
         .into_iter()
         .map(|board| {
+            let active = board.is_active(info);
             let lore = Lore::new(
                 game,
                 virtual_boards,
@@ -463,6 +467,13 @@ pub fn legal_movesets<'a>(
             );
             let probables = probable_moves(&game, board, &virtual_boards)
                 .into_iter()
+                .filter(|mv| {
+                    if active {
+                        true
+                    } else {
+                        mv.src.0 != mv.dst.0 || mv.src.1 != mv.dst.1
+                    }
+                })
                 .map(|mv| {
                     let (new_info, new_vboards) =
                         mv.generate_vboards(&game, &info, &virtual_boards).unwrap();
@@ -481,7 +492,7 @@ pub fn legal_movesets<'a>(
     iter.score()
 }
 
-fn get_board<'a, 'b, 'd>(
+pub fn get_board<'a, 'b, 'd>(
     game: &'a Game,
     virtual_boards: &'b Vec<&'b Board>,
     pos: (f32, usize),
@@ -522,7 +533,7 @@ pub fn is_last(game: &Game, virtual_boards: &Vec<&Board>, board: &Board) -> bool
     true
 }
 
-fn probable_moves_for(
+pub fn probable_moves_for(
     game: &Game,
     board: &Board,
     virtual_boards: &Vec<&Board>,

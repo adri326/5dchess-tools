@@ -1,4 +1,4 @@
-use chess5dlib::{game::*, moves::*, tree::*};
+use chess5dlib::{game::*, moves::*, tree::*, resolve::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -24,8 +24,21 @@ fn main() -> std::io::Result<()> {
         println!("");
     }
 
+    // println!("Moves per board:");
+    // for b in get_own_boards(&game, &virtual_boards, &game.info) {
+    //     let probs = probable_moves(&game, b, &virtual_boards);
+    //     println!("{:#?}", probs);
+    //     let probs = probs.into_iter().map(|m| {
+    //         let res = m.generate_vboards(&game, &game.info, &virtual_boards).unwrap();
+    //         (m, res.0, res.1)
+    //     }).collect::<Vec<_>>();
+    //     let lore = Lore::new(&game, &virtual_boards, b, get_opponent_boards(&game, &virtual_boards, &game.info).iter().map(|x| *x), &game.info);
+    //     let scored = score_moves(&game, &virtual_boards, b, &lore, probs, &game.info);
+    //     println!("{:#?}", scored.iter().map(|(m, _, _, s)| (m, s)).collect::<Vec<_>>());
+    // }
+
     println!("Best move:");
-    let best_move = alphabeta(&game, 2, 1000, 100);
+    let best_move = alphabeta(&game, 6, 1000, 50);
     if let Some((best, value)) = best_move {
         println!("{:?}: {}", best.0, value);
         for b in &best.1 {

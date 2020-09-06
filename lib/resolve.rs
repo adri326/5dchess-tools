@@ -21,6 +21,13 @@ pub const TAKE_QUEEN_REWARD: i32 = 10;
 pub const TAKE_UNICORN_REWARD: i32 = 2;
 pub const TAKE_DRAGON_REWARD: i32 = 2;
 
+pub const CHECK_QUEEN_REWARD: i32 = 7;
+pub const CHECK_KNIGHT_REWARD: i32 = 4;
+pub const CHECK_BISHOP_REWARD: i32 = 4;
+pub const CHECK_ROOK_REWARD: i32 = 3;
+pub const CHECK_UNICORN_REWARD: i32 = 4;
+pub const CHECK_DRAGON_REWARD: i32 = 4;
+
 #[derive(Debug)]
 pub struct Lore<'a> {
     pub board: &'a Board,
@@ -104,7 +111,7 @@ pub fn score_moves<'a>(
         .map(|(mv, info, boards)| {
             let mut score: i32 = 0;
 
-            if mv.src.0 != mv.dst.0 || mv.src.1 != mv.dst.1 {
+            if (mv.src.0 != mv.dst.0 || mv.src.1 != mv.dst.1) && !is_last(game, virtual_boards, get_board(game, virtual_boards, (mv.dst.0, mv.dst.1)).unwrap()) {
                 if if info.active_player {
                     info.max_timeline >= -info.min_timeline + 1.0
                 } else {
@@ -141,6 +148,36 @@ pub fn score_moves<'a>(
                 score += TAKE_DRAGON_REWARD;
             }
 
+            let mut moves: Vec<Move> = Vec::new();
+
+            probable_moves_for(
+                game,
+                get_board(game, virtual_boards, (mv.dst.0, mv.dst.1)).unwrap(),
+                virtual_boards,
+                &mut moves,
+                mv.src_piece,
+                mv.dst.2,
+                mv.dst.3
+            );
+
+            for mv in moves {
+                if mv.dst_piece.is_king() {
+                    if mv.dst_piece.is_knight() {
+                        score += CHECK_KNIGHT_REWARD;
+                    } else if mv.dst_piece.is_rook() {
+                        score += CHECK_ROOK_REWARD;
+                    } else if mv.dst_piece.is_bishop() {
+                        score += CHECK_BISHOP_REWARD;
+                    } else if mv.dst_piece.is_queen() {
+                        score += CHECK_QUEEN_REWARD;
+                    } else if mv.dst_piece.is_unicorn() {
+                        score += CHECK_UNICORN_REWARD;
+                    } else if mv.dst_piece.is_dragon() {
+                        score += CHECK_DRAGON_REWARD;
+                    }
+                }
+            }
+
             for b in &boards {
                 for (index, piece) in b.pieces.iter().enumerate() {
                     if *piece != Piece::Blank && piece.is_white() == board.active_player() {
@@ -171,14 +208,11 @@ pub fn score_moves<'a>(
 
             (mv, boards, info, score)
         })
-        .filter(|(_mv, boards, info, _score)| is_move_legal(game, virtual_boards, info, boards.iter()))
+        .filter(|(_mv, boards, info, _score)| is_moveset_legal(game, virtual_boards, info, boards.iter()))
         .collect::<Vec<_>>();
-    res.sort_unstable_by_key(|(_mv, _boards, _info, score)| *score);
-    if info.active_player {
-        res.into_iter().rev().collect()
-    } else {
-        res
-    }
+    res.sort_unstable_by_key(|(_mv, _boards, _info, score)| -(*score as i32));
+
+    res
 }
 
 pub const ROOK_VALUE: f32 = 3.0;
@@ -191,7 +225,8 @@ pub const DRAGON_VALUE: f32 = 3.0;
 pub const PAWN_VALUE: f32 = 0.9;
 pub const KING_PROTECTION_VALUE: f32 = 3.0;
 pub const BRANCH_VALUE: f32 = 10.0;
-pub const INACTIVE_BRANCH_COST: f32 = 30.0;
+pub const INACTIVE_BRANCH_COST: f32 = 40.0;
+pub const INACTIVE_BRANCH_MULTIPLIER: f32 = 0.3;
 
 /**
     Checks that `moveset` is legal and gives it a score.
@@ -218,8 +253,9 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
         .chain(moveset_boards.iter())
         .collect();
 
-    if is_move_legal(game, &merged_vboards, &info, moveset_boards.iter())
-        && is_move_legal(game, &merged_vboards, &info, opponent_boards)
+    if is_moveset_legal(game, &merged_vboards, &info, moveset_boards.iter())
+        && is_moveset_legal(game, &merged_vboards, &info, opponent_boards)
+        && all_boards_played(game, &merged_vboards, &info)
     {
         info.present += 1;
         info.active_player = !info.active_player;
@@ -227,6 +263,11 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
         let mut score: f32 = 0.0;
 
         for board in &moveset_boards {
+            let board_mult: f32 = if board.l < 0.0 && -board.l > info.max_timeline + 1.0 || board.l > 0.0 && board.l > -info.min_timeline + 1.0 {
+                INACTIVE_BRANCH_MULTIPLIER
+            } else {
+                1.0
+            };
             for (index, piece) in board.pieces.iter().enumerate() {
                 let x = index % board.width;
                 let y = index / board.width;
@@ -235,7 +276,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                 }
                 let mult: f32 = if piece.is_white() { 1.0 } else { -1.0 };
                 if piece.is_king() {
-                    score += KING_VALUE * mult;
+                    score += KING_VALUE * mult * board_mult;
                     for dx in -1..=1 {
                         for dy in -1..=1 {
                             if dx == 0 && dy == 0
@@ -256,21 +297,21 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                         }
                     }
                 } else if piece.is_knight() {
-                    score += KNIGHT_VALUE * mult;
+                    score += KNIGHT_VALUE * mult * board_mult;
                 } else if piece.is_knight() {
-                    score += KNIGHT_VALUE * mult;
+                    score += KNIGHT_VALUE * mult * board_mult;
                 } else if piece.is_bishop() {
-                    score += BISHOP_VALUE * mult;
+                    score += BISHOP_VALUE * mult * board_mult;
                 } else if piece.is_rook() {
-                    score += ROOK_VALUE * mult;
+                    score += ROOK_VALUE * mult * board_mult;
                 } else if piece.is_queen() {
-                    score += QUEEN_VALUE * mult;
+                    score += QUEEN_VALUE * mult * board_mult;
                 } else if piece.is_unicorn() {
-                    score += UNICORN_VALUE * mult;
+                    score += UNICORN_VALUE * mult * board_mult;
                 } else if piece.is_dragon() {
-                    score += DRAGON_VALUE * mult;
+                    score += DRAGON_VALUE * mult * board_mult;
                 } else if piece.is_pawn() {
-                    score += PAWN_VALUE * mult;
+                    score += PAWN_VALUE * mult * board_mult;
                 }
             }
         }
@@ -282,6 +323,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                 score -= INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline - 1.0);
             }
         } else if info.max_timeline < -info.min_timeline {
+            // white advantageous
             score += BRANCH_VALUE;
             if info.max_timeline < -info.min_timeline - 1.0 {
                 score -= INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline + 1.0);

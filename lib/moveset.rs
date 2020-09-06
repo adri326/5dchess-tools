@@ -97,16 +97,22 @@ impl<'a> MovesetIter<'a> {
     **/
     pub fn generate_combinations(&mut self, new_moves: Vec<(usize, usize)>) {
         for (i, nm) in new_moves.into_iter() {
-            let pre_combinations = if i > 0 {
+            let mut pre_combinations = if i > 0 {
                 self.generate_pre_combinations(i, 0)
             } else {
                 vec![vec![]]
             };
-            let post_combinations = if i < self.moves.len() - 1 {
+            if pre_combinations.len() == 0 {
+                pre_combinations.push(vec![]);
+            }
+            let mut post_combinations = if i < self.moves.len() - 1 {
                 self.generate_post_combinations(i, self.moves.len() - 1)
             } else {
                 vec![vec![]]
             };
+            if post_combinations.len() == 0 {
+                post_combinations.push(vec![]);
+            }
             for pre in pre_combinations.into_iter() {
                 for post in post_combinations.iter().cloned() {
                     self.commit_combination(
@@ -140,13 +146,22 @@ impl<'a> MovesetIter<'a> {
             return (0..(self.moves[current].len().min(self.moves_considered - 1)))
                 .map(|n| vec![(current, n)])
                 .collect();
+        } else if self.moves[current].len() == 0 {
+            return self.generate_pre_combinations(max, current + 1);
         } else {
             let mut res: Vec<Vec<(usize, usize)>> = Vec::new();
-            for v in self.generate_pre_combinations(max, current + 1) {
+            let to_combine = self.generate_pre_combinations(max, current + 1);
+            if to_combine.len() > 0 {
+                for v in to_combine.into_iter() {
+                    for x in 0..(self.moves[current].len().min(self.moves_considered - 1)) {
+                        let mut v2 = v.clone();
+                        v2.push((current, x));
+                        res.push(v2);
+                    }
+                }
+            } else {
                 for x in 0..(self.moves[current].len().min(self.moves_considered - 1)) {
-                    let mut v2 = v.clone();
-                    v2.push((current, x));
-                    res.push(v2);
+                    res.push(vec![(current, x)]);
                 }
             }
             return res;
@@ -165,13 +180,22 @@ impl<'a> MovesetIter<'a> {
             return (0..(self.moves[current].len().min(self.moves_considered - 1)))
                 .map(|n| vec![(current, n)])
                 .collect();
+        } else if self.moves[current].len() == 0 {
+            return self.generate_post_combinations(min, current - 1);
         } else {
             let mut res: Vec<Vec<(usize, usize)>> = Vec::new();
-            for v in self.generate_post_combinations(min, current - 1) {
+            let to_combine = self.generate_post_combinations(min, current - 1);
+            if to_combine.len() > 0 {
+                for v in to_combine.into_iter() {
+                    for x in 0..(self.moves[current].len().min(self.moves_considered)) {
+                        let mut v2 = v.clone();
+                        v2.push((current, x));
+                        res.push(v2);
+                    }
+                }
+            } else {
                 for x in 0..(self.moves[current].len().min(self.moves_considered)) {
-                    let mut v2 = v.clone();
-                    v2.push((current, x));
-                    res.push(v2);
+                    res.push(vec![(current, x)]);
                 }
             }
             return res;
