@@ -37,9 +37,11 @@ fn main() -> std::io::Result<()> {
     //     println!("{:#?}", scored.iter().map(|(m, _, _, s)| (m, s)).collect::<Vec<_>>());
     // }
 
-    println!("Best move:");
-    let best_move = alphabeta(&game, 4, 250, 16, 16);
+    println!("Turn {}, {} to play:", (game.info.present / 2) + 1, if game.info.active_player {"white"} else {"black"});
+    println!("Candidates:");
+    let best_move = alphabeta(&game, 6, 2000, 16, 16);
     if let Some((best, value)) = best_move {
+        println!("Best move:");
         println!("{:?}: {}", best.0, value);
         for b in &best.1 {
             println!("{}", b);
@@ -48,6 +50,8 @@ fn main() -> std::io::Result<()> {
         game.commit_moves(best.1);
         game.info = best.2;
         game.info.active_player = !game.info.active_player;
+    } else {
+        println!("No move!");
     }
 
     // println!("Possible answers:");

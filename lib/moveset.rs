@@ -312,20 +312,25 @@ impl<'a> MovesetIter<'a> {
 
 pub fn is_draw(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bool {
     let opponent_boards = get_opponent_boards(game, virtual_boards, info);
-    let own_boards = get_own_boards(game, virtual_boards, info);
+    let own_boards = get_own_boards(game, virtual_boards, info).into_iter().cloned().map(|mut x| {
+        x.t += 1;
+        x
+    }).collect::<Vec<_>>();
+
+    let merged_vboards = opponent_boards.iter().map(|x| *x).chain(own_boards.iter()).collect::<Vec<_>>();
 
     // TODO: merge mutated own_boards with virtual_boards
 
     for b in opponent_boards.into_iter() {
-        for mv in probable_moves(game, b, virtual_boards) {
+        for mv in probable_moves(game, b, &merged_vboards) {
             if mv.dst_piece.is_king() {
                 return false;
             }
         }
     }
-    for mut b in own_boards.into_iter().cloned() {
-        b.t += 1;
-        for mv in probable_moves(game, &b, virtual_boards) {
+
+    for mut b in own_boards.iter() {
+        for mv in probable_moves(game, &b, &merged_vboards) {
             if mv.dst_piece.is_king() {
                 return false;
             }

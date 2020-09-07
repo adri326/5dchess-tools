@@ -439,10 +439,10 @@ pub fn get_opponent_boards<'a>(
     let mut res: Vec<&Board> = game.timelines
         .iter()
         .map(|tl| &tl.states[tl.states.len() - 1])
-        .filter(|b| b.active_player() == !info.active_player && is_last(game, virtual_boards, b))
+        .filter(|b| b.active_player() != info.active_player && is_last(game, virtual_boards, b))
         .collect();
     for b in virtual_boards {
-        if b.active_player() == info.active_player && is_last(game, virtual_boards, b) {
+        if b.active_player() != info.active_player && is_last(game, virtual_boards, b) {
             res.push(b);
         }
     }
