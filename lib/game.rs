@@ -447,7 +447,7 @@ impl Game {
                     width: self.width,
                     height: self.height,
                     emerges_from: None,
-                    states: vec![b]
+                    states: vec![b],
                 });
             }
         }

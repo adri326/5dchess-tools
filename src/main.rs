@@ -1,4 +1,4 @@
-use chess5dlib::{game::*, moves::*, tree::*, resolve::*};
+use chess5dlib::{game::*, moves::*, resolve::*, tree::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -37,7 +37,15 @@ fn main() -> std::io::Result<()> {
     //     println!("{:#?}", scored.iter().map(|(m, _, _, s)| (m, s)).collect::<Vec<_>>());
     // }
 
-    println!("Turn {}, {} to play:", (game.info.present / 2) + 1, if game.info.active_player {"white"} else {"black"});
+    println!(
+        "Turn {}, {} to play:",
+        (game.info.present / 2) + 1,
+        if game.info.active_player {
+            "white"
+        } else {
+            "black"
+        }
+    );
     println!("Candidates:");
     let best_move = alphabeta(&game, 6, 2000, 16, 16);
     if let Some((best, value)) = best_move {

@@ -153,7 +153,7 @@ impl Move {
         dst: (usize, usize),
         white: bool,
     ) -> Option<Self> {
-        let src_piece = if white {Piece::KingW} else {Piece::KingB};
+        let src_piece = if white { Piece::KingW } else { Piece::KingB };
         Some(Move {
             src,
             dst: (src.0, src.1, dst.0, dst.1),
@@ -161,11 +161,7 @@ impl Move {
             castle_long: long,
             en_passant: None,
             src_piece,
-            dst_piece: if white {
-                Piece::RookW
-            } else {
-                Piece::RookB
-            },
+            dst_piece: if white { Piece::RookW } else { Piece::RookB },
         })
     }
 
@@ -178,7 +174,12 @@ impl Move {
     ) -> Option<(GameInfo, Vec<Board>)> {
         let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
 
-        if !is_last(game, virtual_boards, &new_board) || already_generated.iter().find(|b| b.l == new_board.l && b.t == new_board.t + 1).is_some() {
+        if !is_last(game, virtual_boards, &new_board)
+            || already_generated
+                .iter()
+                .find(|b| b.l == new_board.l && b.t == new_board.t + 1)
+                .is_some()
+        {
             return None;
         }
 
@@ -242,7 +243,12 @@ impl Move {
                     get_board(game, virtual_boards, (self.dst.0, self.dst.1))?.clone();
 
                 let mut new_info = info.clone();
-                if !is_last(game, virtual_boards, &new_dst_board) || already_generated.iter().find(|b| b.l == new_dst_board.l && b.t == new_dst_board.t + 1).is_some() {
+                if !is_last(game, virtual_boards, &new_dst_board)
+                    || already_generated
+                        .iter()
+                        .find(|b| b.l == new_dst_board.l && b.t == new_dst_board.t + 1)
+                        .is_some()
+                {
                     new_dst_board.l = if new_src_board.active_player() {
                         new_info.max_timeline = timeline_above(game, info.max_timeline);
                         new_info.max_timeline
@@ -289,13 +295,8 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
             while let Some(piece) = board.get(x, y) {
                 if let Piece::RookW = piece {
                     res.push(
-                        Move::castle(
-                            true,
-                            (board.l, board.t, king_w.0, king_w.1),
-                            (x, y),
-                            true,
-                        )
-                        .unwrap(),
+                        Move::castle(true, (board.l, board.t, king_w.0, king_w.1), (x, y), true)
+                            .unwrap(),
                     );
                     break;
                 } else if let Piece::Blank = piece {
@@ -314,13 +315,8 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
             while let Some(piece) = board.get(x, y) {
                 if let Piece::RookW = piece {
                     res.push(
-                        Move::castle(
-                            false,
-                            (board.l, board.t, king_w.0, king_w.1),
-                            (x, y),
-                            true,
-                        )
-                        .unwrap(),
+                        Move::castle(false, (board.l, board.t, king_w.0, king_w.1), (x, y), true)
+                            .unwrap(),
                     );
                     break;
                 } else if let Piece::Blank = piece {
@@ -341,13 +337,8 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
             while let Some(piece) = board.get(x, y) {
                 if let Piece::RookB = piece {
                     res.push(
-                        Move::castle(
-                            true,
-                            (board.l, board.t, king_b.0, king_b.1),
-                            (x, y),
-                            false,
-                        )
-                        .unwrap(),
+                        Move::castle(true, (board.l, board.t, king_b.0, king_b.1), (x, y), false)
+                            .unwrap(),
                     );
                     break;
                 } else if let Piece::Blank = piece {
@@ -366,13 +357,8 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
             while let Some(piece) = board.get(x, y) {
                 if let Piece::RookB = piece {
                     res.push(
-                        Move::castle(
-                            false,
-                            (board.l, board.t, king_b.0, king_b.1),
-                            (x, y),
-                            false,
-                        )
-                        .unwrap(),
+                        Move::castle(false, (board.l, board.t, king_b.0, king_b.1), (x, y), false)
+                            .unwrap(),
                     );
                     break;
                 } else if let Piece::Blank = piece {
@@ -418,11 +404,7 @@ where
     true
 }
 
-pub fn all_boards_played(
-    game: &Game,
-    virtual_boards: &Vec<&Board>,
-    info: &GameInfo
-) -> bool {
+pub fn all_boards_played(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bool {
     for board in get_own_boards(game, virtual_boards, info) {
         if board.t <= info.present {
             return false;
@@ -436,7 +418,8 @@ pub fn get_opponent_boards<'a>(
     virtual_boards: &'a Vec<&'a Board>,
     info: &'a GameInfo,
 ) -> Vec<&'a Board> {
-    let mut res: Vec<&Board> = game.timelines
+    let mut res: Vec<&Board> = game
+        .timelines
         .iter()
         .map(|tl| &tl.states[tl.states.len() - 1])
         .filter(|b| b.active_player() != info.active_player && is_last(game, virtual_boards, b))
@@ -454,7 +437,8 @@ pub fn get_own_boards<'a>(
     virtual_boards: &'a Vec<&'a Board>,
     info: &'a GameInfo,
 ) -> Vec<&'a Board> {
-    let mut res: Vec<&Board> = game.timelines
+    let mut res: Vec<&Board> = game
+        .timelines
         .iter()
         .map(|tl| &tl.states[tl.states.len() - 1])
         .filter(|b| b.active_player() == info.active_player && is_last(game, virtual_boards, b))
@@ -495,8 +479,9 @@ pub fn legal_movesets<'a>(
                     }
                 })
                 .map(|mv| {
-                    let (new_info, new_vboards) =
-                        mv.generate_vboards(&game, &info, &virtual_boards, &vec![]).unwrap();
+                    let (new_info, new_vboards) = mv
+                        .generate_vboards(&game, &info, &virtual_boards, &vec![])
+                        .unwrap();
                     (mv, new_info, new_vboards)
                 })
                 .collect::<Vec<_>>();

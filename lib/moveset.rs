@@ -128,7 +128,15 @@ impl<'a> MovesetIter<'a> {
                                     false,
                                 )
                             })
-                            .chain(vec![(self.moves[i][nm].0.clone(), self.moves[i][nm].2.clone(), false, true)].into_iter())
+                            .chain(
+                                vec![(
+                                    self.moves[i][nm].0.clone(),
+                                    self.moves[i][nm].2.clone(),
+                                    false,
+                                    true,
+                                )]
+                                .into_iter(),
+                            )
                             .collect::<Vec<_>>(),
                     );
                 }
@@ -239,10 +247,9 @@ impl<'a> MovesetIter<'a> {
             if *locked {
                 continue;
             }
-            if let Some(target_move) = combination
-                .iter()
-                .find(|(m, _i, _a, _n)| m.src.0 == jumping_move.dst.0 && m.src.1 == jumping_move.dst.1)
-            {
+            if let Some(target_move) = combination.iter().find(|(m, _i, _a, _n)| {
+                m.src.0 == jumping_move.dst.0 && m.src.1 == jumping_move.dst.1
+            }) {
                 self.commit_combination(
                     normal_moves
                         .clone()
@@ -276,7 +283,9 @@ impl<'a> MovesetIter<'a> {
                 break;
             }
 
-            let x = normal_moves.clone().into_iter()
+            let x = normal_moves
+                .clone()
+                .into_iter()
                 .chain(permutation.cloned())
                 .map(|(m, _i, _a, _n)| m.clone())
                 .collect::<Vec<_>>();
@@ -312,12 +321,20 @@ impl<'a> MovesetIter<'a> {
 
 pub fn is_draw(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bool {
     let opponent_boards = get_opponent_boards(game, virtual_boards, info);
-    let own_boards = get_own_boards(game, virtual_boards, info).into_iter().cloned().map(|mut x| {
-        x.t += 1;
-        x
-    }).collect::<Vec<_>>();
+    let own_boards = get_own_boards(game, virtual_boards, info)
+        .into_iter()
+        .cloned()
+        .map(|mut x| {
+            x.t += 1;
+            x
+        })
+        .collect::<Vec<_>>();
 
-    let merged_vboards = opponent_boards.iter().map(|x| *x).chain(own_boards.iter()).collect::<Vec<_>>();
+    let merged_vboards = opponent_boards
+        .iter()
+        .map(|x| *x)
+        .chain(own_boards.iter())
+        .collect::<Vec<_>>();
 
     // TODO: merge mutated own_boards with virtual_boards
 

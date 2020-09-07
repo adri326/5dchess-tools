@@ -111,7 +111,13 @@ pub fn score_moves<'a>(
         .map(|(mv, info, boards)| {
             let mut score: i32 = 0;
 
-            if (mv.src.0 != mv.dst.0 || mv.src.1 != mv.dst.1) && !is_last(game, virtual_boards, get_board(game, virtual_boards, (mv.dst.0, mv.dst.1)).unwrap()) {
+            if (mv.src.0 != mv.dst.0 || mv.src.1 != mv.dst.1)
+                && !is_last(
+                    game,
+                    virtual_boards,
+                    get_board(game, virtual_boards, (mv.dst.0, mv.dst.1)).unwrap(),
+                )
+            {
                 if if info.active_player {
                     info.max_timeline >= -info.min_timeline + 1.0
                 } else {
@@ -157,7 +163,7 @@ pub fn score_moves<'a>(
                 &mut moves,
                 mv.src_piece,
                 mv.dst.2,
-                mv.dst.3
+                mv.dst.3,
             );
 
             for mv in moves {
@@ -208,7 +214,9 @@ pub fn score_moves<'a>(
 
             (mv, boards, info, score)
         })
-        .filter(|(_mv, boards, info, _score)| is_moveset_legal(game, virtual_boards, info, boards.iter()))
+        .filter(|(_mv, boards, info, _score)| {
+            is_moveset_legal(game, virtual_boards, info, boards.iter())
+        })
         .collect::<Vec<_>>();
     res.sort_unstable_by_key(|(_mv, _boards, _info, score)| -(*score as i32));
 
@@ -242,7 +250,8 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
     let mut info = info.clone();
 
     for mv in &moveset {
-        let (new_info, mut new_vboards) = mv.generate_vboards(game, &info, &virtual_boards, &moveset_boards)?;
+        let (new_info, mut new_vboards) =
+            mv.generate_vboards(game, &info, &virtual_boards, &moveset_boards)?;
         moveset_boards.append(&mut new_vboards);
         info = new_info;
     }
@@ -263,7 +272,9 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
         let mut score: f32 = 0.0;
 
         for board in &moveset_boards {
-            let board_mult: f32 = if board.l < 0.0 && -board.l > info.max_timeline + 1.0 || board.l > 0.0 && board.l > -info.min_timeline + 1.0 {
+            let board_mult: f32 = if board.l < 0.0 && -board.l > info.max_timeline + 1.0
+                || board.l > 0.0 && board.l > -info.min_timeline + 1.0
+            {
                 INACTIVE_BRANCH_MULTIPLIER
             } else {
                 1.0
