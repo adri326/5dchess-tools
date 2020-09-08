@@ -1,4 +1,4 @@
-use chess5dlib::{game::*, moves::*, resolve::*, tree::*};
+use chess5dlib::{game::*, moves::*, moveset::*, resolve::*, tree::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -47,7 +47,7 @@ fn main() -> std::io::Result<()> {
         }
     );
     println!("Candidates:");
-    let best_move = alphabeta(&game, 6, 2000, 16, 16);
+    let best_move = alphabeta(&game, 4, 2000, 512, 64, 16);
     if let Some((best, value)) = best_move {
         println!("Best move:");
         println!("{:?}: {}", best.0, value);
@@ -59,7 +59,11 @@ fn main() -> std::io::Result<()> {
         game.info = best.2;
         game.info.active_player = !game.info.active_player;
     } else {
-        println!("No move!");
+        if is_draw(&game, &virtual_boards, &game.info) {
+            println!("Draw!");
+        } else {
+            println!("Checkmate!");
+        }
     }
 
     // println!("Possible answers:");

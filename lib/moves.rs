@@ -220,21 +220,41 @@ impl Move {
                 new_board.set(self.src.2, self.src.3, Piece::Blank);
                 new_board.set(self.dst.2, self.dst.3, self.src_piece);
 
-                let mut info = info.clone();
+                let info = info.clone();
 
-                for b in already_generated {
-                    if b.t == new_board.t && b.l == new_board.l {
-                        // Uhm actually, it's a branching move
-                        new_board.l = if new_board.active_player() {
-                            info.max_timeline = timeline_above(game, info.max_timeline);
-                            info.max_timeline
+                if self.src_piece.is_pawn()
+                    && self.dst.3
+                        == if self.src_piece.is_white() {
+                            new_board.height - 1
                         } else {
-                            info.min_timeline = timeline_below(game, info.min_timeline);
-                            info.min_timeline
-                        };
-                        break;
-                    }
+                            0
+                        }
+                {
+                    new_board.set(
+                        self.dst.2,
+                        self.dst.3,
+                        if self.src_piece.is_white() {
+                            Piece::QueenW
+                        } else {
+                            Piece::QueenB
+                        },
+                    );
                 }
+
+                // Impossible!
+                // for b in already_generated {
+                //     if b.t == new_board.t && b.l == new_board.l {
+                //         // Uhm actually, it's a branching move
+                //         new_board.l = if new_board.active_player() {
+                //             info.max_timeline = timeline_above(game, info.max_timeline);
+                //             info.max_timeline
+                //         } else {
+                //             info.min_timeline = timeline_below(game, info.min_timeline);
+                //             info.min_timeline
+                //         };
+                //         break;
+                //     }
+                // }
 
                 Some((info, vec![new_board]))
             } else {
@@ -260,6 +280,19 @@ impl Move {
 
                 new_src_board.t += 1;
                 new_dst_board.t += 1;
+                // TODO: timeline reactivation
+                if new_dst_board.t < new_info.present && new_dst_board.is_active(&new_info) {
+                    new_info.present = new_dst_board.t;
+                }
+
+                if if self.src_piece.is_white() {
+                    -info.min_timeline > info.max_timeline
+                } else {
+                    -info.min_timeline < info.max_timeline
+                } {
+                    new_info.present = find_present(game, virtual_boards, info);
+                }
+
                 new_src_board.set(self.src.2, self.src.3, Piece::Blank);
                 new_dst_board.set(self.dst.2, self.dst.3, self.src_piece);
 
@@ -461,7 +494,6 @@ pub fn legal_movesets<'a>(
     let ranked_moves = get_own_boards(&game, &virtual_boards, &info)
         .into_iter()
         .map(|board| {
-            let active = board.is_active(info);
             let lore = Lore::new(
                 game,
                 virtual_boards,
@@ -471,13 +503,6 @@ pub fn legal_movesets<'a>(
             );
             let probables = probable_moves(&game, board, &virtual_boards)
                 .into_iter()
-                .filter(|mv| {
-                    if active {
-                        true
-                    } else {
-                        mv.src.0 != mv.dst.0 || mv.src.1 != mv.dst.1
-                    }
-                })
                 .map(|mv| {
                     let (new_info, new_vboards) = mv
                         .generate_vboards(&game, &info, &virtual_boards, &vec![])
@@ -781,4 +806,35 @@ fn n_gonal(
         }
     }
     Some(())
+}
+
+pub fn find_present(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> usize {
+    let mut min = info.present;
+    game.timelines
+        .iter()
+        .map(|tl| &tl.states[tl.states.len() - 1])
+        .filter(|b| is_last(game, virtual_boards, b) && b.is_active(info))
+        .for_each(|b| {
+            if b.t < min {
+                min = b.t;
+            }
+        });
+    for b in virtual_boards {
+        if is_last(game, virtual_boards, b) && b.t < min && b.is_active(info) {
+            min = b.t;
+        }
+    }
+
+    min
+}
+
+pub fn is_optional(info: &GameInfo, mv: &Move) -> bool {
+    if mv.src.1 > info.present
+        || mv.src.0 < -info.max_timeline - 1.0
+        || mv.src.0 > -info.min_timeline + 1.0
+    {
+        mv.src.0 == mv.dst.0 && mv.src.1 == mv.dst.1
+    } else {
+        false
+    }
 }

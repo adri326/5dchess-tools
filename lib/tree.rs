@@ -9,6 +9,7 @@ pub fn alphabeta<'a>(
     game: &'a Game,
     depth: usize,
     max_ms: usize,
+    bucket_size: usize,
     max_bf: usize,
     n_threads: usize,
 ) -> Option<(Node, f32)> {
@@ -50,7 +51,7 @@ pub fn alphabeta<'a>(
 
                 if depth > 0 {
                     node.2.active_player = !node.2.active_player;
-                    let new_value = alphabeta_rec(
+                    let (best_branch, new_value) = alphabeta_rec(
                         &game,
                         &virtual_boards,
                         node.clone(),
@@ -59,15 +60,22 @@ pub fn alphabeta<'a>(
                         std::f32::INFINITY,
                         !node.2.active_player,
                         max_ms,
+                        bucket_size,
                         max_bf,
                     );
+                    if let Some(best_branch) = best_branch {
+                        println!("1. {:?}", node.0);
+                        for (k, mv) in best_branch.iter().enumerate() {
+                            println!("{}. {:?}", k + 2, mv.0);
+                        }
+                    }
                     println!("{:?} -> {}", node.0, new_value);
                     match res_data.lock() {
                         Ok(mut res_data) => {
                             if if info.active_player {
-                                new_value >= res_data.1
+                                new_value > res_data.1
                             } else {
-                                new_value <= res_data.1
+                                new_value < res_data.1
                             } {
                                 res_data.1 = new_value;
                                 res_data.0 = Some(node);
@@ -79,9 +87,9 @@ pub fn alphabeta<'a>(
                     match res_data.lock() {
                         Ok(mut res_data) => {
                             if if info.active_player {
-                                node.3 >= res_data.1
+                                node.3 > res_data.1
                             } else {
-                                node.3 <= res_data.1
+                                node.3 < res_data.1
                             } {
                                 res_data.1 = node.3;
                                 res_data.0 = Some(node);
@@ -117,10 +125,12 @@ fn alphabeta_rec(
     mut beta: f32,
     white: bool,
     max_ms: usize,
+    bucket_size: usize,
     max_bf: usize,
-) -> f32 {
+) -> (Option<Vec<Node>>, f32) {
     if depth == 0 {
-        node.3
+        let s = node.3;
+        (None, s)
     } else {
         let mut info = node.2.clone();
         info.active_player = white;
@@ -129,26 +139,43 @@ fn alphabeta_rec(
             .map(|x| *x)
             .chain(node.1.iter())
             .collect::<Vec<&Board>>();
-        let movesets = legal_movesets(game, &info, &merged_vboards, 0, max_ms).take(max_bf);
+        let movesets = legal_movesets(game, &info, &merged_vboards, 0, max_ms);
 
         if white {
             let mut value = std::f32::NEG_INFINITY;
             let mut yielded_move = false;
-            for ms in movesets {
+            let mut best_move: Option<Vec<Node>> = None;
+            for ms in opt_apply_bucket(bucket_size, max_bf, white, movesets) {
+                if ms.0.len() > game.timelines.len() * 5 {
+                    println!("Abnormally high number of dimensions: {}", ms.0.len());
+                    println!("{:?}", ms.0);
+                }
                 yielded_move = true;
-                value = alphabeta_rec(
+                let (best_branch, n_value) = alphabeta_rec(
                     game,
                     &merged_vboards,
-                    ms,
+                    ms.clone(),
                     depth - 1,
                     alpha,
                     beta,
                     false,
                     max_ms,
+                    bucket_size,
                     max_bf,
-                )
-                .max(value);
-                alpha = alpha.max(value);
+                );
+                if n_value > value {
+                    if let Some(mut best_branch) = best_branch {
+                        best_move = Some({
+                            let mut res = vec![ms];
+                            res.append(&mut best_branch);
+                            res
+                        });
+                    } else {
+                        best_move = Some(vec![ms]);
+                    }
+                    value = n_value;
+                    alpha = alpha.max(value);
+                }
                 if alpha >= beta {
                     break;
                 }
@@ -159,25 +186,43 @@ fn alphabeta_rec(
                     value = 0.0;
                 }
             }
-            value
+
+            (best_move, value)
         } else {
             let mut value = std::f32::INFINITY;
             let mut yielded_move = false;
-            for ms in movesets {
+            let mut best_move: Option<Vec<Node>> = None;
+            for ms in opt_apply_bucket(bucket_size, max_bf, white, movesets) {
+                if ms.0.len() > game.timelines.len() * 5 {
+                    println!("Abnormally high number of dimensions: {}", ms.0.len());
+                    println!("{:?}", ms.0);
+                }
                 yielded_move = true;
-                value = alphabeta_rec(
+                let (best_branch, n_value) = alphabeta_rec(
                     game,
                     &merged_vboards,
-                    ms,
+                    ms.clone(),
                     depth - 1,
                     alpha,
                     beta,
                     true,
                     max_ms,
+                    bucket_size,
                     max_bf,
-                )
-                .min(value);
-                beta = beta.min(value);
+                );
+                if n_value < value {
+                    if let Some(mut best_branch) = best_branch {
+                        best_move = Some({
+                            let mut res = vec![ms];
+                            res.append(&mut best_branch);
+                            res
+                        });
+                    } else {
+                        best_move = Some(vec![ms]);
+                    }
+                    value = n_value;
+                    beta = beta.min(value);
+                }
                 if beta <= alpha {
                     break;
                 }
@@ -188,7 +233,18 @@ fn alphabeta_rec(
                     value = 0.0;
                 }
             }
-            value
+
+            (best_move, value)
         }
+    }
+}
+
+fn opt_apply_bucket<'a, T: Iterator<Item=Node> + 'a>(bucket_size: usize, max_bf: usize, white: bool, iter: T) -> Box<dyn Iterator<Item=Node> + 'a> {
+    if bucket_size > max_bf {
+        let mut res: Vec<Node> = iter.take(bucket_size).collect();
+        res.sort_by(|a, b| if white {b.3.partial_cmp(&a.3).unwrap()} else {a.3.partial_cmp(&b.3).unwrap()});
+        Box::new(res.into_iter().take(max_bf))
+    } else {
+        Box::new(iter.take(max_bf))
     }
 }

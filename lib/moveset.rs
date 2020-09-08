@@ -126,6 +126,7 @@ impl<'a> MovesetIter<'a> {
                                     self.moves[i][m].2.clone(),
                                     false,
                                     false,
+                                    is_optional(&self.info, &self.moves[i][m].0),
                                 )
                             })
                             .chain(
@@ -134,6 +135,7 @@ impl<'a> MovesetIter<'a> {
                                     self.moves[i][nm].2.clone(),
                                     false,
                                     true,
+                                    is_optional(&self.info, &self.moves[i][nm].0),
                                 )]
                                 .into_iter(),
                             )
@@ -215,39 +217,58 @@ impl<'a> MovesetIter<'a> {
     /**
     Appends a combination and its derived permutations to `permutation_stack`.
     **/
-    fn commit_combination(&mut self, combination: Vec<(Move, GameInfo, bool, bool)>) {
-        // NOTE: the (Move, GameInfo, bool) stand for "move", "move's generated info" (used for differentiating jumps from branching moves), "move locked" (`true` to prevent recursive iterations from cancelling its value out) and "new move"
+    fn commit_combination(&mut self, combination: Vec<(Move, GameInfo, bool, bool, bool)>) {
+        // NOTE: the (Move, GameInfo, bool) stand for "move", "move's generated info" (used for differentiating jumps from branching moves), "move locked" (`true` to prevent recursive iterations from cancelling its value out) "new move" and "optional"
 
-        if combination.iter().find(|(_, _, _, n)| *n).is_none() {
+        if !combination.iter().any(|(_, _, _, n, _)| *n) {
             return;
         }
 
-        let normal_moves = combination
-            .iter()
-            .filter(|(m, _i, _a, _n)| m.src.0 == m.dst.0 && m.src.1 == m.dst.1)
-            .collect::<Vec<_>>();
         let jumping_moves = combination
             .iter()
-            .filter(|(m, i, _a, _n)| {
+            .filter(|(m, i, _a, _n, _o)| {
                 i.max_timeline == self.info.max_timeline
                     && i.min_timeline == self.info.min_timeline
                     && (m.src.0 != m.dst.0 || m.src.1 != m.dst.1)
             })
             .collect::<Vec<_>>();
+        let normal_moves = combination
+            .iter()
+            .filter(|(m, _i, _a, _n, _o)| m.src.0 == m.dst.0 && m.src.1 == m.dst.1)
+            .filter(|(x, _, _, _, o)| {
+                if *o {
+                    jumping_moves
+                        .iter()
+                        .any(|(m, _, _, _, _)| m.dst.0 == x.src.0 && m.dst.1 == x.src.1)
+                } else {
+                    true
+                }
+            })
+            .collect::<Vec<_>>();
         let branching_moves = combination
             .iter()
-            .filter(|(m, i, _a, _n)| {
+            .filter(|(m, i, _a, _n, _o)| {
                 (i.max_timeline != self.info.max_timeline
                     || i.min_timeline != self.info.min_timeline)
                     && (m.src.0 != m.dst.0 || m.src.1 != m.dst.1)
             })
             .collect::<Vec<_>>();
 
-        for (k, (jumping_move, _info, locked, _new)) in jumping_moves.iter().enumerate() {
+        if normal_moves.len() + jumping_moves.len() + branching_moves.len() == 0
+            || !normal_moves
+                .iter()
+                .chain(jumping_moves.iter())
+                .chain(branching_moves.iter())
+                .any(|(_, _, _, n, _)| *n)
+        {
+            return;
+        }
+
+        for (k, (jumping_move, _info, locked, _new, _opt)) in jumping_moves.iter().enumerate() {
             if *locked {
                 continue;
             }
-            if let Some(target_move) = combination.iter().find(|(m, _i, _a, _n)| {
+            if let Some(target_move) = combination.iter().find(|(m, _i, _a, _n, _o)| {
                 m.src.0 == jumping_move.dst.0 && m.src.1 == jumping_move.dst.1
             }) {
                 self.commit_combination(
@@ -257,15 +278,15 @@ impl<'a> MovesetIter<'a> {
                         .cloned()
                         .chain(branching_moves.clone().into_iter().cloned())
                         .chain(jumping_moves.clone().into_iter().cloned().enumerate().map(
-                            |(k2, (m, i, a, n))| {
+                            |(k2, (m, i, a, n, o))| {
                                 if k2 <= k {
-                                    (m, i, true, n)
+                                    (m, i, true, n, o)
                                 } else {
-                                    (m, i, a, n)
+                                    (m, i, a, n, o)
                                 }
                             },
                         ))
-                        .filter(|(x, _, _, _)| {
+                        .filter(|(x, _, _, _, _)| {
                             x.src.0 != target_move.0.src.0 || x.src.1 != target_move.0.src.1
                         })
                         .collect::<Vec<_>>(),
@@ -287,10 +308,10 @@ impl<'a> MovesetIter<'a> {
                 .clone()
                 .into_iter()
                 .chain(permutation.cloned())
-                .map(|(m, _i, _a, _n)| m.clone())
+                .map(|(m, _i, _a, _n, _o)| m.clone())
                 .collect::<Vec<_>>();
             if x.len() == 0 {
-                panic!("No move!"); // worrisome
+                break;
             }
             self.permutation_stack.push(x);
         }
@@ -346,7 +367,7 @@ pub fn is_draw(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bo
         }
     }
 
-    for mut b in own_boards.iter() {
+    for b in own_boards.iter() {
         for mv in probable_moves(game, &b, &merged_vboards) {
             if mv.dst_piece.is_king() {
                 return false;
