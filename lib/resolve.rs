@@ -28,6 +28,8 @@ pub const CHECK_ROOK_REWARD: i32 = 3;
 pub const CHECK_UNICORN_REWARD: i32 = 4;
 pub const CHECK_DRAGON_REWARD: i32 = 4;
 
+pub const MANY_KINGS_COST: i32 = -6;
+
 #[derive(Debug)]
 pub struct Lore<'a> {
     pub board: &'a Board,
@@ -185,10 +187,15 @@ pub fn score_moves<'a>(
             }
 
             for b in &boards {
+                let mut n_kings: usize = 0;
                 for (index, piece) in b.pieces.iter().enumerate() {
                     if *piece != Piece::Blank && piece.is_white() == board.active_player() {
                         if piece.is_king() {
+                            n_kings += 1;
                             score += (lore.danger[index] as i32) * KING_DANGER_COST;
+                            if n_kings > 1 {
+                                score += MANY_KINGS_COST;
+                            }
                         }
                         if piece.is_rook() {
                             score += (lore.danger[index] as i32) * ROOK_DANGER_COST;
@@ -226,7 +233,7 @@ pub fn score_moves<'a>(
 pub const ROOK_VALUE: f32 = 3.0;
 pub const KNIGHT_VALUE: f32 = 4.5;
 pub const QUEEN_VALUE: f32 = 12.0;
-pub const KING_VALUE: f32 = -1.0;
+pub const KING_VALUE: f32 = -4.0;
 pub const BISHOP_VALUE: f32 = 4.0;
 pub const UNICORN_VALUE: f32 = 3.5;
 pub const DRAGON_VALUE: f32 = 3.0;
@@ -235,6 +242,8 @@ pub const KING_PROTECTION_VALUE: f32 = 3.0;
 pub const BRANCH_VALUE: f32 = 10.0;
 pub const INACTIVE_BRANCH_COST: f32 = 40.0;
 pub const INACTIVE_BRANCH_MULTIPLIER: f32 = 0.3;
+pub const INACTIVE_BOARD_MOVE_COST: f32 = 2.5;
+pub const MANY_KINGS_VALUE: f32 = -10.0;
 
 /**
     Checks that `moveset` is legal and gives it a score.
@@ -272,6 +281,10 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
         let mut score: f32 = 0.0;
 
         for board in &moveset_boards {
+            if board.t > info.present {
+                score += if info.active_player {-INACTIVE_BOARD_MOVE_COST} else {INACTIVE_BOARD_MOVE_COST};
+            }
+
             let board_mult: f32 = if board.l < 0.0 && -board.l > info.max_timeline + 1.0
                 || board.l > 0.0 && board.l > -info.min_timeline + 1.0
             {
@@ -279,6 +292,9 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
             } else {
                 1.0
             };
+            let mut w_kings: usize = 0;
+            let mut b_kings: usize = 0;
+
             for (index, piece) in board.pieces.iter().enumerate() {
                 let x = index % board.width;
                 let y = index / board.width;
@@ -287,6 +303,17 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                 }
                 let mult: f32 = if piece.is_white() { 1.0 } else { -1.0 };
                 if piece.is_king() {
+                    if piece.is_white() {
+                        w_kings += 1;
+                        if w_kings > 1 {
+                            score += MANY_KINGS_VALUE;
+                        }
+                    } else {
+                        b_kings += 1;
+                        if b_kings > 1 {
+                            score -= MANY_KINGS_VALUE;
+                        }
+                    }
                     score += KING_VALUE * mult * board_mult;
                     for dx in -1..=1 {
                         for dy in -1..=1 {

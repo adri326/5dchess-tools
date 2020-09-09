@@ -152,6 +152,38 @@ impl Move {
         })
     }
 
+    fn new2(
+        src: (f32, usize, usize, usize),
+        dst: (f32, usize, usize, usize),
+        game: &Game,
+        board: &Board,
+        virtual_boards: &Vec<&Board>,
+    ) -> Option<Self> {
+        let src_piece = get2(game, board, virtual_boards, src)?;
+        let dst_piece = get2(game, board, virtual_boards, dst)?;
+        Some(Move {
+            src,
+            dst,
+            castle: false,
+            castle_long: false,
+            en_passant: if dst.3 != src.3 || !src_piece.is_pawn() || !dst_piece.is_blank() {
+                None
+            } else {
+                Some((
+                    dst.2,
+                    if src_piece.is_blank() {
+                        dst.3 - 1
+                    } else {
+                        dst.3 + 1
+                    },
+                ))
+            },
+            src_piece,
+            dst_piece,
+            noop: false,
+        })
+    }
+
     pub fn castle(
         long: bool,
         src: (f32, usize, usize, usize),
@@ -338,7 +370,7 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
                 } else {
                     piece.is_black()
                 } {
-                    probable_moves_for(game, board, virtual_boards, &mut res, piece, x, y);
+                    probable_moves_for(game, board, virtual_boards, &mut res, piece, x, y).unwrap();
                 }
             }
         }
@@ -580,6 +612,21 @@ fn get(
         .flatten()
 }
 
+fn get2(
+    game: &Game,
+    board: &Board,
+    virtual_boards: &Vec<&Board>,
+    pos: (f32, usize, usize, usize),
+) -> Option<Piece> {
+    if pos.0 == board.l && pos.1 == board.t {
+        board.get(pos.2, pos.3)
+    } else {
+        get_board(game, virtual_boards, (pos.0, pos.1))
+            .map(|b| b.get(pos.2, pos.3))
+            .flatten()
+    }
+}
+
 pub fn is_last(game: &Game, virtual_boards: &Vec<&Board>, board: &Board) -> bool {
     if let Some(tl) = game.get_timeline(board.l) {
         if tl.states.len() + tl.begins_at - 1 > board.t {
@@ -609,24 +656,26 @@ pub fn probable_moves_for(
         let dy: isize = if piece.is_white() { 1 } else { -1 };
         let y1 = ((y as isize) + dy) as usize;
         let y2 = ((y as isize) + 2 * dy) as usize;
-        if get(game, virtual_boards, (board.l, board.t, x, y1))? == Piece::Blank {
-            res.push(Move::new(
+        if get2(game, board, virtual_boards, (board.l, board.t, x, y1))? == Piece::Blank {
+            res.push(Move::new2(
                 src,
                 (board.l, board.t, x, y1),
                 game,
+                board,
                 virtual_boards,
             )?);
             if if piece.is_white() {
                 y <= 1
             } else {
                 y >= game.height - 2
-            } && get(game, virtual_boards, (board.l, board.t, x, y2))? == Piece::Blank
+            } && get2(game, board, virtual_boards, (board.l, board.t, x, y2))? == Piece::Blank
             {
                 // TODO: handle 1-pawn better
-                res.push(Move::new(
+                res.push(Move::new2(
                     src,
                     (board.l, board.t, x, y2),
                     game,
+                    board,
                     virtual_boards,
                 )?);
             }
@@ -634,26 +683,28 @@ pub fn probable_moves_for(
         // Try to take on x + 1
         if x < game.width - 1
             && (may_en_passant(game, board, virtual_boards, x + 1, y1)
-                || get(game, virtual_boards, (board.l, board.t, x + 1, y1))?
+                || get2(game, board, virtual_boards, (board.l, board.t, x + 1, y1))?
                     .is_opponent_piece(active_player))
         {
-            res.push(Move::new(
+            res.push(Move::new2(
                 src,
                 (board.l, board.t, x + 1, y1),
                 game,
+                board,
                 virtual_boards,
             )?);
         }
         // Try to take on x - 1
         if x > 0
             && (may_en_passant(game, board, virtual_boards, x - 1, y1)
-                || get(game, virtual_boards, (board.l, board.t, x - 1, y1))?
+                || get2(game, board, virtual_boards, (board.l, board.t, x - 1, y1))?
                     .is_opponent_piece(active_player))
         {
-            res.push(Move::new(
+            res.push(Move::new2(
                 src,
                 (board.l, board.t, x - 1, y1),
                 game,
+                board,
                 virtual_boards,
             )?);
         }
@@ -681,10 +732,10 @@ pub fn probable_moves_for(
                         let t1 = ((board.t as isize) + 2 * dt) as usize;
                         let x1 = ((x as isize) + dx) as usize;
                         let y1 = ((y as isize) + dy) as usize;
-                        if let Some(true) = get(game, virtual_boards, (l1, t1, x1, y1))
+                        if let Some(true) = get2(game, board, virtual_boards, (l1, t1, x1, y1))
                             .map(|p| p.is_takable_piece(active_player))
                         {
-                            res.push(Move::new(src, (l1, t1, x1, y1), game, virtual_boards)?);
+                            res.push(Move::new2(src, (l1, t1, x1, y1), game, board, virtual_boards)?);
                         }
                     }
                 }
@@ -693,6 +744,7 @@ pub fn probable_moves_for(
     } else if piece.is_knight() {
         n_gonal(
             game,
+            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -702,6 +754,7 @@ pub fn probable_moves_for(
     } else if piece.is_rook() {
         n_gonal(
             game,
+            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -711,6 +764,7 @@ pub fn probable_moves_for(
     } else if piece.is_bishop() {
         n_gonal(
             game,
+            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -720,6 +774,7 @@ pub fn probable_moves_for(
     } else if piece.is_unicorn() {
         n_gonal(
             game,
+            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -729,6 +784,7 @@ pub fn probable_moves_for(
     } else if piece.is_dragon() {
         n_gonal(
             game,
+            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -738,6 +794,7 @@ pub fn probable_moves_for(
     } else if piece.is_queen() {
         n_gonal(
             game,
+            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -746,6 +803,7 @@ pub fn probable_moves_for(
         )?;
         n_gonal(
             game,
+            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -754,6 +812,7 @@ pub fn probable_moves_for(
         )?;
         n_gonal(
             game,
+            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -762,6 +821,7 @@ pub fn probable_moves_for(
         )?;
         n_gonal(
             game,
+            board,
             virtual_boards,
             res,
             (board.l, board.t, x, y),
@@ -802,6 +862,7 @@ fn may_en_passant(
 
 fn n_gonal(
     game: &Game,
+    board: &Board,
     virtual_boards: &Vec<&Board>,
     res: &mut Vec<Move>,
     src: (f32, usize, usize, usize),
@@ -820,10 +881,10 @@ fn n_gonal(
                 break;
             }
             let dst = (l0, t0 as usize, x0 as usize, y0 as usize);
-            let piece = get(game, virtual_boards, dst);
+            let piece = get2(game, board, virtual_boards, dst);
 
             if let Some(true) = piece.map(|piece| piece.is_takable_piece(active_player)) {
-                res.push(Move::new(src, dst, game, virtual_boards)?);
+                res.push(Move::new2(src, dst, game, board, virtual_boards)?);
                 if piece.unwrap().is_opponent_piece(active_player) {
                     break;
                 }

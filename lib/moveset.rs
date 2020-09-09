@@ -243,7 +243,7 @@ impl<'a> MovesetIter<'a> {
                 .chain(branching_moves.into_iter())
                 .collect::<Vec<_>>(),
         ) {
-            if self.permutation_stack.len() > self.max_movesets_considered {
+            if self.max_movesets_considered > 0 && self.permutation_stack.len() > self.max_movesets_considered {
                 break;
             }
 
@@ -294,9 +294,9 @@ pub fn is_draw(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bo
         })
         .collect::<Vec<_>>();
 
-    let merged_vboards = opponent_boards
-        .iter()
+    let merged_vboards = virtual_boards.iter()
         .map(|x| *x)
+        .chain(opponent_boards.iter().map(|x| *x))
         .chain(own_boards.iter())
         .collect::<Vec<_>>();
 

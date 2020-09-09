@@ -110,7 +110,7 @@ impl From<Object> for Game {
             .iter()
             .filter(|tl| tl.index.abs() <= timeline_width);
         let present = active_timelines
-            .map(|tl| tl.begins_at + tl.states.len())
+            .map(|tl| tl.begins_at + tl.states.len() - 1)
             .min()
             .expect("No timeline!");
         let mut res = Game {

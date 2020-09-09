@@ -148,7 +148,7 @@ fn alphabeta_rec(
             let mut yielded_move = false;
             let mut best_move: Option<Vec<Node>> = None;
             for ms in opt_apply_bucket(bucket_size, max_bf, white, movesets) {
-                if ms.0.len() > game.timelines.len() * 5 {
+                if ms.0.len() > game.timelines.len() * 20 {
                     println!("Abnormally high number of dimensions: {}", ms.0.len());
                     println!("{:?}", ms.0);
                 }
@@ -195,7 +195,7 @@ fn alphabeta_rec(
             let mut yielded_move = false;
             let mut best_move: Option<Vec<Node>> = None;
             for ms in opt_apply_bucket(bucket_size, max_bf, white, movesets) {
-                if ms.0.len() > game.timelines.len() * 5 {
+                if ms.0.len() > game.timelines.len() * 20 {
                     println!("Abnormally high number of dimensions: {}", ms.0.len());
                     println!("{:?}", ms.0);
                 }
