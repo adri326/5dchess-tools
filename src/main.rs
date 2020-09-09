@@ -47,7 +47,7 @@ fn main() -> std::io::Result<()> {
         }
     );
     println!("Candidates:");
-    let best_move = alphabeta(&game, 4, 2000, 512, 64, 16);
+    let best_move = alphabeta(&game, 7, 2000, 512, 16, 16);
     if let Some((best, value)) = best_move {
         println!("Best move:");
         println!("{:?}: {}", best.0, value);

@@ -77,10 +77,14 @@ pub struct Move {
     pub en_passant: Option<(usize, usize)>,
     pub src_piece: Piece,
     pub dst_piece: Piece,
+    pub noop: bool,
 }
 
 impl fmt::Debug for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.noop {
+            return write!(f, "_");
+        }
         if self.castle {
             if self.castle_long {
                 write!(
@@ -117,7 +121,7 @@ impl fmt::Debug for Move {
 }
 
 impl Move {
-    fn new(
+    pub fn new(
         src: (f32, usize, usize, usize),
         dst: (f32, usize, usize, usize),
         game: &Game,
@@ -144,10 +148,11 @@ impl Move {
             },
             src_piece,
             dst_piece,
+            noop: false,
         })
     }
 
-    fn castle(
+    pub fn castle(
         long: bool,
         src: (f32, usize, usize, usize),
         dst: (usize, usize),
@@ -162,7 +167,23 @@ impl Move {
             en_passant: None,
             src_piece,
             dst_piece: if white { Piece::RookW } else { Piece::RookB },
+            noop: false,
         })
+    }
+
+    pub fn noop(
+        src: (f32, usize)
+    ) -> Self {
+        Move {
+            src: (src.0, src.1, 0, 0),
+            dst: (src.0, src.1, 0, 0),
+            castle: false,
+            castle_long: false,
+            en_passant: None,
+            src_piece: Piece::Blank,
+            dst_piece: Piece::Blank,
+            noop: true,
+        }
     }
 
     pub fn generate_vboards(
@@ -172,6 +193,10 @@ impl Move {
         virtual_boards: &Vec<&Board>,
         already_generated: &Vec<Board>,
     ) -> Option<(GameInfo, Vec<Board>)> {
+        if self.noop {
+            return Some((info.clone(), vec![]));
+        }
+
         let mut new_board = get_board(game, virtual_boards, (self.src.0, self.src.1))?.clone();
 
         if !is_last(game, virtual_boards, &new_board)
@@ -416,18 +441,24 @@ pub fn is_moveset_legal<'a, U>(
 where
     U: Iterator<Item = &'a Board>,
 {
-    let active_player = !info.active_player;
+    let opponent = !info.active_player;
 
     for board in boards {
-        if is_last(game, virtual_boards, board) && board.active_player() == active_player {
-            for m in probable_moves(game, board, virtual_boards) {
-                if m.dst_piece
-                    == (if active_player {
-                        Piece::KingB
-                    } else {
-                        Piece::KingW
-                    })
-                {
+        if is_last(game, virtual_boards, board) {
+            if board.active_player() == opponent {
+                for m in probable_moves(game, board, virtual_boards) {
+                    if m.dst_piece
+                        == (if opponent {
+                            Piece::KingB
+                        } else {
+                            Piece::KingW
+                        })
+                    {
+                        return false;
+                    }
+                }
+            } else {
+                if board.is_active(info) {
                     return false;
                 }
             }

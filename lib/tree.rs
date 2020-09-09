@@ -64,12 +64,14 @@ pub fn alphabeta<'a>(
                         max_bf,
                     );
                     if let Some(best_branch) = best_branch {
-                        println!("1. {:?}", node.0);
+                        let mut res: String = format!("1. {:?} -> {}\n", node.0, new_value);
                         for (k, mv) in best_branch.iter().enumerate() {
-                            println!("{}. {:?}", k + 2, mv.0);
+                            res.push_str(format!("{}. {:?}\n", k + 2, mv.0).as_str());
                         }
+                        println!("{}", res);
+                    } else {
+                        println!("1. {:?} -> {}", node.0, new_value);
                     }
-                    println!("{:?} -> {}", node.0, new_value);
                     match res_data.lock() {
                         Ok(mut res_data) => {
                             if if info.active_player {
