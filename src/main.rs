@@ -27,19 +27,20 @@ fn main() -> std::io::Result<()> {
     // println!("Moves per board:");
     // for b in get_own_boards(&game, &virtual_boards, &game.info) {
     //     let probs = probable_moves(&game, b, &virtual_boards);
-    //     println!("{:#?}", probs);
+    //     // println!("{:#?}", probs);
     //     let probs = probs.into_iter().map(|m| {
-    //         let res = m.generate_vboards(&game, &game.info, &virtual_boards).unwrap();
+    //         let res = m.generate_vboards(&game, &game.info, &virtual_boards, &vec![]).unwrap();
     //         (m, res.0, res.1)
     //     }).collect::<Vec<_>>();
     //     let lore = Lore::new(&game, &virtual_boards, b, get_opponent_boards(&game, &virtual_boards, &game.info).iter().map(|x| *x), &game.info);
     //     let scored = score_moves(&game, &virtual_boards, b, &lore, probs, &game.info);
     //     println!("{:#?}", scored.iter().map(|(m, _, _, s)| (m, s)).collect::<Vec<_>>());
+    //     println!("{} :: {}", b.t, game.info.present);
     // }
 
     println!(
         "Turn {}, {} to play:",
-        (game.info.present / 2) + 1,
+        ((game.info.present + 1) / 2) + 1,
         if game.info.active_player {
             "white"
         } else {
@@ -47,7 +48,18 @@ fn main() -> std::io::Result<()> {
         }
     );
     println!("Candidates:");
-    let best_move = alphabeta(&game, 7, 2000, 512, 16, 16);
+    // let best_move = alphabeta(&game, 4, 1000, 256, 64, 16);
+    let best_move = iterative_deepening(
+        &game,
+        4000,
+        256,
+        256,
+        25000,
+        16,
+        32.0,
+        0.9,
+        std::time::Duration::new(30, 0),
+    );
     if let Some((best, value)) = best_move {
         println!("Best move:");
         println!("{:?}: {}", best.0, value);
