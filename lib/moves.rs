@@ -203,9 +203,7 @@ impl Move {
         })
     }
 
-    pub fn noop(
-        src: (f32, usize)
-    ) -> Self {
+    pub fn noop(src: (f32, usize)) -> Self {
         Move {
             src: (src.0, src.1, 0, 0),
             dst: (src.0, src.1, 0, 0),
@@ -479,13 +477,7 @@ where
         if is_last(game, virtual_boards, board) {
             if board.active_player() == opponent {
                 for m in probable_moves(game, board, virtual_boards) {
-                    if m.dst_piece
-                        == (if opponent {
-                            Piece::KingB
-                        } else {
-                            Piece::KingW
-                        })
-                    {
+                    if m.dst_piece == (if opponent { Piece::KingB } else { Piece::KingW }) {
                         return false;
                     }
                 }
@@ -735,7 +727,13 @@ pub fn probable_moves_for(
                         if let Some(true) = get2(game, board, virtual_boards, (l1, t1, x1, y1))
                             .map(|p| p.is_takable_piece(active_player))
                         {
-                            res.push(Move::new2(src, (l1, t1, x1, y1), game, board, virtual_boards)?);
+                            res.push(Move::new2(
+                                src,
+                                (l1, t1, x1, y1),
+                                game,
+                                board,
+                                virtual_boards,
+                            )?);
                         }
                     }
                 }

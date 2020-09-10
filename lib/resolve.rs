@@ -282,7 +282,11 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
 
         for board in &moveset_boards {
             if board.t > info.present {
-                score += if info.active_player {-INACTIVE_BOARD_MOVE_COST} else {INACTIVE_BOARD_MOVE_COST};
+                score += if info.active_player {
+                    -INACTIVE_BOARD_MOVE_COST
+                } else {
+                    INACTIVE_BOARD_MOVE_COST
+                };
             }
 
             let board_mult: f32 = if board.l < 0.0 && -board.l > info.max_timeline + 1.0

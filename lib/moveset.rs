@@ -78,10 +78,13 @@ impl<'a> MovesetIter<'a> {
         info: &'a GameInfo,
         moves: Vec<Vec<(Move, Vec<Board>, GameInfo, i32)>>,
     ) -> Self {
-        let moves = moves.into_iter().map(|mut ms| {
-            ms.insert(0, (Move::noop((0.0, 0)), vec![], info.clone(), 0));
-            ms
-        }).collect::<Vec<_>>();
+        let moves = moves
+            .into_iter()
+            .map(|mut ms| {
+                ms.insert(0, (Move::noop((0.0, 0)), vec![], info.clone(), 0));
+                ms
+            })
+            .collect::<Vec<_>>();
         MovesetIter {
             game,
             virtual_boards,
@@ -124,18 +127,10 @@ impl<'a> MovesetIter<'a> {
                         pre.iter()
                             .cloned()
                             .chain(post.into_iter())
-                            .map(|(i, m)| {
-                                (
-                                    self.moves[i][m].0.clone(),
-                                    self.moves[i][m].2.clone(),
-                                )
-                            })
+                            .map(|(i, m)| (self.moves[i][m].0.clone(), self.moves[i][m].2.clone()))
                             .chain(
-                                vec![(
-                                    self.moves[i][nm].0.clone(),
-                                    self.moves[i][nm].2.clone(),
-                                )]
-                                .into_iter(),
+                                vec![(self.moves[i][nm].0.clone(), self.moves[i][nm].2.clone())]
+                                    .into_iter(),
                             )
                             .collect::<Vec<_>>(),
                     );
@@ -243,7 +238,9 @@ impl<'a> MovesetIter<'a> {
                 .chain(branching_moves.into_iter())
                 .collect::<Vec<_>>(),
         ) {
-            if self.max_movesets_considered > 0 && self.permutation_stack.len() > self.max_movesets_considered {
+            if self.max_movesets_considered > 0
+                && self.permutation_stack.len() > self.max_movesets_considered
+            {
                 break;
             }
 
@@ -288,13 +285,15 @@ pub fn is_draw(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bo
     let own_boards = get_own_boards(game, virtual_boards, info)
         .into_iter()
         .cloned()
+        .filter(|b| b.is_active(info))
         .map(|mut x| {
             x.t += 1;
             x
         })
         .collect::<Vec<_>>();
 
-    let merged_vboards = virtual_boards.iter()
+    let merged_vboards = virtual_boards
+        .iter()
         .map(|x| *x)
         .chain(opponent_boards.iter().map(|x| *x))
         .chain(own_boards.iter())
