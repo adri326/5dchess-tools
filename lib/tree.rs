@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 type Node = (Vec<Move>, Vec<Board>, GameInfo, f32);
 
+#[allow(unused_variables)]
 pub fn alphabeta<'a>(
     game: &'a Game,
     depth: usize,
@@ -342,7 +343,7 @@ impl From<(Node, &IDBranch, RIDTree)> for IDBranch {
                 .moves
                 .clone()
                 .into_iter()
-                .chain((vec![(raw.0).0].into_iter()))
+                .chain(vec![(raw.0).0].into_iter())
                 .collect(),
             info: (raw.0).2,
             depth: raw.1.depth + 1,
@@ -392,7 +393,7 @@ fn iterative_deepening_sub<'a>(
     max_duration: Duration,
 ) -> f32 {
     let mut pool: VecDeque<IDBranch> = VecDeque::with_capacity(pool_size * 2);
-    let mut initial_tree = Rc::new(RefCell::new(IDTree {
+    let initial_tree = Rc::new(RefCell::new(IDTree {
         depth: 0,
         children: vec![],
         score: if initial_node.2.active_player {

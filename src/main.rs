@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use chess5dlib::{game::*, moves::*, moveset::*, resolve::*, tree::*};
 use std::env;
 use std::fs::File;
