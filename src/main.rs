@@ -49,16 +49,17 @@ fn main() -> std::io::Result<()> {
         }
     );
     println!("Candidates:");
-    // let best_move = alphabeta(&game, 4, 1000, 256, 64, 16);
+    // let best_move = alphabeta(&game, 4, 2000, 2000, 1000, 16);
     let best_move = iterative_deepening(
         &game,
         4000,
-        256,
-        256,
-        25000,
-        16,
+        1000,
+        1000,
+        50000,
+        64,
         32.0,
         0.9,
+        16,
         std::time::Duration::new(30, 0),
     );
     if let Some((best, value)) = best_move {

@@ -5,22 +5,23 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use scoped_threadpool::Pool;
+
 // Tree search algorithms
 
 type Node = (Vec<Move>, Vec<Board>, GameInfo, f32);
 
-#[allow(unused_variables)]
 pub fn alphabeta<'a>(
     game: &'a Game,
     depth: usize,
     max_ms: usize,
     bucket_size: usize,
     max_bf: usize,
-    n_threads: usize,
+    n_threads: u32,
 ) -> Option<(Node, f32)> {
-    // let mut pool = Pool::new(n_threads as u32);
     let virtual_boards: Vec<&Board> = Vec::new();
     let initial_iter = legal_movesets(&game, &game.info, &virtual_boards, 0, 0).take(max_bf);
+    let mut pool = Pool::new(n_threads);
 
     let res_data = Arc::new(Mutex::new((
         None,
@@ -31,14 +32,14 @@ pub fn alphabeta<'a>(
         },
     )));
 
-    crossbeam::scope(|scope| {
+    pool.scoped(|scope| {
         for mut node in initial_iter {
             let virtual_boards: Vec<&Board> = Vec::new();
             let info = game.info.clone();
             let depth = depth;
             let res_data = Arc::clone(&res_data);
 
-            scope.spawn(move |_| {
+            scope.execute(move || {
                 {
                     match res_data.lock() {
                         Ok(res_data) => {
@@ -107,8 +108,7 @@ pub fn alphabeta<'a>(
                 }
             });
         }
-    })
-    .unwrap();
+    });
 
     let res = {
         match res_data.lock() {
@@ -276,38 +276,36 @@ pub fn iterative_deepening<'a>(
     initial_movesets: usize,
     tolerance: f32,
     tolerance_mult: f32,
+    n_threads: u32,
     max_duration: Duration,
 ) -> Option<(Node, f32)> {
-    let mut res = crossbeam::scope(|scope| {
+    let mut pool = Pool::new(n_threads);
+    let mut res = pool.scoped(|scope| {
         let initial_virtual_boards: Vec<&Board> = Vec::new();
-        let mut children = Vec::new();
+        let children = Arc::new(Mutex::new(Vec::new()));
         for initial_node in
             legal_movesets(game, &game.info, &initial_virtual_boards, 0, 0).take(initial_movesets)
         {
-            children.push((
-                initial_node.clone(),
-                scope.spawn(move |_| {
-                    let res = iterative_deepening_sub(
-                        game,
-                        initial_node,
-                        max_ms,
-                        bucket_size,
-                        bucket_downsize,
-                        pool_size,
-                        tolerance,
-                        tolerance_mult,
-                        max_duration,
-                    );
-                    res
-                }),
-            ));
+            let children = Arc::clone(&children);
+            scope.execute(move || {
+                let res = iterative_deepening_sub(
+                    game,
+                    initial_node.clone(),
+                    max_ms,
+                    bucket_size,
+                    bucket_downsize,
+                    pool_size,
+                    tolerance,
+                    tolerance_mult,
+                    max_duration,
+                );
+                children.lock().unwrap().push((initial_node, res));
+            });
         }
-        children
-            .into_iter()
-            .map(|(n, t)| (n, t.join().unwrap()))
-            .collect::<Vec<_>>()
-    })
-    .unwrap();
+        scope.join_all();
+        let res = children.lock().unwrap().clone();
+        res
+    });
 
     if game.info.active_player {
         res.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());

@@ -6,6 +6,5 @@ pub mod tree;
 
 #[macro_use]
 extern crate lazy_static;
-
-extern crate crossbeam;
+extern crate scoped_threadpool;
 extern crate permute;
