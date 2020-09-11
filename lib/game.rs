@@ -1,6 +1,11 @@
+/*
+    Structures and functions related to the game's state.
+*/
+
 use json::{object::Object, JsonValue};
 use std::fmt;
 
+/// The main structure, contains the entire state of a game
 #[derive(Debug)]
 pub struct Game {
     pub timelines: Vec<Timeline>,
@@ -9,6 +14,7 @@ pub struct Game {
     pub info: GameInfo,
 }
 
+/// Information about whose turn it is, where the present is and timeline priority
 #[derive(Debug, Clone, Copy)]
 pub struct GameInfo {
     pub present: usize,
@@ -17,6 +23,7 @@ pub struct GameInfo {
     pub max_timeline: f32,
 }
 
+/// Represents an in-game timeline
 #[derive(Debug)]
 pub struct Timeline {
     pub index: f32,
@@ -27,22 +34,25 @@ pub struct Timeline {
     pub emerges_from: Option<f32>,
 }
 
+/// Represents an in-game board (be it active or not)
 #[derive(Debug, Clone)]
 pub struct Board {
     pub pieces: Vec<Piece>,
     pub width: usize,
     pub height: usize,
-    pub l: f32,
-    pub t: usize,
-    pub king_w: Option<(usize, usize)>,
+    pub l: f32, // its timeline
+    pub t: usize, // its time coordinate
+    pub king_w: Option<(usize, usize)>, // TODO: update if the king moves
     pub king_b: Option<(usize, usize)>,
     pub castle_w: (bool, bool),
     pub castle_b: (bool, bool),
 }
 
+/// Represents the contents of a board's square
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Piece {
     Blank,
+
     KingW,
     QueenW,
     PawnW,
@@ -51,6 +61,7 @@ pub enum Piece {
     BishopW,
     UnicornW,
     DragonW,
+
     KingB,
     QueenB,
     PawnB,
@@ -62,6 +73,7 @@ pub enum Piece {
 }
 
 impl From<JsonValue> for Game {
+    /// Calls to From<Object> for Game
     fn from(raw: JsonValue) -> Self {
         if let JsonValue::Object(obj) = raw {
             Self::from(obj)
@@ -72,6 +84,7 @@ impl From<JsonValue> for Game {
 }
 
 impl From<Object> for Game {
+    /// Constructs a Game structure from a JSON Object; this object is based on what [5dchess-notation](https://github.com/adri326/5dchess-notation) outputs
     fn from(raw: Object) -> Self {
         let timelines = match raw.get("timelines") {
             Some(JsonValue::Array(tl)) => tl
@@ -80,6 +93,7 @@ impl From<Object> for Game {
                 .collect::<Vec<Timeline>>(),
             _ => panic!("Expected JSON element 'timelines' to be an array!"),
         };
+
         let width = raw
             .get("width")
             .expect("Expected JSON key 'width' for Game.")
@@ -90,6 +104,7 @@ impl From<Object> for Game {
             .expect("Expected JSON key 'height' for Game.")
             .as_usize()
             .expect("Expected JSON element 'height' for Game to be a number");
+
         let active_player = raw
             .get("active_player")
             .expect("Expected JSON key 'active_player' for Game.")
@@ -105,6 +120,7 @@ impl From<Object> for Game {
             .map(|tl| tl.index)
             .max_by_key(|x| (*x) as isize)
             .expect("No timeline!");
+
         let timeline_width = ((-min_timeline).min(max_timeline) + 1.0).round();
         let active_timelines = timelines
             .iter()
@@ -132,6 +148,7 @@ impl From<Object> for Game {
 }
 
 impl From<&JsonValue> for Timeline {
+    // Calls to From<&Object> for Timeline
     fn from(raw: &JsonValue) -> Self {
         if let JsonValue::Object(obj) = raw {
             Self::from(obj)
@@ -142,6 +159,7 @@ impl From<&JsonValue> for Timeline {
 }
 
 impl From<&Object> for Timeline {
+    /// Constructs a Timeline from a JSON object; refer to From<Object> for Game
     fn from(raw: &Object) -> Self {
         let index = raw
             .get("index")
@@ -208,6 +226,7 @@ impl From<&Object> for Timeline {
 }
 
 impl From<usize> for Piece {
+    /// Converts 5dchess-notation piece indices into `Piece`s.
     fn from(raw: usize) -> Self {
         match raw {
             0 => Piece::Blank,
@@ -233,6 +252,7 @@ impl From<usize> for Piece {
 }
 
 impl From<Piece> for usize {
+    /// Convert `Piece`s into 5dchess-notation indices
     fn from(raw: Piece) -> usize {
         match raw {
             Piece::Blank => 0,
@@ -257,6 +277,7 @@ impl From<Piece> for usize {
 }
 
 impl Piece {
+    /// Returns whether or not that `Piece` is `Piece::Blank`
     pub fn is_blank(&self) -> bool {
         match &self {
             Piece::Blank => true,
@@ -264,6 +285,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that `Piece` is a `Piece::*W`. Returns `false` if it is blank
     pub fn is_white(&self) -> bool {
         match &self {
             Piece::PawnW
@@ -278,6 +300,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that `Piece` is a `Piece::*B`. Returns `false` if it is blank
     pub fn is_black(&self) -> bool {
         match &self {
             Piece::PawnB
@@ -292,6 +315,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that `Piece` is a `Piece::King*`
     pub fn is_king(&self) -> bool {
         match &self {
             Piece::KingW | Piece::KingB => true,
@@ -299,6 +323,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that Piece is a `Piece::Queen*`
     pub fn is_queen(&self) -> bool {
         match &self {
             Piece::QueenW | Piece::QueenB => true,
@@ -306,6 +331,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that Piece is a `Piece::Pawn*`
     pub fn is_pawn(&self) -> bool {
         match &self {
             Piece::PawnW | Piece::PawnB => true,
@@ -313,6 +339,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that Piece is a `Piece::Knight*`
     pub fn is_knight(&self) -> bool {
         match &self {
             Piece::KnightW | Piece::KnightB => true,
@@ -320,6 +347,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that Piece is a `Piece::Rook*`
     pub fn is_rook(&self) -> bool {
         match &self {
             Piece::RookW | Piece::RookB => true,
@@ -327,6 +355,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that Piece is a `Piece::Bishop*`
     pub fn is_bishop(&self) -> bool {
         match &self {
             Piece::BishopW | Piece::BishopB => true,
@@ -334,6 +363,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that Piece is a `Piece::Unicorn*`
     pub fn is_unicorn(&self) -> bool {
         match &self {
             Piece::UnicornW | Piece::UnicornB => true,
@@ -341,6 +371,7 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that Piece is a `Piece::Dragon*`
     pub fn is_dragon(&self) -> bool {
         match &self {
             Piece::DragonW | Piece::DragonB => true,
@@ -367,6 +398,7 @@ impl Piece {
         }
     }
 
+    /// Whether or not the target piece belongs to the opponent
     pub fn is_opponent_piece(&self, active_player: bool) -> bool {
         if active_player {
             self.is_black()
@@ -375,6 +407,7 @@ impl Piece {
         }
     }
 
+    /// Whether or not a piece could theoretically move to that square (by moving there or taking an opponent's piece)
     pub fn is_takable_piece(&self, active_player: bool) -> bool {
         self.is_blank()
             || if active_player {
@@ -386,12 +419,14 @@ impl Piece {
 }
 
 impl Game {
+    /// Returns whether or not the starting boards contain `+0L`/`-0L`
     pub fn even_initial_timelines(&self) -> bool {
         self.timelines
             .iter()
             .any(|tl| tl.index == 0.5 || tl.index == -0.5)
     }
 
+    /// Returns the `l`-th timeline
     pub fn get_timeline<'a>(&'a self, l: f32) -> Option<&'a Timeline> {
         for timeline in self.timelines.iter() {
             if timeline.index == l {
@@ -401,6 +436,7 @@ impl Game {
         None
     }
 
+    /// Returns a mutable reference to the `l`-th timeline
     pub fn get_timeline_mut<'a>(&'a mut self, l: f32) -> Option<&'a mut Timeline> {
         for timeline in self.timelines.iter_mut() {
             if timeline.index == l {
@@ -410,24 +446,58 @@ impl Game {
         None
     }
 
+    /// Returns the `(l, t)` board, None if not found
     pub fn get_board<'a>(&'a self, l: f32, t: usize) -> Option<&'a Board> {
         self.get_timeline(l).map(|tl| tl.get_board(t)).flatten()
     }
 
+    /// Returns the `(l, t)` board, panics if not found
+    pub fn get_board_unsafe<'a>(&'a self, l: f32, t: usize) -> &'a Board {
+        self.get_timeline(l).expect("Couldn't find timeline!").get_board_unsafe(t)
+    }
+
+    /// Returns a mutable reference to the `(l, t)` board, None if not found
     pub fn get_board_mut<'a>(&'a mut self, l: f32, t: usize) -> Option<&'a mut Board> {
         self.get_timeline_mut(l)
             .map(|tl| tl.get_board_mut(t))
             .flatten()
     }
 
+    /// Returns a mutable reference to the `(l, t)` board, panics if not found
+    pub fn get_board_mut_unsafe<'a>(&'a mut self, l: f32, t: usize) -> &'a mut Board {
+        self.get_timeline_mut(l)
+            .expect("Couldn't find timeline!")
+            .get_board_mut_unsafe(t)
+    }
+
+    /// Returns the last board in the `l`-th timeline, None if not found
     pub fn get_last_board<'a>(&'a self, l: f32) -> Option<&'a Board> {
         self.get_timeline(l).map(|tl| tl.get_last_board()).flatten()
     }
 
+    /// Returns the `(l, t, x, y)` piece, None if not found
     pub fn get<'a>(&'a self, l: f32, t: usize, x: usize, y: usize) -> Option<Piece> {
         self.get_timeline(l).map(|tl| tl.get(t, x, y)).flatten()
     }
 
+    /// Returns the `(l, t, x, y)` piece, panics if not found
+    pub fn get_unsafe<'a>(&'a self, l: f32, t: usize, x: usize, y: usize) -> Piece {
+        self.get_timeline(l).expect("Couldn't find timeline!").get_unsafe(t, x, y)
+    }
+
+    /** Appends a set of boards to the current game structure; currently only supports appending one board to every timeline.
+        This is usually used together with `Move::generate_vboards`:
+
+        ```
+        let mut game: Game;
+        let mv: Move;
+
+        // Assign to `mv` and `game`
+
+        let boards = mv.generate_vboards(&game, &game.info, &vec![], &vec![]);
+        game.commit_moves(boards);
+        ```
+    **/
     pub fn commit_moves(&mut self, mut boards: Vec<Board>) {
         boards.sort_by_key(|b| b.t);
         boards.reverse();
@@ -456,10 +526,12 @@ impl Game {
 }
 
 impl Timeline {
+    /// Returns the last board in this timeline, None if the timeline is still empty (which it shouldn't if created by normal means)
     pub fn get_last_board<'a>(&'a self) -> Option<&'a Board> {
         self.states.get(self.states.len() - 1)
     }
 
+    /// Returns the board at `t` in this timeline (this will be different from the `t`-th board if the timeline is synthetic), None if not found
     pub fn get_board<'a>(&'a self, t: usize) -> Option<&'a Board> {
         if t < self.begins_at {
             None
@@ -468,6 +540,12 @@ impl Timeline {
         }
     }
 
+    /// Returns the board at `t` in this timeline; panics if the board does not exist
+    pub fn get_board_unsafe<'a>(&'a self, t: usize) -> &'a Board {
+        &self.states[t - self.begins_at]
+    }
+
+    /// Returns a mutable reference to the board at `t` in this timeline, None if not found
     pub fn get_board_mut<'a>(&'a mut self, t: usize) -> Option<&'a mut Board> {
         if t < self.begins_at {
             None
@@ -476,12 +554,24 @@ impl Timeline {
         }
     }
 
+    /// Returns a mutable reference to the board at `t` in this timeline, panics if the board does not exist
+    pub fn get_board_mut_unsafe<'a>(&'a mut self, t: usize) -> &'a mut Board {
+        &mut self.states[t - self.begins_at]
+    }
+
+    /// Returns the piece at `(t, x, y)` in this timeline, None if not found
     pub fn get<'a>(&'a self, t: usize, x: usize, y: usize) -> Option<Piece> {
         self.get_board(t).map(|board| board.get(x, y)).flatten()
+    }
+
+    /// Returns the piece at `(t, x, y)` in this timeline, panics if the square does not exist. UB if that board's size is not equal to the timeline's own size
+    pub fn get_unsafe<'a>(&'a self, t: usize, x: usize, y: usize) -> Piece {
+        self.states[t - self.begins_at].pieces[x + self.width * y]
     }
 }
 
 impl Board {
+    /// Returns the piece at `(x, y)`, None if not found
     pub fn get(&self, x: usize, y: usize) -> Option<Piece> {
         if x >= self.width || y >= self.height {
             None
@@ -490,19 +580,32 @@ impl Board {
         }
     }
 
-    pub fn set(&mut self, x: usize, y: usize, piece: Piece) -> Option<()> {
+    /// Returns the piece at `(x, y)`, panics if not found
+    pub fn get_unsafe(&self, x: usize, y: usize) -> Piece {
+        self.pieces[x + y * self.width]
+    }
+
+    /// Sets the piece at `(x, y)`, returns `Ok` on success and `Err` if the square does not exist
+    pub fn set(&mut self, x: usize, y: usize, piece: Piece) -> Result<(), ()> {
         if x >= self.width || y >= self.height {
-            None
+            Err(())
         } else {
             self.pieces[x + y * self.width] = piece;
-            Some(())
+            Ok(())
         }
     }
 
+    /// Sets the piece at `(x, y)`, panics if the square does not exist
+    pub fn set_unsafe(&mut self, x: usize, y: usize, piece: Piece) {
+        self.pieces[x + y * self.width] = piece;
+    }
+
+    /// Returns whose player's turn it is on this board
     pub fn active_player(&self) -> bool {
         self.t % 2 == 0
     }
 
+    /// Returns whether or not this board must be played on (does not check if it is the last board in its timeline)
     pub fn is_active(&self, info: &GameInfo) -> bool {
         self.t <= info.present
             && if self.l < 0.0 {
@@ -555,6 +658,7 @@ impl fmt::Display for Board {
     }
 }
 
+/// Applies a function on the `(l, t)` board and on all of its predecessors, stops if the function returns false
 pub fn bubble_up<'a, F>(game: &'a Game, mut l: f32, mut t: usize, mut f: F)
 where
     F: FnMut(&'a Board) -> bool,
@@ -573,6 +677,20 @@ where
     }
 }
 
+/** Applies a function on the `(l, t)` board and on all of its descendants, passes on a value down each branch of boards and stops if the function returns false.
+
+    ## Example
+
+    ```
+    bubble_down(game, 0, 0, |board, _| {
+        if board.get_unsafe(0, 0).is_blank() {
+            (false, ())
+        } else {
+            println!("Piece on board {}/{} at 0:0 is {}", board.l, board.t, board.get_unsafe(0, 0))
+        }
+    }, ());
+    ```
+**/
 pub fn bubble_down<'a, F, T>(game: &'a mut Game, l: f32, mut t: usize, mut f: F, initial: T)
 where
     F: FnMut(&'_ mut Board, T) -> (bool, T),
@@ -608,6 +726,7 @@ where
     }
 }
 
+/// Returns the index of the timeline "below" (whose index is lower than) the `l`-th timeline; takes in account games with an even number of starting boards
 pub fn timeline_below(game: &Game, l: f32) -> f32 {
     if l == 1.0 && game.even_initial_timelines() {
         0.5
@@ -618,6 +737,7 @@ pub fn timeline_below(game: &Game, l: f32) -> f32 {
     }
 }
 
+/// Returns the index of the timeline "above" (whose index is greater than) the `l`-th timeline; takes in account games with an even number of starting boards
 pub fn timeline_above(game: &Game, l: f32) -> f32 {
     if l == -1.0 && game.even_initial_timelines() {
         -0.5
@@ -628,6 +748,7 @@ pub fn timeline_above(game: &Game, l: f32) -> f32 {
     }
 }
 
+/// Returns the index of the timeline that is `dl` timelines above/below the `l`-th timeline; takes in account games with an even number of starting boards
 pub fn shift_timeline(game: &Game, mut l: f32, dl: isize) -> f32 {
     if game.even_initial_timelines() {
         if l == -0.5 {
@@ -652,6 +773,7 @@ pub fn shift_timeline(game: &Game, mut l: f32, dl: isize) -> f32 {
     }
 }
 
+/// Returns the string version out the timeline index as displayed in-game; does not prepend a `+` if `l >= 1`
 pub fn write_timeline(l: f32) -> String {
     if l == -0.5 {
         String::from("-0")
@@ -662,6 +784,7 @@ pub fn write_timeline(l: f32) -> String {
     }
 }
 
+/// Returns the string version of the `x` coordinate as displayed in-game
 pub fn write_file(x: usize) -> char {
     [
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
@@ -670,9 +793,11 @@ pub fn write_file(x: usize) -> char {
 }
 
 /**
-    Populates the castling rights of every board in the game; does so by induction
+    Populates the castling rights of every board in the game; does so by induction (uses the `bubble_down` function)
 **/
 pub fn populate_castling_rights(game: &mut Game) {
+    // I apologize to code readers for the visual density of this function
+
     let width = game.width;
     let height = game.height;
     let timeline_indices: Vec<f32> = game

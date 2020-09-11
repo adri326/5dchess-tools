@@ -9,6 +9,7 @@ edition = "2018"
 [lib]
 name = "chess5dlib"
 path = "lib/lib.rs"
+doctest = false
 
 [dependencies]
 json = "0.12.4"

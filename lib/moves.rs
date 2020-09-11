@@ -223,6 +223,7 @@ impl Move {
         virtual_boards: &Vec<&Board>,
         already_generated: &Vec<Board>,
     ) -> Option<(GameInfo, Vec<Board>)> {
+        // TODO: properly handle Board::set's result
         if self.noop {
             return Some((info.clone(), vec![]));
         }
@@ -240,8 +241,8 @@ impl Move {
 
         if self.castle {
             new_board.t += 1;
-            new_board.set(self.src.2, self.src.3, Piece::Blank);
-            new_board.set(self.dst.2, self.dst.3, Piece::Blank);
+            new_board.set(self.src.2, self.src.3, Piece::Blank).unwrap();
+            new_board.set(self.dst.2, self.dst.3, Piece::Blank).unwrap();
 
             new_board.set(
                 self.src.2,
@@ -251,7 +252,7 @@ impl Move {
                 } else {
                     Piece::KingW
                 },
-            );
+            ).unwrap();
             new_board.set(
                 self.dst.2,
                 if self.castle_long { 3 } else { game.width - 3 },
@@ -260,20 +261,20 @@ impl Move {
                 } else {
                     Piece::RookW
                 },
-            );
+            ).unwrap();
             Some((info.clone(), vec![new_board]))
         } else if self.en_passant.is_some() {
             new_board.t += 1;
-            new_board.set(self.src.2, self.src.3, Piece::Blank);
-            new_board.set(self.en_passant?.0, self.en_passant?.1, Piece::Blank);
-            new_board.set(self.dst.2, self.dst.3, self.src_piece);
+            new_board.set(self.src.2, self.src.3, Piece::Blank).unwrap();
+            new_board.set(self.en_passant?.0, self.en_passant?.1, Piece::Blank).unwrap();
+            new_board.set(self.dst.2, self.dst.3, self.src_piece).unwrap();
             Some((info.clone(), vec![new_board]))
         } else {
             if self.src.0 == self.dst.0 && self.src.1 == self.dst.1 {
                 // Non-branching move
                 new_board.t += 1;
-                new_board.set(self.src.2, self.src.3, Piece::Blank);
-                new_board.set(self.dst.2, self.dst.3, self.src_piece);
+                new_board.set(self.src.2, self.src.3, Piece::Blank).unwrap();
+                new_board.set(self.dst.2, self.dst.3, self.src_piece).unwrap();
 
                 let info = info.clone();
 
@@ -293,7 +294,7 @@ impl Move {
                         } else {
                             Piece::QueenB
                         },
-                    );
+                    ).unwrap();
                 }
 
                 // Impossible!
@@ -348,8 +349,8 @@ impl Move {
                     new_info.present = find_present(game, virtual_boards, info);
                 }
 
-                new_src_board.set(self.src.2, self.src.3, Piece::Blank);
-                new_dst_board.set(self.dst.2, self.dst.3, self.src_piece);
+                new_src_board.set(self.src.2, self.src.3, Piece::Blank).unwrap();
+                new_dst_board.set(self.dst.2, self.dst.3, self.src_piece).unwrap();
 
                 Some((new_info, vec![new_src_board, new_dst_board]))
             }
@@ -927,4 +928,44 @@ pub fn is_optional(info: &GameInfo, mv: &Move) -> bool {
     } else {
         false
     }
+}
+
+pub fn is_draw(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bool {
+    let opponent_boards = get_opponent_boards(game, virtual_boards, info);
+    let own_boards = get_own_boards(game, virtual_boards, info)
+        .into_iter()
+        .cloned()
+        .filter(|b| b.is_active(info))
+        .map(|mut x| {
+            x.t += 1;
+            x
+        })
+        .collect::<Vec<_>>();
+
+    let merged_vboards = virtual_boards
+        .iter()
+        .map(|x| *x)
+        .chain(opponent_boards.iter().map(|x| *x))
+        .chain(own_boards.iter())
+        .collect::<Vec<_>>();
+
+    // TODO: merge mutated own_boards with virtual_boards
+
+    for b in opponent_boards.into_iter() {
+        for mv in probable_moves(game, b, &merged_vboards) {
+            if mv.dst_piece.is_king() {
+                return false;
+            }
+        }
+    }
+
+    for b in own_boards.iter() {
+        for mv in probable_moves(game, &b, &merged_vboards) {
+            if mv.dst_piece.is_king() {
+                return false;
+            }
+        }
+    }
+
+    true
 }
