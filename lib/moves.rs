@@ -2,6 +2,7 @@
 use super::{game::*, moveset::*, resolve::*};
 use std::fmt;
 
+// Generate permutations for the basic, symmetric piece movements
 lazy_static! {
     pub static ref PERMUTATIONS: Vec<Vec<(isize, isize, isize, isize)>> = {
         [
@@ -81,6 +82,7 @@ pub struct Move {
 }
 
 impl fmt::Debug for Move {
+    /// Prints out a move in semi-readable format; does not match any of the existing and known notations
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.noop {
             return write!(f, "_");
@@ -121,6 +123,7 @@ impl fmt::Debug for Move {
 }
 
 impl Move {
+    /// Creates a new normal move; extracts piece information from `game` and `virtual_boards`
     pub fn new(
         src: (f32, usize, usize, usize),
         dst: (f32, usize, usize, usize),
@@ -152,6 +155,7 @@ impl Move {
         })
     }
 
+    /// Creates a new normal move; extracts piece information from `game`, `board` `virtual_boards`. Does not need `board` to be within `game` or `virtual_boards`
     fn new2(
         src: (f32, usize, usize, usize),
         dst: (f32, usize, usize, usize),
@@ -184,6 +188,7 @@ impl Move {
         })
     }
 
+    /// Creates a new castling move
     pub fn castle(
         long: bool,
         src: (f32, usize, usize, usize),
@@ -203,6 +208,7 @@ impl Move {
         })
     }
 
+    /// Creates an empty move (which moves no piece)
     pub fn noop(src: (f32, usize)) -> Self {
         Move {
             src: (src.0, src.1, 0, 0),
@@ -216,6 +222,7 @@ impl Move {
         }
     }
 
+    /// Generate the boards that are created as a result of the move being played out. The target and source boards must be present in either `game`, `virtual_boards` or `already_generated`
     pub fn generate_vboards(
         &self,
         game: &Game,
@@ -358,6 +365,7 @@ impl Move {
     }
 }
 
+/// Returns the set of moves that can be made from `board`; does not check for the legality of said move (ie. if it puts the player in check)
 pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) -> Vec<Move> {
     let mut res: Vec<Move> = Vec::new();
 
@@ -463,6 +471,7 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
     res
 }
 
+/// Returns whether or not a moveset is legal (ie. if it doesn't put the player in check).
 pub fn is_moveset_legal<'a, U>(
     game: &Game,
     virtual_boards: &Vec<&Board>,
@@ -493,6 +502,7 @@ where
     true
 }
 
+/// Returns whether or not every mandatory boards were played on (accepts time travel escapes)
 pub fn all_boards_played(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bool {
     for board in get_own_boards(game, virtual_boards, info) {
         if board.t <= info.present {
@@ -502,6 +512,7 @@ pub fn all_boards_played(game: &Game, virtual_boards: &Vec<&Board>, info: &GameI
     true
 }
 
+/// Returns the set of boards on which the opponent can make a move
 pub fn get_opponent_boards<'a>(
     game: &'a Game,
     virtual_boards: &'a Vec<&'a Board>,
@@ -521,6 +532,7 @@ pub fn get_opponent_boards<'a>(
     res
 }
 
+/// Returns the set of board on which the active player can make a move
 pub fn get_own_boards<'a>(
     game: &'a Game,
     virtual_boards: &'a Vec<&'a Board>,
@@ -540,6 +552,7 @@ pub fn get_own_boards<'a>(
     res
 }
 
+/// Returns a lazy iterator over the legal movesets that the active player can make
 pub fn legal_movesets<'a>(
     game: &'a Game,
     info: &'a GameInfo,
@@ -578,6 +591,7 @@ pub fn legal_movesets<'a>(
     iter.score()
 }
 
+/// Returns the `(l, t)` board within `game` or `virtual_boards`
 pub fn get_board<'a, 'b, 'd>(
     game: &'a Game,
     virtual_boards: &'b Vec<&'b Board>,
@@ -595,6 +609,7 @@ where
     game.get_board(pos.0, pos.1)
 }
 
+/// Returns the `(l, t, x, y)` square within `game` or `virtual_boards`
 fn get(
     game: &Game,
     virtual_boards: &Vec<&Board>,
@@ -605,6 +620,7 @@ fn get(
         .flatten()
 }
 
+/// Returns the `(l, t, x, y)` square within either `game`, `virtual_boards` or `board`
 fn get2(
     game: &Game,
     board: &Board,
@@ -620,6 +636,7 @@ fn get2(
     }
 }
 
+/// Returns whether or not `board` is the last board of its timeline (looks in `game` and `virtual_boards`)
 pub fn is_last(game: &Game, virtual_boards: &Vec<&Board>, board: &Board) -> bool {
     if let Some(tl) = game.get_timeline(board.l) {
         if tl.states.len() + tl.begins_at - 1 > board.t {
@@ -634,6 +651,7 @@ pub fn is_last(game: &Game, virtual_boards: &Vec<&Board>, board: &Board) -> bool
     true
 }
 
+/// Returns the set of moves that `piece` can make (does not check the legality of that move)
 pub fn probable_moves_for(
     game: &Game,
     board: &Board,
@@ -831,6 +849,7 @@ pub fn probable_moves_for(
     Some(())
 }
 
+/// Returns if the `x, y` square in `board` can be taken as en-passant (`[ɑ̃ pasɑ̃]`)
 fn may_en_passant(
     game: &Game,
     board: &Board,
@@ -859,6 +878,7 @@ fn may_en_passant(
     }
 }
 
+/// Generate the moves for n-gonals of pieces (knight's is the `0`-th n-gonal)
 fn n_gonal(
     game: &Game,
     board: &Board,
@@ -899,6 +919,7 @@ fn n_gonal(
     Some(())
 }
 
+/// Re-calculate the present
 pub fn find_present(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> usize {
     let mut min = info.present;
     game.timelines
@@ -919,6 +940,7 @@ pub fn find_present(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) 
     min
 }
 
+/// Returns whether or not making the move `mv` is optional (currently unused, might change it to if the move can be safely omitted)
 pub fn is_optional(info: &GameInfo, mv: &Move) -> bool {
     if mv.src.1 > info.present
         || mv.src.0 < -info.max_timeline - 1.0
@@ -930,6 +952,7 @@ pub fn is_optional(info: &GameInfo, mv: &Move) -> bool {
     }
 }
 
+/// Returns whether or not the game is a draw; assumes that no move can be made
 pub fn is_draw(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bool {
     let opponent_boards = get_opponent_boards(game, virtual_boards, info);
     let own_boards = get_own_boards(game, virtual_boards, info)
