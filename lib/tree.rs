@@ -11,6 +11,16 @@ use scoped_threadpool::Pool;
 
 type Node = (Vec<Move>, Vec<Board>, GameInfo, f32);
 
+
+/**
+    b-limited αβ-pruning tree search
+
+    - `depth` is the depth to which the algorithm will look (`d`)
+    - `max_ms` corresponds to the maximum number of probable movesets to consider before admitting that no moveset can be made. Set to 0 for ∞ (not recommended!)
+    - `bucket_size` correspond to the number of movesets to score and sort; ignored if `<= max_bf`
+    - `max_bf` corresponds to the maximum number of movesets (branching factor, or `b`) to consider per tree node; note that αβ-pruning has a time complexity of `O(b^(d/2))`
+    - `n_threads` is the number of threads to run concurrently; they will work on different starting moves to recursively rate them
+**/
 pub fn alphabeta<'a>(
     game: &'a Game,
     depth: usize,

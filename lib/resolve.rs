@@ -1,3 +1,5 @@
+// Functions around scoring states and moves
+
 use crate::{game::*, moves::*};
 
 pub const JUMP_COST: i32 = -8;
@@ -30,6 +32,9 @@ pub const CHECK_DRAGON_REWARD: i32 = 4;
 
 pub const MANY_KINGS_COST: i32 = -6;
 
+/**
+    Structure containing information about hotspots on a board, enemies attacking the current king, danger zones, etc.
+**/
 #[derive(Debug)]
 pub struct Lore<'a> {
     pub board: &'a Board,
@@ -170,17 +175,17 @@ pub fn score_moves<'a>(
 
             for mv in moves {
                 if mv.dst_piece.is_king() {
-                    if mv.dst_piece.is_knight() {
+                    if mv.src_piece.is_knight() {
                         score += CHECK_KNIGHT_REWARD;
-                    } else if mv.dst_piece.is_rook() {
+                    } else if mv.src_piece.is_rook() {
                         score += CHECK_ROOK_REWARD;
-                    } else if mv.dst_piece.is_bishop() {
+                    } else if mv.src_piece.is_bishop() {
                         score += CHECK_BISHOP_REWARD;
-                    } else if mv.dst_piece.is_queen() {
+                    } else if mv.src_piece.is_queen() {
                         score += CHECK_QUEEN_REWARD;
-                    } else if mv.dst_piece.is_unicorn() {
+                    } else if mv.src_piece.is_unicorn() {
                         score += CHECK_UNICORN_REWARD;
-                    } else if mv.dst_piece.is_dragon() {
+                    } else if mv.src_piece.is_dragon() {
                         score += CHECK_DRAGON_REWARD;
                     }
                 }
@@ -230,6 +235,7 @@ pub fn score_moves<'a>(
     res
 }
 
+// Piece values: (how much they are worth)
 pub const ROOK_VALUE: f32 = 3.0;
 pub const KNIGHT_VALUE: f32 = 4.5;
 pub const QUEEN_VALUE: f32 = 12.0;
@@ -239,10 +245,16 @@ pub const UNICORN_VALUE: f32 = 3.5;
 pub const DRAGON_VALUE: f32 = 3.0;
 pub const PAWN_VALUE: f32 = 0.9;
 pub const KING_PROTECTION_VALUE: f32 = 3.0;
+
+// How much it is worth to have branching priority
 pub const BRANCH_VALUE: f32 = 10.0;
+// How much it costs to have inactive timelines
 pub const INACTIVE_BRANCH_COST: f32 = 40.0;
+// Makes inactive branches (timelines) less important (ie. making a new, inactive timeline with a good board won't be worth as much as an active timeline)
 pub const INACTIVE_BRANCH_MULTIPLIER: f32 = 0.3;
+// Penalty for making a move on an inactive timeline
 pub const INACTIVE_BOARD_MOVE_COST: f32 = 2.5;
+// Penalty for having more than one king on a board
 pub const MANY_KINGS_VALUE: f32 = -10.0;
 
 /**
@@ -358,6 +370,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
             }
         }
 
+        // Timeline advantages
         if info.max_timeline > -info.min_timeline {
             // black advantageous
             score -= BRANCH_VALUE;

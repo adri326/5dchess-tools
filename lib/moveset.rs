@@ -10,17 +10,26 @@ pub struct MovesetIter<'a> {
     game: &'a Game,
     virtual_boards: &'a Vec<&'a Board>,
     info: GameInfo,
+    /// List of moves per board, scored and sorted
     moves: Vec<Vec<(Move, Vec<Board>, GameInfo, i32)>>,
+    /// How many moves per board have been considered already
     pub moves_considered: usize,
+    /// Stack of permutations for future movesets
     permutation_stack: Vec<Vec<Move>>,
+    /// Maximum length of the `moves` array
     max_moves: usize,
+    /// The maximum number of moves per board that may be considered; 0 for infinite
     pub max_moves_considered: usize,    // 0 for ∞
+    /// The maximum number of movesets that may be yielded; differs from `Iterator::take` by that it will interrupt the construction of the permutation stack if that stack reaches this amount
     pub max_movesets_considered: usize, // 0 for ∞
+    /// The number of movesets that have been yielded already
     pub movesets_considered: usize,
 }
 
 impl<'a> Iterator for MovesetIter<'a> {
     type Item = Vec<Move>;
+
+    /// Yields a moveset, if there are still any to yield
     fn next(&mut self) -> Option<Vec<Move>> {
         self.movesets_considered += 1;
         if self.max_movesets_considered > 0
