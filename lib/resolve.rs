@@ -258,7 +258,7 @@ pub const INACTIVE_BOARD_MOVE_COST: f32 = 2.5;
 pub const MANY_KINGS_VALUE: f32 = -10.0;
 
 /**
-    Checks that `moveset` is legal and gives it a score.
+    Checks that `moveset` is legal and gives it a score. The `GameInfo` returned will correspond to that of the submitted move.
 **/
 pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
     game: &Game,

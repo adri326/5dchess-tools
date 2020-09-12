@@ -13,7 +13,7 @@ type Node = (Vec<Move>, Vec<Board>, GameInfo, f32);
 
 
 /**
-    b-limited αβ-pruning tree search
+    b-limited αβ-pruned depth-first search
 
     - `depth` is the depth to which the algorithm will look (`d`)
     - `max_ms` corresponds to the maximum number of probable movesets to consider before admitting that no moveset can be made. Set to 0 for ∞ (not recommended!)
@@ -133,6 +133,7 @@ pub fn alphabeta<'a>(
     }
 }
 
+/// Recursive bit of `alphabeta(...)`, see the documentation about `alphabeta` for more information!
 fn alphabeta_rec(
     game: &Game,
     virtual_boards: &Vec<&Board>,
@@ -145,6 +146,7 @@ fn alphabeta_rec(
     bucket_size: usize,
     max_bf: usize,
 ) -> (Option<Vec<Node>>, f32) {
+    // TODO: merge white's and black's code?
     if depth == 0 {
         let s = node.3;
         (None, s)
@@ -158,7 +160,7 @@ fn alphabeta_rec(
             .collect::<Vec<&Board>>();
         let movesets = legal_movesets(game, &info, &merged_vboards, 0, max_ms);
 
-        if white {
+        if white { // White:
             let mut value = std::f32::NEG_INFINITY;
             let mut yielded_move = false;
             let mut best_move: Option<Vec<Node>> = None;
@@ -205,7 +207,7 @@ fn alphabeta_rec(
             }
 
             (best_move, value)
-        } else {
+        } else { // Black:
             let mut value = std::f32::INFINITY;
             let mut yielded_move = false;
             let mut best_move: Option<Vec<Node>> = None;
@@ -256,6 +258,7 @@ fn alphabeta_rec(
     }
 }
 
+/// Optionally applies the `bucket_size` option to the legal movesets iterator; `bucket_size` will be ignored if it is less than or equal to `max_bf`
 fn opt_apply_bucket<'a, T: Iterator<Item = Node> + 'a>(
     bucket_size: usize,
     max_bf: usize,
@@ -277,6 +280,28 @@ fn opt_apply_bucket<'a, T: Iterator<Item = Node> + 'a>(
     }
 }
 
+/** b-limited Breadth-first search with periodical pruning.
+
+    This algorithm works on a growable ring (or queue; it should not need to be resized if bucket_downsize < pool_size). As a node is taken out of the beginning of the queue, its child nodes are added at the end of the queue (or itself, with its score being updated, should there be no legal moves following that node).
+
+    A separate tree is built to keep track of each node's score. Each node's ancestors are not updated when expanding the tree.
+
+    Pruning happens when the pool's size exceeds `pool_size` (it is initially allocated with `2 * pool_size` elements as to prevent reallocations).
+    It happens in three steps:
+
+    - the tree is traversed once, to recalculate the scores of each node assuming perfect play
+    - the tree is traversed a second time: branches of the tree are marked as prunable should their score differ by more than `tolerance` from the best score; pruned branches are removed from the tree to ease future prunings
+    - the ring vector is fully traversed once, popping elements and only pushing them back in if their corresponding node was not pruned
+
+    As such, this method alternates between deepening and pruning, until the maximum duration is reached.
+
+    This tree search method is, because of its pruning, less precise than the αβ search. This precision depends on the quality of the ranking methods.
+    To accomodate for the inevitable inaccuracy, the `tolerance` and `tolerance_mult` options have been introduced:
+
+    - `tolerance` is the maximum score difference from the best scoring node that there can be for a branch to not be pruned. If `0`, only the best scoring branches will be kept; they might turn out to not score as well deeper down the tree.
+    - `tolerance_mult` is the multiplier for that score difference that will be applied to it should there be more than one consecutive pruning step; it must be lower than 1 (or else this algorithm will loop forever).
+    - The `pool_size` option can also be increased to reduce the number of times that the pruning has to be ran. Doing so will, however, increase the memory usage of the program.
+**/
 pub fn iterative_deepening<'a>(
     game: &'a Game,
     max_ms: usize,
@@ -328,6 +353,9 @@ pub fn iterative_deepening<'a>(
     res.pop()
 }
 
+/**
+    A branch or node for `iterative_deepening(...)`
+**/
 #[derive(Clone, Debug)]
 struct IDBranch {
     boards: Vec<Board>,
@@ -363,6 +391,9 @@ impl From<(Node, &IDBranch, RIDTree)> for IDBranch {
 
 type RIDTree = Rc<RefCell<IDTree>>;
 
+/**
+    Tree built alongside the different `IDBranch`es to keep track of which branch needs to be pruned.
+**/
 #[derive(Debug)]
 struct IDTree {
     depth: usize,
@@ -373,6 +404,7 @@ struct IDTree {
 }
 
 impl IDTree {
+    /// Creates a new IDTree instance, as a child from `node`
     fn after(node: &RIDTree, score: f32) -> Option<RIDTree> {
         let mut node = node.borrow_mut();
 
@@ -389,6 +421,7 @@ impl IDTree {
     }
 }
 
+/// Per-thread bit of the `iterative_deepening(...)` method. See this function's documentation for more information.
 fn iterative_deepening_sub<'a>(
     game: &'a Game,
     initial_node: Node,
@@ -493,6 +526,7 @@ fn iterative_deepening_sub<'a>(
     score
 }
 
+/// Runs the different pruning steps as described in `iterative_deepening(...)`'s documentation
 fn iterative_deepening_prune(pool: &mut VecDeque<IDBranch>, initial_tree: RIDTree, tolerance: f32) {
     iterative_deepening_prune_rec(&initial_tree);
     iterative_deepening_prune_rec2(&initial_tree, false, tolerance);
@@ -504,6 +538,7 @@ fn iterative_deepening_prune(pool: &mut VecDeque<IDBranch>, initial_tree: RIDTre
     }
 }
 
+/// First step of the pruning: re-calculate the score of each branch
 fn iterative_deepening_prune_rec(tree: &RIDTree) {
     if tree.borrow().children.len() == 0 {
         return;
@@ -530,6 +565,7 @@ fn iterative_deepening_prune_rec(tree: &RIDTree) {
     }
 }
 
+/// Second step of the pruning: mark branches as pruned
 fn iterative_deepening_prune_rec2(tree: &RIDTree, prune: bool, tolerance: f32) {
     let score = tree.borrow().score;
     let white = tree.borrow().white;
