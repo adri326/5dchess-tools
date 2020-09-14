@@ -8,6 +8,10 @@ extern crate json;
 // TODO: move replay, game analysis, args
 
 fn main() -> std::io::Result<()> {
+    env_logger::builder()
+        .format_timestamp(None)
+        .init();
+
     // This is a simple example which will take the 40 most promising movesets, sort them by their score and display the 3 best movesets
     let path = env::args().last().unwrap();
 
@@ -43,7 +47,7 @@ fn main() -> std::io::Result<()> {
 
     println!(
         "Turn {}, {} to play:",
-        ((game.info.present + 1) / 2) + 1,
+        ((game.info.present) / 2) + 1,
         if game.info.active_player {
             "white"
         } else {
@@ -58,28 +62,28 @@ fn main() -> std::io::Result<()> {
         1000,
         1000,
         50000,
-        4,
+        32,
         32.0,
         0.9,
-        4,
-        std::time::Duration::new(120, 0),
+        16,
+        std::time::Duration::new(15, 0),
     );
     if let Some((best, value)) = best_move {
         println!("Best move:");
         println!("{:?}: {}", best.0, value);
         for b in &best.1 {
             println!("{}", b);
-            println!("");
+            println!("({}T{})\n", write_timeline(b.l), b.t / 2 + 1);
         }
         game.commit_moves(best.1);
         game.info = best.2;
-        game.info.active_player = !game.info.active_player;
     } else {
         if is_draw(&game, &virtual_boards, &game.info) {
             println!("Draw!");
         } else {
             println!("Checkmate!");
         }
+        // break;
     }
 
     // println!("Possible answers:");

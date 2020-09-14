@@ -84,9 +84,9 @@ pub fn alphabeta<'a>(
                         for (k, mv) in best_branch.iter().enumerate() {
                             res.push_str(format!("{}. {:?}\n", k + 2, mv.0).as_str());
                         }
-                        println!("{}", res);
+                        info!("{}", res);
                     } else {
-                        println!("1. {:?} -> {}", node.0, new_value);
+                        info!("1. {:?} -> {}", node.0, new_value);
                     }
                     match res_data.lock() {
                         Ok(mut res_data) => {
@@ -166,8 +166,8 @@ fn alphabeta_rec(
             let mut best_move: Option<Vec<Node>> = None;
             for ms in opt_apply_bucket(bucket_size, max_bf, white, movesets) {
                 if ms.0.len() > game.timelines.len() * 20 {
-                    println!("Abnormally high number of dimensions: {}", ms.0.len());
-                    println!("{:?}", ms.0);
+                    info!("Abnormally high number of dimensions: {}", ms.0.len());
+                    info!("{:?}", ms.0);
                 }
                 yielded_move = true;
                 let (best_branch, n_value) = alphabeta_rec(
@@ -213,8 +213,8 @@ fn alphabeta_rec(
             let mut best_move: Option<Vec<Node>> = None;
             for ms in opt_apply_bucket(bucket_size, max_bf, white, movesets) {
                 if ms.0.len() > game.timelines.len() * 20 {
-                    println!("Abnormally high number of dimensions: {}", ms.0.len());
-                    println!("{:?}", ms.0);
+                    info!("Abnormally high number of dimensions: {}", ms.0.len());
+                    info!("{:?}", ms.0);
                 }
                 yielded_move = true;
                 let (best_branch, n_value) = alphabeta_rec(
@@ -521,7 +521,7 @@ fn iterative_deepening_sub<'a>(
     {
         res_str.push_str(format!("{}: {:?}\n", k + 1, mv).as_str());
     }
-    println!("{} -> {}", res_str, score);
+    info!("{} -> {}", res_str, score);
 
     score
 }

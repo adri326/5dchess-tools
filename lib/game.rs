@@ -292,6 +292,7 @@ impl Piece {
     }
 
     /// Returns whether or not that `Piece` is `Piece::Blank`
+    #[inline]
     pub fn is_blank(&self) -> bool {
         match &self {
             Piece::Blank => true,
@@ -300,6 +301,7 @@ impl Piece {
     }
 
     /// Returns whether or not that `Piece` is a `Piece::*W`. Returns `false` if it is blank
+    #[inline]
     pub fn is_white(&self) -> bool {
         match &self {
             Piece::PawnW
@@ -315,6 +317,7 @@ impl Piece {
     }
 
     /// Returns whether or not that `Piece` is a `Piece::*B`. Returns `false` if it is blank
+    #[inline]
     pub fn is_black(&self) -> bool {
         match &self {
             Piece::PawnB
@@ -330,6 +333,7 @@ impl Piece {
     }
 
     /// Returns whether or not that `Piece` is a `Piece::King*`
+    #[inline]
     pub fn is_king(&self) -> bool {
         match &self {
             Piece::KingW | Piece::KingB => true,
@@ -338,6 +342,7 @@ impl Piece {
     }
 
     /// Returns whether or not that Piece is a `Piece::Queen*`
+    #[inline]
     pub fn is_queen(&self) -> bool {
         match &self {
             Piece::QueenW | Piece::QueenB => true,
@@ -346,6 +351,7 @@ impl Piece {
     }
 
     /// Returns whether or not that Piece is a `Piece::Pawn*`
+    #[inline]
     pub fn is_pawn(&self) -> bool {
         match &self {
             Piece::PawnW | Piece::PawnB => true,
@@ -354,6 +360,7 @@ impl Piece {
     }
 
     /// Returns whether or not that Piece is a `Piece::Knight*`
+    #[inline]
     pub fn is_knight(&self) -> bool {
         match &self {
             Piece::KnightW | Piece::KnightB => true,
@@ -362,6 +369,7 @@ impl Piece {
     }
 
     /// Returns whether or not that Piece is a `Piece::Rook*`
+    #[inline]
     pub fn is_rook(&self) -> bool {
         match &self {
             Piece::RookW | Piece::RookB => true,
@@ -370,6 +378,7 @@ impl Piece {
     }
 
     /// Returns whether or not that Piece is a `Piece::Bishop*`
+    #[inline]
     pub fn is_bishop(&self) -> bool {
         match &self {
             Piece::BishopW | Piece::BishopB => true,
@@ -378,6 +387,7 @@ impl Piece {
     }
 
     /// Returns whether or not that Piece is a `Piece::Unicorn*`
+    #[inline]
     pub fn is_unicorn(&self) -> bool {
         match &self {
             Piece::UnicornW | Piece::UnicornB => true,
@@ -386,6 +396,7 @@ impl Piece {
     }
 
     /// Returns whether or not that Piece is a `Piece::Dragon*`
+    #[inline]
     pub fn is_dragon(&self) -> bool {
         match &self {
             Piece::DragonW | Piece::DragonB => true,
@@ -396,6 +407,7 @@ impl Piece {
     /**
         Whether or not the piece can move by `n` tiles in any direction until it is blocked.
     **/
+    #[inline]
     pub fn slides(&self) -> bool {
         match &self {
             Piece::BishopW
@@ -413,6 +425,7 @@ impl Piece {
     }
 
     /// Whether or not the target piece belongs to the opponent
+    #[inline]
     pub fn is_opponent_piece(&self, active_player: bool) -> bool {
         if active_player {
             self.is_black()
@@ -421,7 +434,18 @@ impl Piece {
         }
     }
 
+    /// Whether or not the target piece belongs to themselves
+    #[inline]
+    pub fn is_own_piece(&self, active_player: bool) -> bool {
+        if active_player {
+            self.is_white()
+        } else {
+            self.is_black()
+        }
+    }
+
     /// Whether or not a piece could theoretically move to that square (by moving there or taking an opponent's piece)
+    #[inline]
     pub fn is_takable_piece(&self, active_player: bool) -> bool {
         self.is_blank()
             || if active_player {

@@ -8,3 +8,5 @@ pub mod tree;
 extern crate lazy_static;
 extern crate scoped_threadpool;
 extern crate permute;
+#[macro_use]
+extern crate log;
