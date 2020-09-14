@@ -104,20 +104,88 @@ impl fmt::Debug for Move {
                 )
             }
         } else {
-            write!(
-                f,
-                "({}T{}){}{}{} → ({}T{}){}{}{}",
-                write_timeline(self.src.0),
-                self.src.1 / 2 + 1,
-                self.src_piece,
-                write_file(self.src.2),
-                (self.src.3 + 1),
-                write_timeline(self.dst.0),
-                self.dst.1 / 2 + 1,
-                self.dst_piece,
-                write_file(self.dst.2),
-                (self.dst.3 + 1),
-            )
+            if self.src.0 == self.dst.0 && self.src.1 == self.dst.1 {
+                if self.src_piece.is_pawn() {
+                    if self.dst_piece.is_blank() {
+                        write!(
+                            f,
+                            "({}T{}){}{}",
+                            write_timeline(self.src.0),
+                            self.src.1 / 2 + 1,
+                            write_file(self.dst.2),
+                            (self.dst.3 + 1),
+                        )
+                    } else {
+                        write!(
+                            f,
+                            "({}T{}){}x{}{}",
+                            write_timeline(self.src.0),
+                            self.src.1 / 2 + 1,
+                            write_file(self.src.2),
+                            write_file(self.dst.2),
+                            (self.dst.3 + 1),
+                        )
+                    }
+                } else {
+                    if self.dst_piece.is_blank() {
+                        write!(
+                            f,
+                            "({}T{}){}{}{}{}{}",
+                            write_timeline(self.src.0),
+                            self.src.1 / 2 + 1,
+                            self.src_piece.as_uppercase(),
+                            write_file(self.src.2),
+                            (self.src.3 + 1),
+                            write_file(self.dst.2),
+                            (self.dst.3 + 1),
+                        )
+                    } else {
+                        write!(
+                            f,
+                            "({}T{}){}{}{}x{}{}",
+                            write_timeline(self.src.0),
+                            self.src.1 / 2 + 1,
+                            self.src_piece.as_uppercase(),
+                            write_file(self.src.2),
+                            (self.src.3 + 1),
+                            write_file(self.dst.2),
+                            (self.dst.3 + 1),
+                        )
+                    }
+                }
+            } else {
+                if self.dst_piece.is_blank() {
+                    write!(
+                        f,
+                        "({}T{}){}{}{}>>({}T{}){}{}{}",
+                        write_timeline(self.src.0),
+                        self.src.1 / 2 + 1,
+                        self.src_piece.as_uppercase(),
+                        write_file(self.src.2),
+                        (self.src.3 + 1),
+                        write_timeline(self.dst.0),
+                        self.dst.1 / 2 + 1,
+                        self.dst_piece,
+                        write_file(self.dst.2),
+                        (self.dst.3 + 1),
+                    )
+                } else {
+                    write!(
+                        f,
+                        "({}T{}){}{}{}>>x({}T{}){}{}{}",
+                        write_timeline(self.src.0),
+                        self.src.1 / 2 + 1,
+                        self.src_piece.as_uppercase(),
+                        write_file(self.src.2),
+                        (self.src.3 + 1),
+                        write_timeline(self.dst.0),
+                        self.dst.1 / 2 + 1,
+                        self.dst_piece,
+                        write_file(self.dst.2),
+                        (self.dst.3 + 1),
+                    )
+                }
+            }
         }
     }
 }

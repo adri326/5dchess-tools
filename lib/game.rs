@@ -277,6 +277,20 @@ impl From<Piece> for usize {
 }
 
 impl Piece {
+    pub fn as_uppercase(&self) -> &'static str {
+        match &self {
+            Piece::Blank => " ",
+            Piece::KingW | Piece::KingB => "K",
+            Piece::QueenW | Piece::QueenB => "Q",
+            Piece::PawnW | Piece::PawnB => "P",
+            Piece::BishopW | Piece::BishopB => "B",
+            Piece::KnightW | Piece::KnightB => "N",
+            Piece::RookW | Piece::RookB => "R",
+            Piece::UnicornW | Piece::UnicornB => "U",
+            Piece::DragonW | Piece::DragonB => "D",
+        }
+    }
+
     /// Returns whether or not that `Piece` is `Piece::Blank`
     pub fn is_blank(&self) -> bool {
         match &self {
