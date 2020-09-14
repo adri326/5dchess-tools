@@ -529,7 +529,7 @@ fn iterative_deepening_sub<'a>(
 /// Runs the different pruning steps as described in `iterative_deepening(...)`'s documentation
 fn iterative_deepening_prune(pool: &mut VecDeque<IDBranch>, initial_tree: RIDTree, tolerance: f32) {
     iterative_deepening_prune_rec(&initial_tree);
-    iterative_deepening_prune_rec2(&initial_tree, false, tolerance);
+    iterative_deepening_prune_rec_2(&initial_tree, false, tolerance);
     for _ in 0..pool.len() {
         let node = pool.pop_front().unwrap();
         if !node.tree.borrow().pruned {
@@ -566,13 +566,13 @@ fn iterative_deepening_prune_rec(tree: &RIDTree) {
 }
 
 /// Second step of the pruning: mark branches as pruned
-fn iterative_deepening_prune_rec2(tree: &RIDTree, prune: bool, tolerance: f32) {
+fn iterative_deepening_prune_rec_2(tree: &RIDTree, prune: bool, tolerance: f32) {
     let score = tree.borrow().score;
     let white = tree.borrow().white;
     tree.borrow_mut().pruned = prune;
     if prune {
         for c in tree.borrow().children.iter() {
-            iterative_deepening_prune_rec2(c, true, tolerance);
+            iterative_deepening_prune_rec_2(c, true, tolerance);
         }
         if tree.borrow().children.len() > 0 {
             tree.borrow_mut().children = Vec::new();
@@ -582,7 +582,7 @@ fn iterative_deepening_prune_rec2(tree: &RIDTree, prune: bool, tolerance: f32) {
     if !white {
         for c in tree.borrow().children.iter() {
             let should_prune = c.borrow().score < score - tolerance;
-            iterative_deepening_prune_rec2(c, should_prune, tolerance);
+            iterative_deepening_prune_rec_2(c, should_prune, tolerance);
         }
         let children = tree
             .borrow()
@@ -595,7 +595,7 @@ fn iterative_deepening_prune_rec2(tree: &RIDTree, prune: bool, tolerance: f32) {
     } else {
         for c in tree.borrow().children.iter() {
             let should_prune = c.borrow().score > score + tolerance;
-            iterative_deepening_prune_rec2(c, should_prune, tolerance);
+            iterative_deepening_prune_rec_2(c, should_prune, tolerance);
         }
         let children = tree
             .borrow()

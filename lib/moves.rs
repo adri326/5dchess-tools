@@ -224,15 +224,15 @@ impl Move {
     }
 
     /// Creates a new normal move; extracts piece information from `game`, `board` `virtual_boards`. Does not need `board` to be within `game` or `virtual_boards`
-    fn new2(
+    fn new_with_board(
         src: (f32, usize, usize, usize),
         dst: (f32, usize, usize, usize),
         game: &Game,
         board: &Board,
         virtual_boards: &Vec<&Board>,
     ) -> Option<Self> {
-        let src_piece = get2(game, board, virtual_boards, src)?;
-        let dst_piece = get2(game, board, virtual_boards, dst)?;
+        let src_piece = get_with_board(game, board, virtual_boards, src)?;
+        let dst_piece = get_with_board(game, board, virtual_boards, dst)?;
         Some(Move {
             src,
             dst,
@@ -689,7 +689,7 @@ fn get(
 }
 
 /// Returns the `(l, t, x, y)` square within either `game`, `virtual_boards` or `board`
-fn get2(
+fn get_with_board(
     game: &Game,
     board: &Board,
     virtual_boards: &Vec<&Board>,
@@ -735,8 +735,8 @@ pub fn probable_moves_for(
         let dy: isize = if piece.is_white() { 1 } else { -1 };
         let y1 = ((y as isize) + dy) as usize;
         let y2 = ((y as isize) + 2 * dy) as usize;
-        if get2(game, board, virtual_boards, (board.l, board.t, x, y1))? == Piece::Blank {
-            res.push(Move::new2(
+        if get_with_board(game, board, virtual_boards, (board.l, board.t, x, y1))? == Piece::Blank {
+            res.push(Move::new_with_board(
                 src,
                 (board.l, board.t, x, y1),
                 game,
@@ -747,10 +747,10 @@ pub fn probable_moves_for(
                 y <= 1
             } else {
                 y >= game.height - 2
-            } && get2(game, board, virtual_boards, (board.l, board.t, x, y2))? == Piece::Blank
+            } && get_with_board(game, board, virtual_boards, (board.l, board.t, x, y2))? == Piece::Blank
             {
                 // TODO: handle 1-pawn better
-                res.push(Move::new2(
+                res.push(Move::new_with_board(
                     src,
                     (board.l, board.t, x, y2),
                     game,
@@ -762,10 +762,10 @@ pub fn probable_moves_for(
         // Try to take on x + 1
         if x < game.width - 1
             && (may_en_passant(game, board, virtual_boards, x + 1, y1)
-                || get2(game, board, virtual_boards, (board.l, board.t, x + 1, y1))?
+                || get_with_board(game, board, virtual_boards, (board.l, board.t, x + 1, y1))?
                     .is_opponent_piece(active_player))
         {
-            res.push(Move::new2(
+            res.push(Move::new_with_board(
                 src,
                 (board.l, board.t, x + 1, y1),
                 game,
@@ -776,10 +776,10 @@ pub fn probable_moves_for(
         // Try to take on x - 1
         if x > 0
             && (may_en_passant(game, board, virtual_boards, x - 1, y1)
-                || get2(game, board, virtual_boards, (board.l, board.t, x - 1, y1))?
+                || get_with_board(game, board, virtual_boards, (board.l, board.t, x - 1, y1))?
                     .is_opponent_piece(active_player))
         {
-            res.push(Move::new2(
+            res.push(Move::new_with_board(
                 src,
                 (board.l, board.t, x - 1, y1),
                 game,
@@ -811,10 +811,10 @@ pub fn probable_moves_for(
                         let t1 = ((board.t as isize) + 2 * dt) as usize;
                         let x1 = ((x as isize) + dx) as usize;
                         let y1 = ((y as isize) + dy) as usize;
-                        if let Some(true) = get2(game, board, virtual_boards, (l1, t1, x1, y1))
+                        if let Some(true) = get_with_board(game, board, virtual_boards, (l1, t1, x1, y1))
                             .map(|p| p.is_takable_piece(active_player))
                         {
-                            res.push(Move::new2(
+                            res.push(Move::new_with_board(
                                 src,
                                 (l1, t1, x1, y1),
                                 game,
@@ -968,10 +968,10 @@ fn n_gonal(
                 break;
             }
             let dst = (l0, t0 as usize, x0 as usize, y0 as usize);
-            let piece = get2(game, board, virtual_boards, dst);
+            let piece = get_with_board(game, board, virtual_boards, dst);
 
             if let Some(true) = piece.map(|piece| piece.is_takable_piece(active_player)) {
-                res.push(Move::new2(src, dst, game, board, virtual_boards)?);
+                res.push(Move::new_with_board(src, dst, game, board, virtual_boards)?);
                 if piece.unwrap().is_opponent_piece(active_player) {
                     break;
                 }

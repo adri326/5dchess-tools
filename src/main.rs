@@ -5,6 +5,8 @@ use std::fs::File;
 use std::io::prelude::*;
 extern crate json;
 
+// TODO: move replay, game analysis, args
+
 fn main() -> std::io::Result<()> {
     // This is a simple example which will take the 40 most promising movesets, sort them by their score and display the 3 best movesets
     let path = env::args().last().unwrap();
@@ -56,11 +58,11 @@ fn main() -> std::io::Result<()> {
         1000,
         1000,
         50000,
-        64,
+        4,
         32.0,
         0.9,
-        16,
-        std::time::Duration::new(30, 0),
+        4,
+        std::time::Duration::new(120, 0),
     );
     if let Some((best, value)) = best_move {
         println!("Best move:");
