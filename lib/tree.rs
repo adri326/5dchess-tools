@@ -66,7 +66,6 @@ pub fn alphabeta<'a>(
                 }
 
                 if depth > 0 {
-                    node.2.active_player = !node.2.active_player;
                     let (best_branch, new_value) = alphabeta_rec(
                         &game,
                         &virtual_boards,
@@ -74,7 +73,7 @@ pub fn alphabeta<'a>(
                         depth - 1,
                         std::f32::NEG_INFINITY,
                         std::f32::INFINITY,
-                        !node.2.active_player,
+                        node.2.active_player,
                         max_ms,
                         bucket_size,
                         max_bf,
@@ -456,6 +455,7 @@ fn iterative_deepening_sub<'a>(
     let begin = Instant::now();
 
     let mut consecutive_prunes: usize = 0;
+    let mut n_nodes: usize = 1;
 
     while begin.elapsed() < max_duration {
         if pool.len() > pool_size {
@@ -481,6 +481,7 @@ fn iterative_deepening_sub<'a>(
 
                 if movesets.len() > 0 {
                     for node in movesets.into_iter().take(bucket_downsize) {
+                        n_nodes += 1;
                         if pool.len() < pool_size * 2 {
                             if let Some(new_tree) = IDTree::after(&branch.tree, node.3) {
                                 pool.push_back(IDBranch::from((node, &branch, new_tree)));
@@ -506,6 +507,8 @@ fn iterative_deepening_sub<'a>(
             }
         }
     }
+
+    info!("{} nodes in {}; {} N/s", n_nodes, max_duration.as_secs_f32(), (n_nodes as f32) / max_duration.as_secs_f32());
 
     iterative_deepening_prune(&mut pool, initial_tree.clone(), 0.0);
 

@@ -2,7 +2,7 @@
 
 use crate::{game::*, moves::*};
 
-pub const JUMP_COST: i32 = -6;
+pub const JUMP_COST: i32 = -4;
 pub const JUMP_INACTIVE_COST: i32 = -24;
 pub const TAKE_ENEMY_REWARD: i32 = 20;
 pub const KING_DANGER_COST: i32 = -10;
@@ -23,12 +23,17 @@ pub const TAKE_QUEEN_REWARD: i32 = 10;
 pub const TAKE_UNICORN_REWARD: i32 = 2;
 pub const TAKE_DRAGON_REWARD: i32 = 2;
 
-pub const CHECK_QUEEN_REWARD: i32 = 7;
+pub const CHECK_QUEEN_REWARD: i32 = 8;
 pub const CHECK_KNIGHT_REWARD: i32 = 5;
 pub const CHECK_BISHOP_REWARD: i32 = 5;
 pub const CHECK_ROOK_REWARD: i32 = 3;
 pub const CHECK_UNICORN_REWARD: i32 = 4;
 pub const CHECK_DRAGON_REWARD: i32 = 4;
+
+pub const ATTACK_QUEEN_REWARD: i32 = 2;
+pub const ATTACK_BISHOP_REWARD: i32 = 1;
+pub const ATTACK_KNIGHT_REWARD: i32 = 1;
+pub const ATTACK_ROOK_REWARD: i32 = 1;
 
 pub const MANY_KINGS_COST: i32 = -6;
 
@@ -188,6 +193,14 @@ pub fn score_moves<'a>(
                     } else if mv.src_piece.is_dragon() {
                         score += CHECK_DRAGON_REWARD;
                     }
+                } else if mv.dst.0 == mv.src.0 && mv.dst.1 == mv.src.1 {
+                    if mv.dst_piece.is_queen() {
+                        score += ATTACK_QUEEN_REWARD;
+                    } else if mv.dst_piece.is_bishop() {
+                        score += ATTACK_BISHOP_REWARD;
+                    } else if mv.dst_piece.is_knight() {
+                        score += ATTACK_BISHOP_REWARD;
+                    }
                 }
             }
 
@@ -238,30 +251,30 @@ pub fn score_moves<'a>(
 // Piece values: (how much they are worth)
 pub const ROOK_VALUE: f32 = 3.0;
 pub const KNIGHT_VALUE: f32 = 4.5;
-pub const QUEEN_VALUE: f32 = 12.0;
+pub const QUEEN_VALUE: f32 = 14.0;
 pub const KING_VALUE: f32 = -4.0;
-pub const BISHOP_VALUE: f32 = 4.0;
+pub const BISHOP_VALUE: f32 = 5.0;
 pub const UNICORN_VALUE: f32 = 3.5;
 pub const DRAGON_VALUE: f32 = 3.0;
 pub const PAWN_VALUE: f32 = 0.9;
 
 // How much it is worth to have a well-protected king
-pub const KING_PROTECTION_VALUE: f32 = 2.0;
-pub const KING_PROTECTION_VALUE_2: f32 = 4.0;
+pub const KING_PROTECTION_VALUE: f32 = 1.5;
+pub const KING_PROTECTION_VALUE_2: f32 = 2.5;
 
 // How much it is worth to have branching priority
-pub const BRANCH_VALUE: f32 = 6.0;
+pub const BRANCH_VALUE: f32 = 4.0;
 // How much it costs to have inactive timelines
-pub const INACTIVE_BRANCH_COST: f32 = 40.0;
+pub const INACTIVE_BRANCH_COST: f32 = 20.0;
 // Makes inactive branches (timelines) less important (ie. making a new, inactive timeline with a good board won't be worth as much as an active timeline)
 pub const INACTIVE_BRANCH_MULTIPLIER: f32 = 0.8;
 // Penalty for making a move on an inactive timeline
 pub const INACTIVE_BOARD_MOVE_COST: f32 = 2.5;
 // Penalty for having more than one king on a board
-pub const MANY_KINGS_VALUE: f32 = -10.0;
+pub const MANY_KINGS_VALUE: f32 = -8.0;
 
 // Bonus for each controlled square
-pub const CONTROLLED_SQUARE_SCORE: f32 = 0.05;
+pub const CONTROLLED_SQUARE_SCORE: f32 = 0.025;
 
 /**
     Checks that `moveset` is legal and gives it a score. The `GameInfo` returned will correspond to that of the submitted move.
@@ -301,7 +314,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
 
         for board in &moveset_boards {
             if board.t > info.present {
-                score += if info.active_player {
+                score += if white {
                     -INACTIVE_BOARD_MOVE_COST
                 } else {
                     INACTIVE_BOARD_MOVE_COST
@@ -318,9 +331,11 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
             let mut w_kings: usize = 0;
             let mut b_kings: usize = 0;
 
-            let mut controlled_squares: Vec<bool> = Vec::with_capacity(board.width * board.height);
+            let mut controlled_squares_w: Vec<bool> = Vec::with_capacity(board.width * board.height);
+            let mut controlled_squares_b: Vec<bool> = Vec::with_capacity(board.width * board.height);
             for _ in 0..(board.width * board.height) {
-                controlled_squares.push(false);
+                controlled_squares_w.push(false);
+                controlled_squares_b.push(false);
             }
 
             for (index, piece) in board.pieces.iter().enumerate() {
@@ -387,46 +402,76 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                 }
 
                 // Maybe replace with bitboard operations
-                if piece.is_own_piece(white) {
+                if piece.is_white() {
                     if piece.is_pawn() {
-                        if piece.is_white() {
-                            set_controlled_square(&mut controlled_squares, index, 1, 1, board.width, board.height);
-                            set_controlled_square(&mut controlled_squares, index, 1, -1, board.width, board.height);
-                        } else {
-                            set_controlled_square(&mut controlled_squares, index, -1, 1, board.width, board.height);
-                            set_controlled_square(&mut controlled_squares, index, -1, -1, board.width, board.height);
-                        }
+                        set_controlled_square(&mut controlled_squares_w, index, 1, 1, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_w, index, 1, -1, board.width, board.height);
                     } else if piece.is_knight() {
-                        set_controlled_square(&mut controlled_squares, index, 2, 1, board.width, board.height);
-                        set_controlled_square(&mut controlled_squares, index, 2, -1, board.width, board.height);
-                        set_controlled_square(&mut controlled_squares, index, -2, 1, board.width, board.height);
-                        set_controlled_square(&mut controlled_squares, index, -2, -1, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_w, index, 2, 1, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_w, index, 2, -1, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_w, index, -2, 1, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_w, index, -2, -1, board.width, board.height);
 
-                        set_controlled_square(&mut controlled_squares, index, 1, 2, board.width, board.height);
-                        set_controlled_square(&mut controlled_squares, index, 1, -2, board.width, board.height);
-                        set_controlled_square(&mut controlled_squares, index, -1, 2, board.width, board.height);
-                        set_controlled_square(&mut controlled_squares, index, -1, -2, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_w, index, 1, 2, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_w, index, 1, -2, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_w, index, -1, 2, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_w, index, -1, -2, board.width, board.height);
                     }
 
                     if piece.is_bishop() || piece.is_queen() {
-                        set_controlled_square_slide(board, &mut controlled_squares, index, 1, 1, board.width, board.height, white);
-                        set_controlled_square_slide(board, &mut controlled_squares, index, -1, 1, board.width, board.height, white);
-                        set_controlled_square_slide(board, &mut controlled_squares, index, 1, -1, board.width, board.height, white);
-                        set_controlled_square_slide(board, &mut controlled_squares, index, -1, -1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_w, index, 1, 1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_w, index, -1, 1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_w, index, 1, -1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_w, index, -1, -1, board.width, board.height, white);
                     }
 
                     if piece.is_rook() || piece.is_queen() {
-                        set_controlled_square_slide(board, &mut controlled_squares, index, 0, 1, board.width, board.height, white);
-                        set_controlled_square_slide(board, &mut controlled_squares, index, 0, -1, board.width, board.height, white);
-                        set_controlled_square_slide(board, &mut controlled_squares, index, 1, 0, board.width, board.height, white);
-                        set_controlled_square_slide(board, &mut controlled_squares, index, -1, 0, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_w, index, 0, 1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_w, index, 0, -1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_w, index, 1, 0, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_w, index, -1, 0, board.width, board.height, white);
+                    }
+                } else if piece.is_black() {
+                    if piece.is_pawn() {
+                        set_controlled_square(&mut controlled_squares_b, index, -1, 1, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_b, index, -1, -1, board.width, board.height);
+                    } else if piece.is_knight() {
+                        set_controlled_square(&mut controlled_squares_b, index, 2, 1, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_b, index, 2, -1, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_b, index, -2, 1, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_b, index, -2, -1, board.width, board.height);
+
+                        set_controlled_square(&mut controlled_squares_b, index, 1, 2, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_b, index, 1, -2, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_b, index, -1, 2, board.width, board.height);
+                        set_controlled_square(&mut controlled_squares_b, index, -1, -2, board.width, board.height);
+                    }
+
+                    if piece.is_bishop() || piece.is_queen() {
+                        set_controlled_square_slide(board, &mut controlled_squares_b, index, 1, 1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_b, index, -1, 1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_b, index, 1, -1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_b, index, -1, -1, board.width, board.height, white);
+                    }
+
+                    if piece.is_rook() || piece.is_queen() {
+                        set_controlled_square_slide(board, &mut controlled_squares_b, index, 0, 1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_b, index, 0, -1, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_b, index, 1, 0, board.width, board.height, white);
+                        set_controlled_square_slide(board, &mut controlled_squares_b, index, -1, 0, board.width, board.height, white);
                     }
                 }
             }
 
-            for controlled_square in controlled_squares {
+            for controlled_square in controlled_squares_w {
                 if controlled_square {
                     score += CONTROLLED_SQUARE_SCORE;
+                }
+            }
+
+            for controlled_square in controlled_squares_b {
+                if controlled_square {
+                    score -= CONTROLLED_SQUARE_SCORE;
                 }
             }
 

@@ -55,25 +55,25 @@ fn main() -> std::io::Result<()> {
         }
     );
     println!("Candidates:");
-    // let best_move = alphabeta(&game, 4, 2000, 2000, 1000, 16);
+    // let best_move = alphabeta(&game, 4, 4000, 1000, 200, 16);
     let best_move = iterative_deepening(
         &game,
         4000,
-        1000,
-        1000,
+        10000,
+        500,
         50000,
-        32,
+        16,
         32.0,
         0.9,
         16,
-        std::time::Duration::new(15, 0),
+        std::time::Duration::new(60, 0),
     );
     if let Some((best, value)) = best_move {
         println!("Best move:");
         println!("{:?}: {}", best.0, value);
         for b in &best.1 {
             println!("{}", b);
-            println!("({}T{})\n", write_timeline(b.l), b.t / 2 + 1);
+            println!("({}T{}{})\n", write_timeline(b.l), b.t / 2 + 1, if b.active_player() {"w"} else {"b"});
         }
         game.commit_moves(best.1);
         game.info = best.2;
@@ -81,7 +81,7 @@ fn main() -> std::io::Result<()> {
         if is_draw(&game, &virtual_boards, &game.info) {
             println!("Draw!");
         } else {
-            println!("Checkmate!");
+            println!("Checkmate! {} wins!", if game.info.active_player {"Black"} else {"White"});
         }
         // break;
     }
