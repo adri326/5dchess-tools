@@ -19,11 +19,13 @@ pub const PROTECT_KING_REWARD: i32 = 3;
 pub const TAKE_ROOK_REWARD: i32 = 3;
 pub const TAKE_KNIGHT_REWARD: i32 = 4;
 pub const TAKE_BISHOP_REWARD: i32 = 5;
+pub const TAKE_PRINCESS_REWARD: i32 = 8;
 pub const TAKE_QUEEN_REWARD: i32 = 10;
 pub const TAKE_UNICORN_REWARD: i32 = 2;
 pub const TAKE_DRAGON_REWARD: i32 = 2;
 
 pub const CHECK_QUEEN_REWARD: i32 = 8;
+pub const CHECK_PRINCESS_REWARD: i32 = 6;
 pub const CHECK_KNIGHT_REWARD: i32 = 5;
 pub const CHECK_BISHOP_REWARD: i32 = 5;
 pub const CHECK_ROOK_REWARD: i32 = 3;
@@ -31,6 +33,7 @@ pub const CHECK_UNICORN_REWARD: i32 = 4;
 pub const CHECK_DRAGON_REWARD: i32 = 4;
 
 pub const ATTACK_QUEEN_REWARD: i32 = 2;
+pub const ATTACK_PRINCESS_REWARD: i32 = 2;
 pub const ATTACK_BISHOP_REWARD: i32 = 1;
 pub const ATTACK_KNIGHT_REWARD: i32 = 1;
 pub const ATTACK_ROOK_REWARD: i32 = 1;
@@ -44,7 +47,7 @@ pub const MANY_KINGS_COST: i32 = -6;
 pub struct Lore<'a> {
     pub board: &'a Board,
     pub danger: Vec<usize>,
-    pub enemies: Vec<(f32, usize, usize, usize)>,
+    pub enemies: Vec<(f32, isize, usize, usize)>,
 }
 
 impl<'a> Lore<'a> {
@@ -164,6 +167,8 @@ pub fn score_moves<'a>(
                 score += TAKE_UNICORN_REWARD;
             } else if mv.dst_piece.is_dragon() {
                 score += TAKE_DRAGON_REWARD;
+            } else if mv.dst_piece.is_princess() {
+                score += TAKE_PRINCESS_REWARD;
             }
 
             let mut moves: Vec<Move> = Vec::new();
@@ -192,9 +197,13 @@ pub fn score_moves<'a>(
                         score += CHECK_UNICORN_REWARD;
                     } else if mv.src_piece.is_dragon() {
                         score += CHECK_DRAGON_REWARD;
+                    } else if mv.src_piece.is_princess() {
+                        score += CHECK_PRINCESS_REWARD;
                     }
                 } else if mv.dst.0 == mv.src.0 && mv.dst.1 == mv.src.1 {
                     if mv.dst_piece.is_queen() {
+                        score += ATTACK_PRINCESS_REWARD;
+                    } else if mv.dst_piece.is_queen() {
                         score += ATTACK_QUEEN_REWARD;
                     } else if mv.dst_piece.is_bishop() {
                         score += ATTACK_BISHOP_REWARD;
@@ -251,6 +260,7 @@ pub fn score_moves<'a>(
 // Piece values: (how much they are worth)
 pub const ROOK_VALUE: f32 = 3.0;
 pub const KNIGHT_VALUE: f32 = 4.5;
+pub const PRINCESS_VALUE: f32 = 8.0;
 pub const QUEEN_VALUE: f32 = 14.0;
 pub const KING_VALUE: f32 = -4.0;
 pub const BISHOP_VALUE: f32 = 5.0;
@@ -399,9 +409,12 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                     score += DRAGON_VALUE * mult * board_mult;
                 } else if piece.is_pawn() {
                     score += PAWN_VALUE * mult * board_mult;
+                } else if piece.is_princess() {
+                    score += PRINCESS_VALUE * mult * board_mult;
                 }
 
                 // Maybe replace with bitboard operations
+                // Or just dedupe that horror
                 if piece.is_white() {
                     if piece.is_pawn() {
                         set_controlled_square(&mut controlled_squares_w, index, 1, 1, board.width, board.height);
@@ -418,14 +431,14 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                         set_controlled_square(&mut controlled_squares_w, index, -1, -2, board.width, board.height);
                     }
 
-                    if piece.is_bishop() || piece.is_queen() {
+                    if piece.is_bishop() || piece.is_queen() || piece.is_princess() {
                         set_controlled_square_slide(board, &mut controlled_squares_w, index, 1, 1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_w, index, -1, 1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_w, index, 1, -1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_w, index, -1, -1, board.width, board.height, white);
                     }
 
-                    if piece.is_rook() || piece.is_queen() {
+                    if piece.is_rook() || piece.is_queen() || piece.is_princess() {
                         set_controlled_square_slide(board, &mut controlled_squares_w, index, 0, 1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_w, index, 0, -1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_w, index, 1, 0, board.width, board.height, white);
@@ -447,14 +460,14 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                         set_controlled_square(&mut controlled_squares_b, index, -1, -2, board.width, board.height);
                     }
 
-                    if piece.is_bishop() || piece.is_queen() {
+                    if piece.is_bishop() || piece.is_queen() || piece.is_princess() {
                         set_controlled_square_slide(board, &mut controlled_squares_b, index, 1, 1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_b, index, -1, 1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_b, index, 1, -1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_b, index, -1, -1, board.width, board.height, white);
                     }
 
-                    if piece.is_rook() || piece.is_queen() {
+                    if piece.is_rook() || piece.is_queen() || piece.is_princess() {
                         set_controlled_square_slide(board, &mut controlled_squares_b, index, 0, 1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_b, index, 0, -1, board.width, board.height, white);
                         set_controlled_square_slide(board, &mut controlled_squares_b, index, 1, 0, board.width, board.height, white);

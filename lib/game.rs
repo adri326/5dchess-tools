@@ -4,6 +4,7 @@
 
 use json::{object::Object, JsonValue};
 use std::fmt;
+use std::convert::TryFrom;
 
 /// The main structure, contains the entire state of a game
 #[derive(Debug)]
@@ -17,7 +18,7 @@ pub struct Game {
 /// Information about whose turn it is, where the present is and timeline priority
 #[derive(Debug, Clone, Copy)]
 pub struct GameInfo {
-    pub present: usize,
+    pub present: isize,
     pub active_player: bool,
     pub min_timeline: f32,
     pub max_timeline: f32,
@@ -30,7 +31,7 @@ pub struct Timeline {
     pub states: Vec<Board>,
     pub width: usize,
     pub height: usize,
-    pub begins_at: usize,
+    pub begins_at: isize,
     pub emerges_from: Option<f32>,
 }
 
@@ -41,7 +42,7 @@ pub struct Board {
     pub width: usize,
     pub height: usize,
     pub l: f32, // its timeline
-    pub t: usize, // its time coordinate
+    pub t: isize, // its time coordinate
     pub king_w: Option<(usize, usize)>, // TODO: update if the king moves
     pub king_b: Option<(usize, usize)>,
     pub castle_w: (bool, bool),
@@ -61,6 +62,7 @@ pub enum Piece {
     BishopW,
     UnicornW,
     DragonW,
+    PrincessW,
 
     KingB,
     QueenB,
@@ -70,6 +72,7 @@ pub enum Piece {
     BishopB,
     UnicornB,
     DragonB,
+    PrincessB,
 }
 
 impl From<JsonValue> for Game {
@@ -126,7 +129,7 @@ impl From<Object> for Game {
             .iter()
             .filter(|tl| tl.index.abs() <= timeline_width);
         let present = active_timelines
-            .map(|tl| tl.begins_at + tl.states.len() - 1)
+            .map(|tl| tl.begins_at + (tl.states.len() as isize) - 1)
             .min()
             .expect("No timeline!");
         let mut res = Game {
@@ -179,13 +182,13 @@ impl From<&Object> for Timeline {
         let begins_at = raw
             .get("begins_at")
             .expect("Expected JSON to contain key 'begins_at' for Timeline.")
-            .as_usize()
+            .as_isize()
             .expect("Expected JSON element 'begins_at' for Timeline to be a number.");
         let emerges_from = raw.get("emerges_from").map(|x| x.as_f32()).flatten();
         let states = match raw.get("states") {
             Some(JsonValue::Array(arr)) => {
                 let mut res: Vec<Board> = Vec::new();
-                let mut t: usize = 0;
+                let mut t: isize = 0;
                 for board in arr {
                     if let JsonValue::Array(raw_pieces) = board {
                         let mut pieces: Vec<Piece> = Vec::with_capacity(width * height);
@@ -205,10 +208,10 @@ impl From<&Object> for Timeline {
                             castle_w: (false, false),
                             castle_b: (false, false),
                         });
+                        t += 1;
                     } else {
                         panic!("Expected JSON State to be an array.")
                     }
-                    t += 1;
                 }
                 res
             }
@@ -238,6 +241,7 @@ impl From<usize> for Piece {
             6 => Piece::KingW,
             7 => Piece::UnicornW,
             8 => Piece::DragonW,
+            9 => Piece::PrincessW,
             11 => Piece::PawnB,
             12 => Piece::KnightB,
             13 => Piece::BishopB,
@@ -246,6 +250,7 @@ impl From<usize> for Piece {
             16 => Piece::KingB,
             17 => Piece::UnicornB,
             18 => Piece::DragonB,
+            19 => Piece::PrincessB,
             _ => panic!("Invalid piece: {}", raw),
         }
     }
@@ -264,6 +269,7 @@ impl From<Piece> for usize {
             Piece::KingW => 6,
             Piece::UnicornW => 7,
             Piece::DragonW => 8,
+            Piece::PrincessW => 9,
             Piece::PawnB => 11,
             Piece::KnightB => 12,
             Piece::BishopB => 13,
@@ -272,6 +278,7 @@ impl From<Piece> for usize {
             Piece::KingB => 16,
             Piece::UnicornB => 17,
             Piece::DragonB => 18,
+            Piece::PrincessB => 19,
         }
     }
 }
@@ -288,6 +295,7 @@ impl Piece {
             Piece::RookW | Piece::RookB => "R",
             Piece::UnicornW | Piece::UnicornB => "U",
             Piece::DragonW | Piece::DragonB => "D",
+            Piece::PrincessW | Piece::PrincessB => "S",
         }
     }
 
@@ -404,6 +412,15 @@ impl Piece {
         }
     }
 
+    /// Returns whether or not that Piece is a `Piece::Dragon*`
+    #[inline]
+    pub fn is_princess(&self) -> bool {
+        match &self {
+            Piece::PrincessW | Piece::PrincessB => true,
+            _ => false,
+        }
+    }
+
     /**
         Whether or not the piece can move by `n` tiles in any direction until it is blocked.
     **/
@@ -415,11 +432,13 @@ impl Piece {
             | Piece::QueenW
             | Piece::UnicornW
             | Piece::DragonW
+            | Piece::PrincessW
             | Piece::BishopB
             | Piece::RookB
             | Piece::QueenB
             | Piece::UnicornB
-            | Piece::DragonB => true,
+            | Piece::DragonB
+            | Piece::PrincessB => true,
             _ => false,
         }
     }
@@ -485,24 +504,24 @@ impl Game {
     }
 
     /// Returns the `(l, t)` board, None if not found
-    pub fn get_board<'a>(&'a self, l: f32, t: usize) -> Option<&'a Board> {
+    pub fn get_board<'a>(&'a self, l: f32, t: isize) -> Option<&'a Board> {
         self.get_timeline(l).map(|tl| tl.get_board(t)).flatten()
     }
 
     /// Returns the `(l, t)` board, panics if not found
-    pub fn get_board_unsafe<'a>(&'a self, l: f32, t: usize) -> &'a Board {
+    pub fn get_board_unsafe<'a>(&'a self, l: f32, t: isize) -> &'a Board {
         self.get_timeline(l).expect("Couldn't find timeline!").get_board_unsafe(t)
     }
 
     /// Returns a mutable reference to the `(l, t)` board, None if not found
-    pub fn get_board_mut<'a>(&'a mut self, l: f32, t: usize) -> Option<&'a mut Board> {
+    pub fn get_board_mut<'a>(&'a mut self, l: f32, t: isize) -> Option<&'a mut Board> {
         self.get_timeline_mut(l)
             .map(|tl| tl.get_board_mut(t))
             .flatten()
     }
 
     /// Returns a mutable reference to the `(l, t)` board, panics if not found
-    pub fn get_board_mut_unsafe<'a>(&'a mut self, l: f32, t: usize) -> &'a mut Board {
+    pub fn get_board_mut_unsafe<'a>(&'a mut self, l: f32, t: isize) -> &'a mut Board {
         self.get_timeline_mut(l)
             .expect("Couldn't find timeline!")
             .get_board_mut_unsafe(t)
@@ -514,12 +533,12 @@ impl Game {
     }
 
     /// Returns the `(l, t, x, y)` piece, None if not found
-    pub fn get<'a>(&'a self, l: f32, t: usize, x: usize, y: usize) -> Option<Piece> {
+    pub fn get<'a>(&'a self, l: f32, t: isize, x: usize, y: usize) -> Option<Piece> {
         self.get_timeline(l).map(|tl| tl.get(t, x, y)).flatten()
     }
 
     /// Returns the `(l, t, x, y)` piece, panics if not found
-    pub fn get_unsafe<'a>(&'a self, l: f32, t: usize, x: usize, y: usize) -> Piece {
+    pub fn get_unsafe<'a>(&'a self, l: f32, t: isize, x: usize, y: usize) -> Piece {
         self.get_timeline(l).expect("Couldn't find timeline!").get_unsafe(t, x, y)
     }
 
@@ -570,41 +589,41 @@ impl Timeline {
     }
 
     /// Returns the board at `t` in this timeline (this will be different from the `t`-th board if the timeline is synthetic), None if not found
-    pub fn get_board<'a>(&'a self, t: usize) -> Option<&'a Board> {
+    pub fn get_board<'a>(&'a self, t: isize) -> Option<&'a Board> {
         if t < self.begins_at {
             None
         } else {
-            self.states.get(t - self.begins_at)
+            self.states.get(usize::try_from(t - self.begins_at).ok()?)
         }
     }
 
     /// Returns the board at `t` in this timeline; panics if the board does not exist
-    pub fn get_board_unsafe<'a>(&'a self, t: usize) -> &'a Board {
-        &self.states[t - self.begins_at]
+    pub fn get_board_unsafe<'a>(&'a self, t: isize) -> &'a Board {
+        &self.states[(t - self.begins_at) as usize]
     }
 
     /// Returns a mutable reference to the board at `t` in this timeline, None if not found
-    pub fn get_board_mut<'a>(&'a mut self, t: usize) -> Option<&'a mut Board> {
+    pub fn get_board_mut<'a>(&'a mut self, t: isize) -> Option<&'a mut Board> {
         if t < self.begins_at {
             None
         } else {
-            self.states.get_mut(t - self.begins_at)
+            self.states.get_mut(usize::try_from(t - self.begins_at).ok()?)
         }
     }
 
     /// Returns a mutable reference to the board at `t` in this timeline, panics if the board does not exist
-    pub fn get_board_mut_unsafe<'a>(&'a mut self, t: usize) -> &'a mut Board {
-        &mut self.states[t - self.begins_at]
+    pub fn get_board_mut_unsafe<'a>(&'a mut self, t: isize) -> &'a mut Board {
+        &mut self.states[(t - self.begins_at) as usize]
     }
 
     /// Returns the piece at `(t, x, y)` in this timeline, None if not found
-    pub fn get<'a>(&'a self, t: usize, x: usize, y: usize) -> Option<Piece> {
+    pub fn get<'a>(&'a self, t: isize, x: usize, y: usize) -> Option<Piece> {
         self.get_board(t).map(|board| board.get(x, y)).flatten()
     }
 
     /// Returns the piece at `(t, x, y)` in this timeline, panics if the square does not exist. UB if that board's size is not equal to the timeline's own size
-    pub fn get_unsafe<'a>(&'a self, t: usize, x: usize, y: usize) -> Piece {
-        self.states[t - self.begins_at].pieces[x + self.width * y]
+    pub fn get_unsafe<'a>(&'a self, t: isize, x: usize, y: usize) -> Piece {
+        self.states[(t - self.begins_at) as usize].pieces[x + self.width * y]
     }
 }
 
@@ -669,6 +688,7 @@ impl fmt::Display for Piece {
                 Piece::KingW => "K",
                 Piece::UnicornW => "U",
                 Piece::DragonW => "D",
+                Piece::PrincessW => "S",
                 Piece::PawnB => "p",
                 Piece::KnightB => "n",
                 Piece::BishopB => "b",
@@ -677,6 +697,7 @@ impl fmt::Display for Piece {
                 Piece::KingB => "k",
                 Piece::UnicornB => "u",
                 Piece::DragonB => "d",
+                Piece::PrincessB => "s",
             }
         )
     }
@@ -697,7 +718,7 @@ impl fmt::Display for Board {
 }
 
 /// Applies a function on the `(l, t)` board and on all of its predecessors, stops if the function returns false
-pub fn bubble_up<'a, F>(game: &'a Game, mut l: f32, mut t: usize, mut f: F)
+pub fn bubble_up<'a, F>(game: &'a Game, mut l: f32, mut t: isize, mut f: F)
 where
     F: FnMut(&'a Board) -> bool,
 {
@@ -729,13 +750,13 @@ where
     }, ());
     ```
 **/
-pub fn bubble_down<'a, F, T>(game: &'a mut Game, l: f32, mut t: usize, mut f: F, initial: T)
+pub fn bubble_down<'a, F, T>(game: &'a mut Game, l: f32, mut t: isize, mut f: F, initial: T)
 where
     F: FnMut(&'_ mut Board, T) -> (bool, T),
     F: Copy,
     T: Copy,
 {
-    let checkpoints: Vec<(f32, usize)> = game
+    let checkpoints: Vec<(f32, isize)> = game
         .timelines
         .iter()
         .filter(|tl| tl.emerges_from == Some(l))

@@ -71,8 +71,8 @@ lazy_static! {
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Move {
-    pub src: (f32, usize, usize, usize), // l, t, x, y
-    pub dst: (f32, usize, usize, usize), // l, t, x, y
+    pub src: (f32, isize, usize, usize), // l, t, x, y
+    pub dst: (f32, isize, usize, usize), // l, t, x, y
     pub castle: bool,
     pub castle_long: bool,
     pub en_passant: Option<(usize, usize)>,
@@ -193,8 +193,8 @@ impl fmt::Debug for Move {
 impl Move {
     /// Creates a new normal move; extracts piece information from `game` and `virtual_boards`
     pub fn new(
-        src: (f32, usize, usize, usize),
-        dst: (f32, usize, usize, usize),
+        src: (f32, isize, usize, usize),
+        dst: (f32, isize, usize, usize),
         game: &Game,
         virtual_boards: &Vec<&Board>,
     ) -> Option<Self> {
@@ -225,8 +225,8 @@ impl Move {
 
     /// Creates a new normal move; extracts piece information from `game`, `board` `virtual_boards`. Does not need `board` to be within `game` or `virtual_boards`
     fn new_with_board(
-        src: (f32, usize, usize, usize),
-        dst: (f32, usize, usize, usize),
+        src: (f32, isize, usize, usize),
+        dst: (f32, isize, usize, usize),
         game: &Game,
         board: &Board,
         virtual_boards: &Vec<&Board>,
@@ -259,7 +259,7 @@ impl Move {
     /// Creates a new castling move
     pub fn castle(
         long: bool,
-        src: (f32, usize, usize, usize),
+        src: (f32, isize, usize, usize),
         dst: (usize, usize),
         white: bool,
     ) -> Option<Self> {
@@ -277,7 +277,7 @@ impl Move {
     }
 
     /// Creates an empty move (which moves no piece)
-    pub fn noop(src: (f32, usize)) -> Self {
+    pub fn noop(src: (f32, isize)) -> Self {
         Move {
             src: (src.0, src.1, 0, 0),
             dst: (src.0, src.1, 0, 0),
@@ -663,7 +663,7 @@ pub fn legal_movesets<'a>(
 pub fn get_board<'a, 'b, 'd>(
     game: &'a Game,
     virtual_boards: &'b Vec<&'b Board>,
-    pos: (f32, usize),
+    pos: (f32, isize),
 ) -> Option<&'d Board>
 where
     'a: 'd,
@@ -681,7 +681,7 @@ where
 fn get(
     game: &Game,
     virtual_boards: &Vec<&Board>,
-    pos: (f32, usize, usize, usize),
+    pos: (f32, isize, usize, usize),
 ) -> Option<Piece> {
     get_board(game, virtual_boards, (pos.0, pos.1))
         .map(|b| b.get(pos.2, pos.3))
@@ -693,7 +693,7 @@ fn get_with_board(
     game: &Game,
     board: &Board,
     virtual_boards: &Vec<&Board>,
-    pos: (f32, usize, usize, usize),
+    pos: (f32, isize, usize, usize),
 ) -> Option<Piece> {
     if pos.0 == board.l && pos.1 == board.t {
         board.get(pos.2, pos.3)
@@ -707,7 +707,7 @@ fn get_with_board(
 /// Returns whether or not `board` is the last board of its timeline (looks in `game` and `virtual_boards`)
 pub fn is_last(game: &Game, virtual_boards: &Vec<&Board>, board: &Board) -> bool {
     if let Some(tl) = game.get_timeline(board.l) {
-        if tl.states.len() + tl.begins_at - 1 > board.t {
+        if (tl.states.len() as isize) + tl.begins_at - 1 > board.t {
             return false;
         }
     }
@@ -808,7 +808,7 @@ pub fn probable_moves_for(
                         } else {
                             board.l
                         };
-                        let t1 = ((board.t as isize) + 2 * dt) as usize;
+                        let t1 = board.t + 2 * dt;
                         let x1 = ((x as isize) + dx) as usize;
                         let y1 = ((y as isize) + dy) as usize;
                         if let Some(true) = get_with_board(game, board, virtual_boards, (l1, t1, x1, y1))
@@ -913,6 +913,25 @@ pub fn probable_moves_for(
             4,
             active_player,
         )?;
+    } else if piece.is_princess() {
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            1,
+            active_player,
+        )?;
+        n_gonal(
+            game,
+            board,
+            virtual_boards,
+            res,
+            (board.l, board.t, x, y),
+            2,
+            active_player,
+        )?;
     }
     Some(())
 }
@@ -952,7 +971,7 @@ fn n_gonal(
     board: &Board,
     virtual_boards: &Vec<&Board>,
     res: &mut Vec<Move>,
-    src: (f32, usize, usize, usize),
+    src: (f32, isize, usize, usize),
     n: usize,
     active_player: bool,
 ) -> Option<()> {
@@ -963,11 +982,11 @@ fn n_gonal(
             let t0 = src.1 as isize + permutation.1 * length * 2;
             let x0 = src.2 as isize + permutation.2 * length;
             let y0 = src.3 as isize + permutation.3 * length;
-            if t0 < 0 || x0 < 0 || x0 >= game.width as isize || y0 < 0 || y0 >= game.height as isize
+            if x0 < 0 || x0 >= game.width as isize || y0 < 0 || y0 >= game.height as isize
             {
                 break;
             }
-            let dst = (l0, t0 as usize, x0 as usize, y0 as usize);
+            let dst = (l0, t0, x0 as usize, y0 as usize);
             let piece = get_with_board(game, board, virtual_boards, dst);
 
             if let Some(true) = piece.map(|piece| piece.is_takable_piece(active_player)) {
@@ -988,7 +1007,7 @@ fn n_gonal(
 }
 
 /// Re-calculate the present
-pub fn find_present(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> usize {
+pub fn find_present(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> isize {
     let mut min = info.present;
     game.timelines
         .iter()
