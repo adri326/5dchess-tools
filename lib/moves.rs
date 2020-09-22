@@ -735,7 +735,7 @@ pub fn probable_moves_for(
         let dy: isize = if piece.is_white() { 1 } else { -1 };
         let y1 = ((y as isize) + dy) as usize;
         let y2 = ((y as isize) + 2 * dy) as usize;
-        if get_with_board(game, board, virtual_boards, (board.l, board.t, x, y1))? == Piece::Blank {
+        if board.get(x, y1)? == Piece::Blank {
             res.push(Move::new_with_board(
                 src,
                 (board.l, board.t, x, y1),
@@ -747,7 +747,7 @@ pub fn probable_moves_for(
                 y <= 1
             } else {
                 y >= game.height - 2
-            } && get_with_board(game, board, virtual_boards, (board.l, board.t, x, y2))? == Piece::Blank
+            } && board.get(x, y2)? == Piece::Blank
             {
                 // TODO: handle 1-pawn better
                 res.push(Move::new_with_board(
@@ -762,7 +762,7 @@ pub fn probable_moves_for(
         // Try to take on x + 1
         if x < game.width - 1
             && (may_en_passant(game, board, virtual_boards, x + 1, y1)
-                || get_with_board(game, board, virtual_boards, (board.l, board.t, x + 1, y1))?
+                || board.get(x + 1, y1)?
                     .is_opponent_piece(active_player))
         {
             res.push(Move::new_with_board(
@@ -776,7 +776,7 @@ pub fn probable_moves_for(
         // Try to take on x - 1
         if x > 0
             && (may_en_passant(game, board, virtual_boards, x - 1, y1)
-                || get_with_board(game, board, virtual_boards, (board.l, board.t, x - 1, y1))?
+                || board.get(x - 1, y1)?
                     .is_opponent_piece(active_player))
         {
             res.push(Move::new_with_board(
@@ -1041,7 +1041,7 @@ pub fn is_optional(info: &GameInfo, mv: &Move) -> bool {
 
 /// Returns whether or not the game is a draw; assumes that no move can be made
 pub fn is_draw(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> bool {
-    let opponent_boards = get_opponent_boards(game, virtual_boards, info);
+    let opponent_boards = get_opponent_boards(game, virtual_boards, info).into_iter().filter(|b| b.is_active(info)).collect::<Vec<_>>();
     let own_boards = get_own_boards(game, virtual_boards, info)
         .into_iter()
         .cloned()

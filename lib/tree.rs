@@ -467,6 +467,10 @@ fn iterative_deepening_sub<'a>(
         } else {
             consecutive_prunes = 0;
             if let Some(mut branch) = pool.pop_front() {
+                if if branch.info.active_player {branch.score == std::f32::NEG_INFINITY} else {branch.score == std::f32::INFINITY} {
+                    pool.push_back(branch);
+                    continue;
+                }
                 let virtual_boards = branch.boards.iter().collect::<Vec<_>>();
                 let mut movesets = legal_movesets(game, &branch.info, &virtual_boards, 0, max_ms)
                     .take(bucket_size)
@@ -501,6 +505,9 @@ fn iterative_deepening_sub<'a>(
                         branch.tree.borrow_mut().score = branch.score;
                     }
                     pool.push_back(branch);
+                    if pool.len() == 1 {
+                        break;
+                    }
                 }
             } else {
                 break;
