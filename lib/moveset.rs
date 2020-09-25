@@ -157,7 +157,7 @@ impl<'a> MovesetIter<'a> {
         current: usize,
     ) -> Vec<Vec<(usize, usize)>> {
         if current == max - 1 {
-            return (0..(self.moves[current].len().min(self.moves_considered - 1)))
+            return (0..(self.moves[current].len().min(self.moves_considered)))
                 .map(|n| vec![(current, n)])
                 .collect();
         } else if self.moves[current].len() == 0 {
@@ -167,14 +167,14 @@ impl<'a> MovesetIter<'a> {
             let to_combine = self.generate_pre_combinations(max, current + 1);
             if to_combine.len() > 0 {
                 for v in to_combine.into_iter() {
-                    for x in 0..(self.moves[current].len().min(self.moves_considered - 1)) {
+                    for x in 0..(self.moves[current].len().min(self.moves_considered)) {
                         let mut v2 = v.clone();
                         v2.push((current, x));
                         res.push(v2);
                     }
                 }
             } else {
-                for x in 0..(self.moves[current].len().min(self.moves_considered - 1)) {
+                for x in 0..(self.moves[current].len().min(self.moves_considered)) {
                     res.push(vec![(current, x)]);
                 }
             }
