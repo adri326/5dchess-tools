@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use std::convert::{TryFrom, TryInto};
 
 use scoped_threadpool::Pool;
 
@@ -298,11 +299,11 @@ pub mod bfs {
         let mut pool = Pool::new(n_threads);
         let mut res = pool.scoped(|scope| {
             let initial_virtual_boards: Vec<&Board> = Vec::new();
-            let children = Arc::new(Mutex::new(Vec::new()));
+            let results = Arc::new(Mutex::new(Vec::new()));
             for initial_node in
                 legal_movesets(game, &game.info, &initial_virtual_boards, 0, 0).take(initial_movesets)
             {
-                let children = Arc::clone(&children);
+                let results = Arc::clone(&results);
                 scope.execute(move || {
                     let res = bfs_sub(
                         game,
@@ -315,11 +316,11 @@ pub mod bfs {
                         tolerance_mult,
                         max_duration,
                     );
-                    children.lock().unwrap().push((initial_node, res));
+                    results.lock().unwrap().push((initial_node, res));
                 });
             }
             scope.join_all();
-            let res = children.lock().unwrap().clone();
+            let res = results.lock().unwrap().clone();
             res
         });
 
@@ -338,18 +339,18 @@ pub mod bfs {
         A branch or node for `bfs(...)`
     **/
     #[derive(Clone, Debug)]
-    struct IDBranch {
-        boards: Vec<Board>,
-        moves: Vec<Vec<Move>>,
-        info: GameInfo,
-        depth: usize,
-        score: f32,
-        tree: RBFSTree,
+    pub struct BFSBranch {
+        pub boards: Vec<Board>,
+        pub moves: Vec<Vec<Move>>,
+        pub info: GameInfo,
+        pub depth: usize,
+        pub score: f32,
+        pub tree: RBFSTree,
     }
 
-    impl From<(Node, &IDBranch, RBFSTree)> for IDBranch {
-        fn from(raw: (Node, &IDBranch, RBFSTree)) -> Self {
-            IDBranch {
+    impl From<(Node, &BFSBranch, RBFSTree)> for BFSBranch {
+        fn from(raw: (Node, &BFSBranch, RBFSTree)) -> Self {
+            BFSBranch {
                 boards: (raw.1)
                     .boards
                     .clone()
@@ -370,23 +371,35 @@ pub mod bfs {
         }
     }
 
-    type RBFSTree = Rc<RefCell<BFSTree>>;
+    impl Into<Node> for BFSBranch {
+        fn into(self) -> Node {
+            (self.moves.last().unwrap_or(&vec![]).clone(), self.boards, self.info, self.score)
+        }
+    }
+
+    impl Into<Node> for &BFSBranch {
+        fn into(self) -> Node {
+            (self.moves.last().unwrap_or(&vec![]).clone(), self.boards.clone(), self.info.clone(), self.score)
+        }
+    }
+
+    pub type RBFSTree = Rc<RefCell<BFSTree>>;
 
     /**
-        Tree built alongside the different `IDBranch`es to keep track of which branch needs to be pruned.
+        Tree built alongside the different `BFSBranch`es to keep track of which branch needs to be pruned.
     **/
     #[derive(Debug)]
-    struct BFSTree {
-        depth: usize,
-        white: bool,
-        children: Vec<RBFSTree>,
-        score: f32,
-        pruned: bool,
+    pub struct BFSTree {
+        pub depth: usize,
+        pub white: bool,
+        pub children: Vec<RBFSTree>,
+        pub score: f32,
+        pub pruned: bool,
     }
 
     impl BFSTree {
         /// Creates a new BFSTree instance, as a child from `node`
-        fn after(node: &RBFSTree, score: f32) -> Option<RBFSTree> {
+        pub fn after(node: &RBFSTree, score: f32) -> Option<RBFSTree> {
             let mut node = node.borrow_mut();
 
             let res = Rc::new(RefCell::new(BFSTree {
@@ -414,7 +427,7 @@ pub mod bfs {
         tolerance_mult: f32,
         max_duration: Duration,
     ) -> f32 {
-        let mut pool: VecDeque<IDBranch> = VecDeque::with_capacity(pool_size * 2);
+        let mut pool: VecDeque<BFSBranch> = VecDeque::with_capacity(pool_size * 2);
         let initial_tree = Rc::new(RefCell::new(BFSTree {
             depth: 0,
             children: vec![],
@@ -426,7 +439,7 @@ pub mod bfs {
             white: !initial_node.2.active_player,
             pruned: false,
         }));
-        pool.push_back(IDBranch {
+        pool.push_back(BFSBranch {
             moves: vec![initial_node.0],
             boards: initial_node.1,
             info: initial_node.2,
@@ -470,7 +483,7 @@ pub mod bfs {
                             n_nodes += 1;
                             if pool.len() < pool_size * 2 {
                                 if let Some(new_tree) = BFSTree::after(&branch.tree, node.3) {
-                                    pool.push_back(IDBranch::from((node, &branch, new_tree)));
+                                    pool.push_back(BFSBranch::from((node, &branch, new_tree)));
                                 }
                             }
                         }
@@ -519,8 +532,8 @@ pub mod bfs {
     }
 
     /// Runs the different pruning steps as described in `bfs(...)`'s documentation
-    fn bfs_prune(pool: &mut VecDeque<IDBranch>, initial_tree: RBFSTree, tolerance: f32) {
-        bfs_prune_rec(&initial_tree);
+    fn bfs_prune(pool: &mut VecDeque<BFSBranch>, initial_tree: RBFSTree, tolerance: f32) {
+        bfs_recalculate_tree(&initial_tree);
         bfs_prune_rec_2(&initial_tree, false, tolerance);
         for _ in 0..pool.len() {
             let node = pool.pop_front().unwrap();
@@ -531,7 +544,7 @@ pub mod bfs {
     }
 
     /// First step of the pruning: re-calculate the score of each branch
-    fn bfs_prune_rec(tree: &RBFSTree) {
+    pub fn bfs_recalculate_tree(tree: &RBFSTree) {
         if tree.borrow().children.len() == 0 {
             return;
         }
@@ -540,7 +553,7 @@ pub mod bfs {
             .children
             .clone()
             .into_iter()
-            .inspect(bfs_prune_rec);
+            .inspect(bfs_recalculate_tree);
         let white = tree.borrow().white;
         if !white {
             let mut score = std::f32::NEG_INFINITY;
@@ -598,6 +611,274 @@ pub mod bfs {
                 .collect::<Vec<_>>();
             tree.borrow_mut().children = children;
         }
+    }
+}
+
+pub mod iddfs {
+    use super::*;
+    use super::bfs::*;
+
+    pub fn iddfs_bfs<'a>(
+        game: &'a Game,
+        max_ms: usize,
+        bucket_size: usize,
+        pool_size: usize,
+        n_threads: u32,
+        max_duration: Duration,
+    ) -> Option<(Node, f32)> {
+        let begin = Instant::now();
+        let mut queue: VecDeque<BFSBranch> = VecDeque::new();
+        let root = Rc::new(RefCell::new(BFSTree {
+            depth: 0,
+            children: vec![],
+            score: 0.0,
+            white: !game.info.active_player,
+            pruned: false,
+        }));
+        queue.push_back(BFSBranch {
+            moves: vec![],
+            boards: vec![],
+            info: game.info.clone(),
+            depth: 0,
+            score: 0.0,
+            tree: root.clone(),
+        });
+        let mut depth = 0;
+        'deepening_loop: while begin.elapsed() < max_duration {
+            depth += 1;
+            while queue.len() < pool_size {
+                if let Some(mut branch) = queue.pop_front() {
+                    let virtual_boards = branch.boards.iter().collect::<Vec<_>>();
+                    let mut has_looped = false;
+                    for moveset in legal_movesets(game, &branch.info, &virtual_boards, 0, max_ms)
+                        .take(bucket_size)
+                    {
+                        has_looped = true;
+                        let new_tree = BFSTree::after(&branch.tree, moveset.3).unwrap();
+                        queue.push_back(BFSBranch::from((moveset, &branch, new_tree)));
+                    }
+                    if !has_looped {
+                        if is_draw(game, &branch.boards.iter().collect(), &branch.info) {
+                            branch.score = 0.0;
+                            branch.tree.borrow_mut().score = 0.0;
+                        } else {
+                            if branch.info.active_player {
+                                branch.score = std::f32::NEG_INFINITY;
+                                branch.tree.borrow_mut().score = std::f32::NEG_INFINITY;
+                            } else {
+                                branch.score = std::f32::INFINITY;
+                                branch.tree.borrow_mut().score = std::f32::INFINITY;
+                            }
+                        }
+                        queue.push_back(branch);
+                    }
+                }
+                if queue.len() == 0 {
+                    panic!("Queue got emptied!");
+                }
+            }
+            let mut pool = Pool::new(n_threads);
+            let mut iddfs_res = pool.scoped(|scope| {
+                let results: Arc<Mutex<Vec<(usize, Option<(Vec<Node>, f32)>)>>> = Arc::new(Mutex::new(Vec::new()));
+                // The queue iterator is reversed as to process the shallower nodes first
+                for (id, node) in queue.iter().enumerate().rev() {
+                    if node.depth <= depth {
+                        let depth = depth - node.depth;
+                        let results = Arc::clone(&results);
+                        let node: Node = node.into();
+                        scope.execute(move || {
+                            let res = iddfs_bfs_sub(
+                                game,
+                                &vec![],
+                                node,
+                                max_ms,
+                                bucket_size,
+                                depth,
+                                std::f32::NEG_INFINITY,
+                                std::f32::INFINITY,
+                                begin,
+                                max_duration,
+                            );
+                            results.lock().unwrap().push((id, res));
+                        });
+                    }
+                }
+                scope.join_all();
+                // move out of scope guard
+                let res = results.lock().unwrap().clone();
+                res
+            });
+
+            for result in iddfs_res.clone().into_iter() {
+                if let (id, Some((_nodes, score))) = result {
+                    queue[id].score = score;
+                    queue[id].tree.borrow_mut().score = score;
+                } else {
+                    break 'deepening_loop;
+                }
+            }
+
+            bfs_recalculate_tree(&root);
+            bfs_prune_infinities(&root, false);
+            let mut pruned = 0;
+
+            for _ in 0..queue.len() {
+                let node = queue.pop_front().unwrap();
+                if !node.tree.borrow().pruned {
+                    queue.push_back(node);
+                } else {
+                    pruned += 1;
+                }
+            }
+
+            if root.borrow().score.is_infinite() {
+                break;
+            }
+
+            println!("Depth: {}, pruned: {}, queue: {}, score: {}", depth, pruned, queue.len(), root.borrow().score);
+            // println!("{:#?}", root);
+            // println!("{:#?}", iddfs_res.iter().map(|(i, o)| o.as_ref().map(|(n, v)| (i, n.iter().map(|x| x.0.clone()).collect::<Vec<_>>(), v))).collect::<Vec<_>>());
+        }
+
+        bfs_recalculate_tree(&root);
+        bfs_keep_best(&root, false);
+        for candidate in queue.into_iter() {
+            if !candidate.tree.borrow().pruned {
+                let score = candidate.score;
+                return Some((candidate.into(), score));
+            }
+        }
+        None
+    }
+
+    fn iddfs_bfs_sub<'a>(
+        game: &'a Game,
+        virtual_boards: &Vec<&Board>,
+        node: Node,
+        max_ms: usize,
+        bucket_size: usize,
+        depth: usize,
+        mut alpha: f32,
+        mut beta: f32,
+        begin: Instant,
+        max_duration: Duration,
+    ) -> Option<(Vec<Node>, f32)> {
+        if begin.elapsed() >= max_duration {
+            return None;
+        } else if depth == 0 {
+            Some((vec![node.clone()], node.3))
+        } else {
+            let merged_vboards: Vec<&Board> = virtual_boards
+                .iter()
+                .map(|x| *x)
+                .chain(node.1.iter())
+                .collect::<Vec<&Board>>();
+            let mut best = (vec![], if node.2.active_player {std::f32::NEG_INFINITY} else {std::f32::INFINITY});
+            for moveset in legal_movesets(game, &node.2, &merged_vboards, 0, max_ms).take(bucket_size) {
+                let res = iddfs_bfs_sub(
+                    game,
+                    &merged_vboards,
+                    moveset.clone(),
+                    max_ms,
+                    bucket_size,
+                    depth - 1,
+                    alpha,
+                    beta,
+                    begin,
+                    max_duration
+                );
+
+                if let None = res {
+                    return None;
+                } else if let Some(res) = res {
+                    if best.0.len() == 0 {
+                        best = res;
+                    } else if node.2.active_player {
+                        if res.1 > best.1 {
+                            alpha = res.1;
+                            best = res;
+                        }
+                    } else {
+                        if res.1 < best.1 {
+                            beta = res.1;
+                            best = res;
+                        }
+                    }
+                }
+
+                if alpha >= beta {
+                    break;
+                }
+            }
+
+            if best.0.len() != 0 {
+                let mut v = vec![node];
+                v.append(&mut best.0);
+                Some((v, best.1))
+            } else {
+                if is_draw(game, &merged_vboards, &node.2) {
+                    Some((vec![node.clone()], 0.0))
+                } else {
+                    Some((vec![node.clone()], if node.2.active_player {std::f32::NEG_INFINITY} else {std::f32::INFINITY}))
+                }
+            }
+        }
+    }
+
+    fn bfs_prune_infinities(tree: &RBFSTree, prune: bool) {
+        let score = tree.borrow().score;
+
+        if prune {
+            tree.borrow_mut().pruned = true;
+            for c in tree.borrow().children.iter() {
+                bfs_prune_infinities(c, true);
+            }
+            if tree.borrow().children.len() > 0 {
+                tree.borrow_mut().children = Vec::new();
+            }
+        }
+
+        if score.is_finite() {
+            for c in tree.borrow().children.iter() {
+                let should_prune = c.borrow().score.is_infinite();
+                bfs_prune_infinities(c, should_prune);
+            }
+            let children = tree
+                .borrow()
+                .children
+                .clone()
+                .into_iter()
+                .filter(|c| !c.borrow().pruned)
+                .collect::<Vec<_>>();
+            tree.borrow_mut().children = children;
+        }
+    }
+
+    fn bfs_keep_best(tree: &RBFSTree, prune: bool) {
+        let score = tree.borrow().score;
+
+        if prune {
+            tree.borrow_mut().pruned = true;
+            for c in tree.borrow().children.iter() {
+                bfs_prune_infinities(c, true);
+            }
+            if tree.borrow().children.len() > 0 {
+                tree.borrow_mut().children = Vec::new();
+            }
+        }
+
+        for c in tree.borrow().children.iter() {
+            let should_prune = c.borrow().score != score;
+            bfs_keep_best(c, should_prune);
+        }
+        let children = tree
+            .borrow()
+            .children
+            .clone()
+            .into_iter()
+            .filter(|c| !c.borrow().pruned)
+            .collect::<Vec<_>>();
+        tree.borrow_mut().children = children;
     }
 }
 

@@ -270,15 +270,15 @@ impl From<Piece> for usize {
             Piece::UnicornW => 7,
             Piece::DragonW => 8,
             Piece::PrincessW => 9,
-            Piece::PawnB => 11,
-            Piece::KnightB => 12,
-            Piece::BishopB => 13,
-            Piece::RookB => 14,
-            Piece::QueenB => 15,
-            Piece::KingB => 16,
-            Piece::UnicornB => 17,
-            Piece::DragonB => 18,
-            Piece::PrincessB => 19,
+            Piece::PawnB => 33,
+            Piece::KnightB => 34,
+            Piece::BishopB => 35,
+            Piece::RookB => 36,
+            Piece::QueenB => 37,
+            Piece::KingB => 38,
+            Piece::UnicornB => 39,
+            Piece::DragonB => 40,
+            Piece::PrincessB => 41,
         }
     }
 }
@@ -319,7 +319,8 @@ impl Piece {
             | Piece::QueenW
             | Piece::KingW
             | Piece::UnicornW
-            | Piece::DragonW => true,
+            | Piece::DragonW
+            | Piece::PrincessW => true,
             _ => false,
         }
     }
@@ -335,7 +336,8 @@ impl Piece {
             | Piece::QueenB
             | Piece::KingB
             | Piece::UnicornB
-            | Piece::DragonB => true,
+            | Piece::DragonB
+            | Piece::PrincessB => true,
             _ => false,
         }
     }
@@ -412,7 +414,7 @@ impl Piece {
         }
     }
 
-    /// Returns whether or not that Piece is a `Piece::Dragon*`
+    /// Returns whether or not that Piece is a `Piece::Princess*`
     #[inline]
     pub fn is_princess(&self) -> bool {
         match &self {

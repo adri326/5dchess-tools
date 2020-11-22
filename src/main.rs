@@ -55,7 +55,7 @@ fn main() -> std::io::Result<()> {
         }
     );
     println!("Candidates:");
-    let best_move = dfs::dfs(&game, 10, 1000000, 1000000, 1000000, 16);
+    // let best_move = dfs::dfs(&game, 2, 10000, 64, 256, 16);
     // let best_move = bfs::bfs(
     //     &game,
     //     10000,
@@ -68,6 +68,14 @@ fn main() -> std::io::Result<()> {
     //     16,
     //     std::time::Duration::new(60 * 4, 0),
     // );
+    let best_move = iddfs::iddfs_bfs(
+        &game,
+        10000,
+        64,
+        256,
+        16,
+        std::time::Duration::new(60 * 2, 0),
+    );
     if let Some((best, value)) = best_move {
         println!("Best move:");
         println!("{:?}: {}", best.0, value);

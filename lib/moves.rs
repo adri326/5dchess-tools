@@ -456,19 +456,24 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
             // TODO: check the b and c file
             let king_w = board.king_w.unwrap();
             let (mut x, y) = king_w;
-            x -= 1;
-            while let Some(piece) = board.get(x, y) {
-                if let Piece::RookW = piece {
-                    res.push(
-                        Move::castle(true, (board.l, board.t, king_w.0, king_w.1), (x, y), true)
-                            .unwrap(),
-                    );
-                    break;
-                } else if let Piece::Blank = piece {
-                    x -= 1;
-                    continue;
-                } else {
-                    break;
+            if x != 0 {
+                x -= 1;
+                while let Some(piece) = board.get(x, y) {
+                    if let Piece::RookW = piece {
+                        res.push(
+                            Move::castle(true, (board.l, board.t, king_w.0, king_w.1), (x, y), true)
+                                .unwrap(),
+                        );
+                        break;
+                    } else if let Piece::Blank = piece {
+                        if x == 0 {
+                            break;
+                        }
+                        x -= 1;
+                        continue;
+                    } else {
+                        break;
+                    }
                 }
             }
         }
@@ -498,19 +503,24 @@ pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) 
             // TODO: check the b and c file
             let king_b = board.king_b.unwrap();
             let (mut x, y) = king_b;
-            x -= 1;
-            while let Some(piece) = board.get(x, y) {
-                if let Piece::RookB = piece {
-                    res.push(
-                        Move::castle(true, (board.l, board.t, king_b.0, king_b.1), (x, y), false)
-                            .unwrap(),
-                    );
-                    break;
-                } else if let Piece::Blank = piece {
-                    x -= 1;
-                    continue;
-                } else {
-                    break;
+            if x != 0 {
+                x -= 1;
+                while let Some(piece) = board.get(x, y) {
+                    if let Piece::RookB = piece {
+                        res.push(
+                            Move::castle(true, (board.l, board.t, king_b.0, king_b.1), (x, y), false)
+                                .unwrap(),
+                        );
+                        break;
+                    } else if let Piece::Blank = piece {
+                        if x == 0 {
+                            break;
+                        }
+                        x -= 1;
+                        continue;
+                    } else {
+                        break;
+                    }
                 }
             }
         }
