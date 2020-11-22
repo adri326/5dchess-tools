@@ -55,19 +55,19 @@ fn main() -> std::io::Result<()> {
         }
     );
     println!("Candidates:");
-    // let best_move = alphabeta(&game, 4, 4000, 1000, 200, 16);
-    let best_move = iterative_deepening(
-        &game,
-        4000,
-        10000,
-        500,
-        50000,
-        16,
-        32.0,
-        0.9,
-        16,
-        std::time::Duration::new(60, 0),
-    );
+    let best_move = dfs(&game, 10, 1000000, 1000000, 1000000, 16);
+    // let best_move = bfs(
+    //     &game,
+    //     10000,
+    //     10000,
+    //     1000,
+    //     100000,
+    //     64,
+    //     100.0,
+    //     0.95,
+    //     16,
+    //     std::time::Duration::new(60 * 4, 0),
+    // );
     if let Some((best, value)) = best_move {
         println!("Best move:");
         println!("{:?}: {}", best.0, value);

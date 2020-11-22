@@ -21,7 +21,7 @@ type Node = (Vec<Move>, Vec<Board>, GameInfo, f32);
     - `max_bf` corresponds to the maximum number of movesets (branching factor, or `b`) to consider per tree node; note that αβ-pruning has a time complexity of `O(b^(d/2))`
     - `n_threads` is the number of threads to run concurrently; they will work on different starting moves to recursively rate them
 **/
-pub fn alphabeta<'a>(
+pub fn dfs<'a>(
     game: &'a Game,
     depth: usize,
     max_ms: usize,
@@ -66,7 +66,7 @@ pub fn alphabeta<'a>(
                 }
 
                 if depth > 0 {
-                    let (best_branch, new_value) = alphabeta_rec(
+                    let (best_branch, new_value) = dfs_rec(
                         &game,
                         &virtual_boards,
                         node.clone(),
@@ -132,8 +132,8 @@ pub fn alphabeta<'a>(
     }
 }
 
-/// Recursive bit of `alphabeta(...)`, see the documentation about `alphabeta` for more information!
-fn alphabeta_rec(
+/// Recursive bit of `dfs(...)`, see the documentation about `dfs` for more information!
+fn dfs_rec(
     game: &Game,
     virtual_boards: &Vec<&Board>,
     node: Node,
@@ -169,7 +169,7 @@ fn alphabeta_rec(
                     info!("{:?}", ms.0);
                 }
                 yielded_move = true;
-                let (best_branch, n_value) = alphabeta_rec(
+                let (best_branch, n_value) = dfs_rec(
                     game,
                     &merged_vboards,
                     ms.clone(),
@@ -216,7 +216,7 @@ fn alphabeta_rec(
                     info!("{:?}", ms.0);
                 }
                 yielded_move = true;
-                let (best_branch, n_value) = alphabeta_rec(
+                let (best_branch, n_value) = dfs_rec(
                     game,
                     &merged_vboards,
                     ms.clone(),
@@ -301,7 +301,7 @@ fn opt_apply_bucket<'a, T: Iterator<Item = Node> + 'a>(
     - `tolerance_mult` is the multiplier for that score difference that will be applied to it should there be more than one consecutive pruning step; it must be lower than 1 (or else this algorithm will loop forever).
     - The `pool_size` option can also be increased to reduce the number of times that the pruning has to be ran. Doing so will, however, increase the memory usage of the program.
 **/
-pub fn iterative_deepening<'a>(
+pub fn bfs<'a>(
     game: &'a Game,
     max_ms: usize,
     bucket_size: usize,
@@ -322,7 +322,7 @@ pub fn iterative_deepening<'a>(
         {
             let children = Arc::clone(&children);
             scope.execute(move || {
-                let res = iterative_deepening_sub(
+                let res = bfs_sub(
                     game,
                     initial_node.clone(),
                     max_ms,
@@ -353,7 +353,7 @@ pub fn iterative_deepening<'a>(
 }
 
 /**
-    A branch or node for `iterative_deepening(...)`
+    A branch or node for `bfs(...)`
 **/
 #[derive(Clone, Debug)]
 struct IDBranch {
@@ -362,11 +362,11 @@ struct IDBranch {
     info: GameInfo,
     depth: usize,
     score: f32,
-    tree: RIDTree,
+    tree: RBFSTree,
 }
 
-impl From<(Node, &IDBranch, RIDTree)> for IDBranch {
-    fn from(raw: (Node, &IDBranch, RIDTree)) -> Self {
+impl From<(Node, &IDBranch, RBFSTree)> for IDBranch {
+    fn from(raw: (Node, &IDBranch, RBFSTree)) -> Self {
         IDBranch {
             boards: (raw.1)
                 .boards
@@ -388,26 +388,26 @@ impl From<(Node, &IDBranch, RIDTree)> for IDBranch {
     }
 }
 
-type RIDTree = Rc<RefCell<IDTree>>;
+type RBFSTree = Rc<RefCell<BFSTree>>;
 
 /**
     Tree built alongside the different `IDBranch`es to keep track of which branch needs to be pruned.
 **/
 #[derive(Debug)]
-struct IDTree {
+struct BFSTree {
     depth: usize,
     white: bool,
-    children: Vec<RIDTree>,
+    children: Vec<RBFSTree>,
     score: f32,
     pruned: bool,
 }
 
-impl IDTree {
-    /// Creates a new IDTree instance, as a child from `node`
-    fn after(node: &RIDTree, score: f32) -> Option<RIDTree> {
+impl BFSTree {
+    /// Creates a new BFSTree instance, as a child from `node`
+    fn after(node: &RBFSTree, score: f32) -> Option<RBFSTree> {
         let mut node = node.borrow_mut();
 
-        let res = Rc::new(RefCell::new(IDTree {
+        let res = Rc::new(RefCell::new(BFSTree {
             depth: node.depth + 1,
             white: !node.white,
             children: Vec::new(),
@@ -420,8 +420,8 @@ impl IDTree {
     }
 }
 
-/// Per-thread bit of the `iterative_deepening(...)` method. See this function's documentation for more information.
-fn iterative_deepening_sub<'a>(
+/// Per-thread bit of the `bfs(...)` method. See this function's documentation for more information.
+fn bfs_sub<'a>(
     game: &'a Game,
     initial_node: Node,
     max_ms: usize,
@@ -433,7 +433,7 @@ fn iterative_deepening_sub<'a>(
     max_duration: Duration,
 ) -> f32 {
     let mut pool: VecDeque<IDBranch> = VecDeque::with_capacity(pool_size * 2);
-    let initial_tree = Rc::new(RefCell::new(IDTree {
+    let initial_tree = Rc::new(RefCell::new(BFSTree {
         depth: 0,
         children: vec![],
         score: if initial_node.2.active_player {
@@ -463,7 +463,7 @@ fn iterative_deepening_sub<'a>(
             if consecutive_prunes > 1 {
                 tolerance *= tolerance_mult;
             }
-            iterative_deepening_prune(&mut pool, initial_tree.clone(), tolerance);
+            bfs_prune(&mut pool, initial_tree.clone(), tolerance);
         } else {
             consecutive_prunes = 0;
             if let Some(mut branch) = pool.pop_front() {
@@ -487,7 +487,7 @@ fn iterative_deepening_sub<'a>(
                     for node in movesets.into_iter().take(bucket_downsize) {
                         n_nodes += 1;
                         if pool.len() < pool_size * 2 {
-                            if let Some(new_tree) = IDTree::after(&branch.tree, node.3) {
+                            if let Some(new_tree) = BFSTree::after(&branch.tree, node.3) {
                                 pool.push_back(IDBranch::from((node, &branch, new_tree)));
                             }
                         }
@@ -517,7 +517,7 @@ fn iterative_deepening_sub<'a>(
 
     info!("{} nodes in {}; {} N/s", n_nodes, max_duration.as_secs_f32(), (n_nodes as f32) / max_duration.as_secs_f32());
 
-    iterative_deepening_prune(&mut pool, initial_tree.clone(), 0.0);
+    bfs_prune(&mut pool, initial_tree.clone(), 0.0);
 
     let score = initial_tree.borrow().score;
 
@@ -536,10 +536,10 @@ fn iterative_deepening_sub<'a>(
     score
 }
 
-/// Runs the different pruning steps as described in `iterative_deepening(...)`'s documentation
-fn iterative_deepening_prune(pool: &mut VecDeque<IDBranch>, initial_tree: RIDTree, tolerance: f32) {
-    iterative_deepening_prune_rec(&initial_tree);
-    iterative_deepening_prune_rec_2(&initial_tree, false, tolerance);
+/// Runs the different pruning steps as described in `bfs(...)`'s documentation
+fn bfs_prune(pool: &mut VecDeque<IDBranch>, initial_tree: RBFSTree, tolerance: f32) {
+    bfs_prune_rec(&initial_tree);
+    bfs_prune_rec_2(&initial_tree, false, tolerance);
     for _ in 0..pool.len() {
         let node = pool.pop_front().unwrap();
         if !node.tree.borrow().pruned {
@@ -549,7 +549,7 @@ fn iterative_deepening_prune(pool: &mut VecDeque<IDBranch>, initial_tree: RIDTre
 }
 
 /// First step of the pruning: re-calculate the score of each branch
-fn iterative_deepening_prune_rec(tree: &RIDTree) {
+fn bfs_prune_rec(tree: &RBFSTree) {
     if tree.borrow().children.len() == 0 {
         return;
     }
@@ -558,7 +558,7 @@ fn iterative_deepening_prune_rec(tree: &RIDTree) {
         .children
         .clone()
         .into_iter()
-        .inspect(iterative_deepening_prune_rec);
+        .inspect(bfs_prune_rec);
     let white = tree.borrow().white;
     if !white {
         let mut score = std::f32::NEG_INFINITY;
@@ -576,13 +576,13 @@ fn iterative_deepening_prune_rec(tree: &RIDTree) {
 }
 
 /// Second step of the pruning: mark branches as pruned
-fn iterative_deepening_prune_rec_2(tree: &RIDTree, prune: bool, tolerance: f32) {
+fn bfs_prune_rec_2(tree: &RBFSTree, prune: bool, tolerance: f32) {
     let score = tree.borrow().score;
     let white = tree.borrow().white;
     tree.borrow_mut().pruned = prune;
     if prune {
         for c in tree.borrow().children.iter() {
-            iterative_deepening_prune_rec_2(c, true, tolerance);
+            bfs_prune_rec_2(c, true, tolerance);
         }
         if tree.borrow().children.len() > 0 {
             tree.borrow_mut().children = Vec::new();
@@ -592,7 +592,7 @@ fn iterative_deepening_prune_rec_2(tree: &RIDTree, prune: bool, tolerance: f32) 
     if !white {
         for c in tree.borrow().children.iter() {
             let should_prune = c.borrow().score < score - tolerance;
-            iterative_deepening_prune_rec_2(c, should_prune, tolerance);
+            bfs_prune_rec_2(c, should_prune, tolerance);
         }
         let children = tree
             .borrow()
@@ -605,7 +605,7 @@ fn iterative_deepening_prune_rec_2(tree: &RIDTree, prune: bool, tolerance: f32) 
     } else {
         for c in tree.borrow().children.iter() {
             let should_prune = c.borrow().score > score + tolerance;
-            iterative_deepening_prune_rec_2(c, should_prune, tolerance);
+            bfs_prune_rec_2(c, should_prune, tolerance);
         }
         let children = tree
             .borrow()
