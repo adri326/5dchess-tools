@@ -55,8 +55,8 @@ fn main() -> std::io::Result<()> {
         }
     );
     println!("Candidates:");
-    let best_move = dfs(&game, 10, 1000000, 1000000, 1000000, 16);
-    // let best_move = bfs(
+    let best_move = dfs::dfs(&game, 10, 1000000, 1000000, 1000000, 16);
+    // let best_move = bfs::bfs(
     //     &game,
     //     10000,
     //     10000,
