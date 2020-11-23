@@ -4,7 +4,6 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::convert::{TryFrom, TryInto};
 
 use scoped_threadpool::Pool;
 
@@ -618,6 +617,21 @@ pub mod iddfs {
     use super::*;
     use super::bfs::*;
 
+    /** Iterative deepening depth-first search with initial breadth-first search.
+
+    A set of initial nodes is first generated using a standard BFS algorithm, until the queue reaches the desired amount of IDDFS jobs (`pool_size`).
+
+    From then on, DFS searches are scheduled on each of these nodes with increasing depth until the time runs out.
+
+    See the documentation of `bfs::bfs` and `dfs::dfs` for more details.
+
+    - `game` is the game instance to look moves on
+    - `max_ms` is the maximum number of movesets to consider until the position is deemed to be draw or checkmate
+    - `bucket_size` is the maximum number of movesets to process
+    - `pool_size` is the desired number of tasks to have. The actual number of tasks might exceed that number and is subject to change should some lines be worse than others. Tasks will be properly scheduled among the different threads
+    - `n_threads` is the number of threads to run this with
+    - `max_duration` is the maximum duration that this algorithm may take; once that maximum duration is reached, the process is stopped as soon as possible and early results, if available, are returned
+    **/
     pub fn iddfs_bfs<'a>(
         game: &'a Game,
         max_ms: usize,
@@ -626,6 +640,7 @@ pub mod iddfs {
         n_threads: u32,
         max_duration: Duration,
     ) -> Option<(Node, f32)> {
+        let queue_fail_threshold = 4;
         let begin = Instant::now();
         let mut queue: VecDeque<BFSBranch> = VecDeque::new();
         let root = Rc::new(RefCell::new(BFSTree {
@@ -644,8 +659,12 @@ pub mod iddfs {
             tree: root.clone(),
         });
         let mut depth = 0;
+        let mut pool = Pool::new(n_threads);
         'deepening_loop: while begin.elapsed() < max_duration {
             depth += 1;
+
+            // Fill up the queue; break after enough successive "fails" (leaves) were encountered
+            let mut queue_fails = 0;
             while queue.len() < pool_size {
                 if let Some(mut branch) = queue.pop_front() {
                     let virtual_boards = branch.boards.iter().collect::<Vec<_>>();
@@ -670,17 +689,24 @@ pub mod iddfs {
                                 branch.tree.borrow_mut().score = std::f32::INFINITY;
                             }
                         }
+                        queue_fails += 1;
                         queue.push_back(branch);
+                    } else {
+                        queue_fails = 0;
                     }
                 }
+                // println!("> {}", queue.len());
                 if queue.len() == 0 {
                     panic!("Queue got emptied!");
                 }
+                if queue_fails >= queue_fail_threshold || queue_fails >= queue.len() {
+                    break;
+                }
             }
-            let mut pool = Pool::new(n_threads);
-            let mut iddfs_res = pool.scoped(|scope| {
+
+            let iddfs_res = pool.scoped(|scope| {
                 let results: Arc<Mutex<Vec<(usize, Option<(Vec<Node>, f32)>)>>> = Arc::new(Mutex::new(Vec::new()));
-                // The queue iterator is reversed as to process the shallower nodes first
+                // The queue iterator is reversed as to process the shallower (and usually slower) nodes first
                 for (id, node) in queue.iter().enumerate().rev() {
                     if node.depth <= depth {
                         let depth = depth - node.depth;
@@ -751,6 +777,7 @@ pub mod iddfs {
         None
     }
 
+    /// Recursive DFS search with time verification
     fn iddfs_bfs_sub<'a>(
         game: &'a Game,
         virtual_boards: &Vec<&Board>,
@@ -774,6 +801,7 @@ pub mod iddfs {
                 .chain(node.1.iter())
                 .collect::<Vec<&Board>>();
             let mut best = (vec![], if node.2.active_player {std::f32::NEG_INFINITY} else {std::f32::INFINITY});
+            // Loop over the child nodes
             for moveset in legal_movesets(game, &node.2, &merged_vboards, 0, max_ms).take(bucket_size) {
                 let res = iddfs_bfs_sub(
                     game,
@@ -825,6 +853,7 @@ pub mod iddfs {
         }
     }
 
+    /// Removes branches that are marked as loosing from the tree
     fn bfs_prune_infinities(tree: &RBFSTree, prune: bool) {
         let score = tree.borrow().score;
 
@@ -854,6 +883,7 @@ pub mod iddfs {
         }
     }
 
+    /// Only keep the best node in the tree
     fn bfs_keep_best(tree: &RBFSTree, prune: bool) {
         let score = tree.borrow().score;
 

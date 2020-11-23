@@ -72,7 +72,7 @@ fn main() -> std::io::Result<()> {
         &game,
         10000,
         64,
-        256,
+        1024,
         16,
         std::time::Duration::new(60 * 2, 0),
     );
