@@ -1,0 +1,7 @@
+Config(
+  username: "YOUR BOTS USERNAME",
+  password: "A VERY STRONG PASSWORD",
+  bio: "YOUR BOTS BIO",
+  fullname: "YOUR BOTS FANCY NAME",
+  hostname: "http://server.chessin5d.net",
+)

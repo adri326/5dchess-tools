@@ -1,0 +1,17 @@
+[package]
+name = "chess5dtoolsbot"
+version = "0.0.1"
+authors = ["Adrien Burgun <adrien.burgun@orange.fr>"]
+edition = "2018"
+
+[dependencies]
+ron = "0.6.2"
+serde = "1.0.117"
+roy = "0.1.2"
+tokio = {version = "0.2.23", features = ["full"]}
+reqwest = "0.10"
+serde_json = "1.0"
+
+[dependencies.chess5dtools]
+version = "0.1"
+path = "../"
