@@ -19,9 +19,25 @@ cargo run path/to/game.json
 
 The current, included executable will read a JSON file (outputted by [this parser](https://github.com/adri326/5dchess-notation/)) and proceed to run calculations on it.
 
+### As a dependency
+
+Add the following to your `Cargo.toml`:
+
+```
+[dependencies.chess5dtools]
+version = "0.1"
+git = "https://github.com/adri326/5dchess-tools"
+```
+
+You can then import the different modules in your code, for instance:
+
+```rs
+use chess5dlib::game::*;
+```
+
 ## Usage
 
-The library half of this tool is labelled as `chess5dlib` (the executable `chess5dtools`).
+The library half of this tool is labelled as `chess5dlib` (the executable and package `chess5dtools`).
 
 - The various structures making a game's state can be found in `chess5dlib::game` (`/lib/game.rs`).
 - Per-board move-related logic can be found in `chess5dlib::moves` (`/lib/moves.rs`).
