@@ -4,10 +4,25 @@ use serde::{Deserialize, Serialize};
 use chess5dlib::game::*;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Mutex};
-use tokio::time::sleep;
-use tokio::runtime::Handle;
+use tokio::time::delay_for;
+
+macro_rules! ratelimit {
+    {$duration:expr} => {
+        let ratelimit_value: Duration = $duration;
+        lazy_static! {
+            static ref RATELIMIT: Arc<Mutex<Instant>> = Arc::new(Mutex::new(Instant::now()));
+        }
+        let elapsed = RATELIMIT.lock().unwrap().elapsed();
+        if elapsed < ratelimit_value {
+            delay_for(ratelimit_value - elapsed).await;
+            *RATELIMIT.lock().unwrap() = Instant::now();
+        }
+    }
+}
 
 pub async fn register(client: &Client, config: &Config) -> Option<String> {
+    ratelimit!(Duration::new(5, 0));
+
     #[derive(Serialize, Debug)]
     struct RegisterConfig {
         pub username: String,
@@ -39,7 +54,9 @@ pub async fn register(client: &Client, config: &Config) -> Option<String> {
     }
 }
 
-pub async fn login(handle: &Handle, client: &Client, config: &Config) -> Option<String> {
+pub async fn login(client: &Client, config: &Config) -> Option<String> {
+    ratelimit!(Duration::new(5, 0));
+
     #[derive(Serialize, Debug)]
     struct LoginConfig {
         pub username: String,
@@ -67,6 +84,8 @@ pub async fn login(handle: &Handle, client: &Client, config: &Config) -> Option<
 }
 
 pub async fn new_session(client: &Client, color: Color) -> Option<Session> {
+    ratelimit!(Duration::new(1, 0));
+
     #[derive(Serialize, Debug)]
     struct NewSessionBody {
         pub player: String
@@ -96,15 +115,7 @@ pub async fn new_session(client: &Client, color: Color) -> Option<Session> {
 }
 
 pub async fn sessions(client: &Client) -> Vec<Session> {
-    let ratelimit_value: Duration = Duration::new(1, 0);
-    lazy_static! {
-        static ref RATELIMIT: Arc<Mutex<Instant>> = Arc::new(Mutex::new(Instant::now()));
-    }
-    let elapsed = RATELIMIT.lock().unwrap().elapsed();
-    if elapsed < ratelimit_value {
-        sleep(ratelimit_value - elapsed).await;
-        *RATELIMIT.lock().unwrap() = Instant::now();
-    }
+    ratelimit!(Duration::new(1, 0));
 
     let res = client.get("/sessions", false).await;
 
@@ -123,7 +134,29 @@ pub async fn sessions(client: &Client) -> Vec<Session> {
     vec![]
 }
 
+pub async fn session(client: &Client, id: String) -> Option<Session> {
+    ratelimit!(Duration::new(0, 250 * 1000000));
+
+    let res = client.get(&format!("/sessions/{}", id), false).await;
+
+    if let Some(res) = res {
+        if res.status().is_success() {
+            match res.text().await.ok() {
+                Some(raw_json) => {
+                    let raw_obj: sessions::SessionRaw = serde_json::from_str(&raw_json).ok()?;
+                    return Some(raw_obj.into());
+                }
+                None => {},
+            }
+        }
+    }
+
+    None
+}
+
 pub async fn forfeit_session(client: &Client, id: String) -> Option<Session> {
+    ratelimit!(Duration::new(0, 250 * 1000000));
+
     #[derive(Serialize, Debug)]
     struct ForfeitSessionBody {
         pub id: String
@@ -147,6 +180,8 @@ pub async fn forfeit_session(client: &Client, id: String) -> Option<Session> {
 }
 
 pub async fn session_ready(client: &Client, id: String) -> bool {
+    ratelimit!(Duration::new(0, 250 * 1000000));
+
     #[derive(Serialize, Debug)]
     struct SessionReadyBody {
         pub id: String
@@ -166,6 +201,8 @@ pub async fn session_ready(client: &Client, id: String) -> bool {
 }
 
 pub async fn remove_session(client: &Client, id: String) -> bool {
+    ratelimit!(Duration::new(1, 0));
+
     #[derive(Serialize, Debug)]
     struct ForfeitSessionBody {
         pub id: String
@@ -235,7 +272,7 @@ mod sessions {
                 ended: self.ended,
                 end_date: self.endDate,
                 archive_date: self.archiveDate,
-                player: self.player,
+                player: self.player == "white",
                 winner: self.winner,
                 win_cause: self.winCause,
                 width: self.board.width(),
