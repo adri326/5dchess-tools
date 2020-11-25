@@ -75,6 +75,22 @@ pub enum Piece {
     PrincessB,
 }
 
+impl Game {
+    pub fn new(width: usize, height: usize) -> Self {
+        Game {
+            timelines: vec![],
+            width,
+            height,
+            info: GameInfo {
+                present: 0,
+                active_player: true,
+                min_timeline: 0.0,
+                max_timeline: 0.0,
+            }
+        }
+    }
+}
+
 impl From<JsonValue> for Game {
     /// Calls to From<Object> for Game
     fn from(raw: JsonValue) -> Self {
@@ -147,6 +163,19 @@ impl From<Object> for Game {
         populate_castling_rights(&mut res);
 
         res
+    }
+}
+
+impl Timeline {
+    pub fn new(index: f32, width: usize, height: usize, begins_at: isize, emerges_from: Option<f32>) -> Self {
+        Timeline {
+            index,
+            states: vec![],
+            width,
+            height,
+            begins_at,
+            emerges_from,
+        }
     }
 }
 
@@ -630,6 +659,21 @@ impl Timeline {
 }
 
 impl Board {
+    /// Creates a new Board instance
+    pub fn new(t: isize, l: f32, width: usize, height: usize) -> Self {
+        Board {
+            t,
+            l,
+            width,
+            height,
+            pieces: vec![Piece::Blank; width * height],
+            king_w: None,
+            king_b: None,
+            castle_w: (false, false),
+            castle_b: (false, false),
+        }
+    }
+
     /// Returns the piece at `(x, y)`, None if not found
     pub fn get(&self, x: usize, y: usize) -> Option<Piece> {
         if x >= self.width || y >= self.height {
