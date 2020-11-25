@@ -1,5 +1,5 @@
 Config(
-  username: "YOUR BOTS USERNAME",
+  username: "YOUR BOTS USERNAME (must match /^[\w\-]+$/)",
   password: "A VERY STRONG PASSWORD",
   bio: "YOUR BOTS BIO",
   fullname: "YOUR BOTS FANCY NAME",

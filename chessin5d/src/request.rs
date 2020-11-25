@@ -133,6 +133,25 @@ pub async fn forfeit_session(client: &Client, id: String) -> Option<Session> {
     None
 }
 
+pub async fn session_ready(client: &Client, id: String) -> bool {
+    #[derive(Serialize, Debug)]
+    struct SessionReadyBody {
+        pub id: String
+    };
+
+    let res = client.post(&format!("/sessions/{}/ready", id), SessionReadyBody {id}).await;
+
+    if let Some(res) = res {
+        let x = res.status().is_success();
+        if !x {
+            eprintln!("{}", res.text().await.unwrap())
+        }
+        x
+    } else {
+        false
+    }
+}
+
 pub async fn remove_session(client: &Client, id: String) -> bool {
     #[derive(Serialize, Debug)]
     struct ForfeitSessionBody {
@@ -152,6 +171,7 @@ pub async fn remove_session(client: &Client, id: String) -> bool {
     }
 }
 
+#[allow(dead_code)]
 mod sessions {
     use super::*;
 
@@ -168,9 +188,9 @@ mod sessions {
         ready: bool,
         offerDraw: bool,
         started: bool,
-        startDate: usize,
+        startDate: u128,
         ended: bool,
-        endDate: usize,
+        endDate: u128,
         archiveDate: usize,
         player: String,
         winner: Option<String>,
@@ -305,8 +325,6 @@ mod sessions {
             let mut res = Board::new(t, l, turn.width(), turn.height());
 
             for piece in &turn.pieces {
-                // Revert once !52 is merged
-                // res.set(piece.position.rank - 1, piece.position.file - 1, parse_piece_name(&piece.piece, parse_player_color(&piece.player)));
                 res.set(piece.position.file - 1, piece.position.rank - 1, parse_piece_name(&piece.piece, parse_player_color(&piece.player))).unwrap();
             }
 

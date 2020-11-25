@@ -7,9 +7,10 @@ use serde::{Deserialize};
 use std::fs::File;
 use std::io::prelude::*;
 use roy::Client;
-use std::sync::mpsc;
 use std::sync::Arc;
-use tokio::{time, runtime};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
+use tokio::{time, runtime, task::JoinHandle};
 
 pub mod request;
 
@@ -41,9 +42,9 @@ pub struct Session {
     pub ready: bool,
     pub offer_draw: bool,
     pub started: bool,
-    pub start_date: usize,
+    pub start_date: u128,
     pub ended: bool,
-    pub end_date: usize,
+    pub end_date: u128,
     pub archive_date: usize,
     pub player: String,
     pub winner: Option<String>,
@@ -59,8 +60,10 @@ pub enum Message {
 }
 
 const MAX_GAMES: usize = 2;
-const NEW_GAME_TIMEOUT: usize = 60 * 5;
+const NEW_GAME_TIMEOUT: u128 = 60 * 5 * 1000;
 const PING_INTERVAL: u64 = 5;
+
+type SessionReturnType = ();
 
 #[tokio::main]
 async fn main() {
@@ -89,17 +92,82 @@ async fn main() {
     let rt = runtime::Runtime::new().unwrap();
 
     let ping_handle = {
+        let username = config.username.clone();
         let client = Arc::clone(&client);
         rt.spawn(async move {
             let mut interval = time::interval(time::Duration::from_secs(PING_INTERVAL));
+            let mut started_sessions: HashMap<String, JoinHandle<SessionReturnType>> = HashMap::new();
+            let mut ready_sessions: HashMap<String, Session> = HashMap::new();
             loop {
                 interval.tick().await;
                 let new_sessions = handle_sessions(client.clone()).await;
+                for sess in new_sessions.into_iter() {
+                    if !sess.started && now() - sess.start_date >= NEW_GAME_TIMEOUT {
+                        if &sess.host == &username {
+                            println!("[Removing session {}]", sess.id);
+                            if !request::remove_session(&client, sess.id.clone()).await {
+                                println!("Coudln't remove session {}!", sess.id);
+                            }
+                        }
+                        continue;
+                    } else if started_sessions.get(&sess.id).is_some() {
+                        continue;
+                    } else if ready_sessions.get(&sess.id).is_some() {
+                        if sess.started {
+                            println!("[Starting session {}]", sess.id);
+                            ready_sessions.remove(&sess.id);
+                            let client = Arc::clone(&client);
+                            started_sessions.insert(sess.id.clone(), tokio::spawn(async move {
+                                handle_session(client, sess).await
+                            }));
+                        }
+                    } else {
+                        if !sess.ready && !sess.started {
+                            println!("[Getting ready for session {}]", sess.id);
+                            if request::session_ready(&client, sess.id.clone()).await {
+                                ready_sessions.insert(sess.id.clone(), sess);
+                            } else {
+                                println!("Couldn't flag ourselves as ready!");
+                            }
+                        } else {
+                            println!("[Catch up ready session: {}]", sess.id);
+                            ready_sessions.insert(sess.id.clone(), sess);
+                        }
+                    }
+                }
             }
         })
     };
 
-    // let session = request::new_session(&client, Color::White).await;
+    if std::env::args().find(|x| x == "--new-session").is_some() {
+        let session = request::new_session(&client, Color::White).await;
+        match session {
+            Some(info) => {
+                println!("Session created!");
+                println!("{:#?}", info);
+            },
+            _ => println!("Couldn't create session!"),
+        }
+    }
+    if std::env::args().find(|x| x == "--clear-sessions").is_some() {
+        println!("Removing sessions!");
+        let sessions = request::sessions(&client).await;
+        for sess in sessions {
+            if sess.started && !sess.ended {
+                if request::forfeit_session(&client, sess.id.clone()).await.is_some() {
+                    println!("Forfeited session {}", sess.id);
+                } else {
+                    println!("Couldn't forfeit session {}", sess.id);
+                }
+            } else if sess.host == config.hostname && !sess.ended {
+                if request::remove_session(&client, sess.id.clone()).await {
+                    println!("Removed session {}", sess.id);
+                } else {
+                    println!("Couldn't remove session {}", sess.id);
+                }
+            }
+        }
+    }
 
     ping_handle.await.unwrap();
 }
@@ -107,7 +175,7 @@ async fn main() {
 async fn handle_sessions(client: Arc<Client>) -> Vec<Session> {
     println!("[Session handler loop]");
     let sessions = request::sessions(&client).await;
-    let mut active_sessions = sessions.into_iter().filter(|sess| !sess.ended).collect::<Vec<_>>();
+    let active_sessions = sessions.into_iter().filter(|sess| !sess.ended).collect::<Vec<_>>();
     println!("{} active sessions", active_sessions.len());
 
     let mut dropped = Vec::new();
@@ -128,7 +196,17 @@ async fn handle_sessions(client: Arc<Client>) -> Vec<Session> {
             }
         }
     }
-    active_sessions = active_sessions.into_iter().filter(|x| dropped.iter().find(|d| x.id == **d).is_none()).collect();
 
-    active_sessions.into_iter().filter(|x| !x.started).collect()
+    active_sessions.into_iter().filter(|x| dropped.iter().find(|d| x.id == **d).is_none()).collect()
+}
+
+async fn handle_session(client: Arc<Client>, mut session: Session) {
+    println!("[Session handler: {}]", session.id);
+    loop {
+
+    }
+}
+
+pub fn now() -> u128 {
+    SystemTime::now().duration_since(UNIX_EPOCH).expect("This software does not support actual time travel!").as_millis()
 }
