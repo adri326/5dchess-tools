@@ -1,6 +1,9 @@
 extern crate chess5dlib;
 extern crate serde;
 extern crate roy;
+#[macro_use]
+extern crate lazy_static;
+extern crate tokio;
 
 use chess5dlib::{game::*, moves::*, moveset::*, resolve::*, tree::*};
 use serde::{Deserialize};

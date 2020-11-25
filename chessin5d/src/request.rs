@@ -2,6 +2,10 @@ use roy::Client;
 use super::{Config, Color, Session};
 use serde::{Deserialize, Serialize};
 use chess5dlib::game::*;
+use std::time::{Instant, Duration};
+use std::sync::{Arc, Mutex};
+use tokio::time::sleep;
+use tokio::runtime::Handle;
 
 pub async fn register(client: &Client, config: &Config) -> Option<String> {
     #[derive(Serialize, Debug)]
@@ -35,7 +39,7 @@ pub async fn register(client: &Client, config: &Config) -> Option<String> {
     }
 }
 
-pub async fn login(client: &Client, config: &Config) -> Option<String> {
+pub async fn login(handle: &Handle, client: &Client, config: &Config) -> Option<String> {
     #[derive(Serialize, Debug)]
     struct LoginConfig {
         pub username: String,
@@ -46,7 +50,6 @@ pub async fn login(client: &Client, config: &Config) -> Option<String> {
         username: config.username.clone(),
         password: config.password.clone(),
     }).await;
-
 
     if let Some(res) = res {
         if res.status().is_success() {
@@ -93,6 +96,16 @@ pub async fn new_session(client: &Client, color: Color) -> Option<Session> {
 }
 
 pub async fn sessions(client: &Client) -> Vec<Session> {
+    let ratelimit_value: Duration = Duration::new(1, 0);
+    lazy_static! {
+        static ref RATELIMIT: Arc<Mutex<Instant>> = Arc::new(Mutex::new(Instant::now()));
+    }
+    let elapsed = RATELIMIT.lock().unwrap().elapsed();
+    if elapsed < ratelimit_value {
+        sleep(ratelimit_value - elapsed).await;
+        *RATELIMIT.lock().unwrap() = Instant::now();
+    }
+
     let res = client.get("/sessions", false).await;
 
     if let Some(res) = res {
