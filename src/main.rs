@@ -78,7 +78,7 @@ fn main() -> std::io::Result<()> {
         16,
         std::time::Duration::new(5, 0),
     );
-    if let Some((mut best, value)) = best_move {
+    if let Some((best, value)) = best_move {
         println!("Best move:");
         println!("{:?}: {}", best.0, value);
         for b in &best.1 {
