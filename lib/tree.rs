@@ -79,6 +79,7 @@ pub mod dfs {
                             bucket_size,
                             max_bf,
                         );
+                        coz::progress!("dfs_finished");
                         if let Some(best_branch) = best_branch {
                             let mut res: String = format!("1. {:?} -> {}\n", node.0, new_value);
                             for (k, mv) in best_branch.iter().enumerate() {
@@ -315,6 +316,7 @@ pub mod bfs {
                         tolerance_mult,
                         max_duration,
                     );
+                    coz::progress!("bfs_finished");
                     results.lock().unwrap().push((initial_node, res));
                 });
             }
@@ -695,6 +697,7 @@ pub mod iddfs {
                         queue_fails = 0;
                     }
                 }
+                coz::progress!("iddfs_requeue");
                 // println!("> {}", queue.len());
                 if queue.len() == 0 {
                     panic!("Queue got emptied!");

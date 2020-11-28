@@ -121,6 +121,7 @@ pub fn score_moves<'a>(
     moves: Vec<(Move, GameInfo, Vec<Board>)>,
     info: &GameInfo,
 ) -> Vec<(Move, Vec<Board>, GameInfo, i32)> {
+    coz::scope!("score_moves");
     let mut res = moves
         .into_iter()
         .map(|(mv, info, boards)| {
@@ -296,6 +297,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
     opponent_boards: T,
     moveset: Vec<Move>,
 ) -> Option<(Vec<Move>, Vec<Board>, GameInfo, f32)> {
+    coz::scope!("score_moveset");
     let mut moveset_boards: Vec<Board> = Vec::new();
     let mut info = info.clone();
     let white = info.active_player;

@@ -1,9 +1,16 @@
+extern crate json;
+extern crate lazy_static;
+extern crate permute;
+extern crate scoped_threadpool;
+extern crate env_logger;
+extern crate log;
+extern crate coz;
+
 #[allow(unused_imports)]
 use chess5dlib::{game::*, moves::*, moveset::*, resolve::*, tree::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
-extern crate json;
 
 // TODO: move replay, game analysis, args
 
@@ -45,53 +52,56 @@ fn main() -> std::io::Result<()> {
     //     println!("{} :: {}", b.t, game.info.present);
     // }
 
-    println!(
-        "Turn {}, {} to play:",
-        ((game.info.present) / 2) + 1,
-        if game.info.active_player {
-            "white"
+    for _ in 0..70 {
+        println!(
+            "Turn {}, {} to play:",
+            ((game.info.present) / 2) + 1,
+            if game.info.active_player {
+                "white"
+            } else {
+                "black"
+            }
+        );
+        println!("Candidates:");
+        // let best_move = dfs::dfs(&game, 2, 10000, 64, 256, 16);
+        // let best_move = bfs::bfs(
+        //     &game,
+        //     10000,
+        //     10000,
+        //     1000,
+        //     100000,
+        //     64,
+        //     100.0,
+        //     0.95,
+        //     16,
+        //     std::time::Duration::new(60 * 4, 0),
+        // );
+
+        let best_move = iddfs::iddfs_bfs(
+            &game,
+            10000,
+            64,
+            1024,
+            16,
+            std::time::Duration::new(60 * 5, 0),
+        );
+        if let Some((best, value)) = best_move {
+            println!("Best move:");
+            println!("{:?}: {}", best.0, value);
+            for b in &best.1 {
+                println!("{}", b);
+                println!("({}T{}{})\n", write_timeline(b.l), b.t / 2 + 1, if b.active_player() {"w"} else {"b"});
+            }
+            // game.commit_moves(best.1);
+            // game.info = best.2;
         } else {
-            "black"
+            if is_draw(&game, &virtual_boards, &game.info) {
+                println!("Draw!");
+            } else {
+                println!("Checkmate! {} wins!", if game.info.active_player {"Black"} else {"White"});
+            }
+            break;
         }
-    );
-    println!("Candidates:");
-    // let best_move = dfs::dfs(&game, 2, 10000, 64, 256, 16);
-    // let best_move = bfs::bfs(
-    //     &game,
-    //     10000,
-    //     10000,
-    //     1000,
-    //     100000,
-    //     64,
-    //     100.0,
-    //     0.95,
-    //     16,
-    //     std::time::Duration::new(60 * 4, 0),
-    // );
-    let best_move = iddfs::iddfs_bfs(
-        &game,
-        10000,
-        64,
-        1024,
-        16,
-        std::time::Duration::new(60 * 2, 0),
-    );
-    if let Some((best, value)) = best_move {
-        println!("Best move:");
-        println!("{:?}: {}", best.0, value);
-        for b in &best.1 {
-            println!("{}", b);
-            println!("({}T{}{})\n", write_timeline(b.l), b.t / 2 + 1, if b.active_player() {"w"} else {"b"});
-        }
-        game.commit_moves(best.1);
-        game.info = best.2;
-    } else {
-        if is_draw(&game, &virtual_boards, &game.info) {
-            println!("Draw!");
-        } else {
-            println!("Checkmate! {} wins!", if game.info.active_player {"Black"} else {"White"});
-        }
-        // break;
     }
 
     // println!("Possible answers:");

@@ -113,6 +113,7 @@ impl<'a> MovesetIter<'a> {
     It increases `moves_considered` and generates the combinations made using the new, considered moves.
     **/
     pub fn generate_combinations(&mut self, new_moves: Vec<(usize, usize)>) {
+        coz::scope!("generate_combinations");
         for (i, nm) in new_moves.into_iter() {
             let mut pre_combinations = if i > 0 {
                 self.generate_pre_combinations(i, 0)

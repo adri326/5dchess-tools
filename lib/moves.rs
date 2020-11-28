@@ -435,6 +435,7 @@ impl Move {
 
 /// Returns the set of moves that can be made from `board`; does not check for the legality of said move (ie. if it puts the player in check)
 pub fn probable_moves(game: &Game, board: &Board, virtual_boards: &Vec<&Board>) -> Vec<Move> {
+    coz::scope!("probable_moves");
     let mut res: Vec<Move> = Vec::new();
 
     for y in 0..board.height {
@@ -559,6 +560,7 @@ pub fn is_moveset_legal<'a, U>(
 where
     U: Iterator<Item = &'a Board>,
 {
+    coz::scope!("is_moveset_legal");
     let opponent = !info.active_player;
 
     for board in boards {
@@ -1038,6 +1040,7 @@ pub fn find_present(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) 
 }
 
 /// Returns whether or not making the move `mv` is optional (currently unused, might change it to if the move can be safely omitted)
+#[inline]
 pub fn is_optional(info: &GameInfo, mv: &Move) -> bool {
     if mv.src.1 > info.present
         || mv.src.0 < -info.max_timeline - 1.0
