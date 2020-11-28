@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
 use tokio::{time, runtime, task::JoinHandle};
+use tokio::join;
 
 pub mod request;
 
@@ -49,7 +50,7 @@ pub struct Session {
     pub ended: bool,
     pub end_date: u128,
     pub archive_date: usize,
-    pub player: String,
+    pub player: bool,
     pub winner: Option<String>,
     pub win_cause: Option<String>,
     pub width: usize,
@@ -120,8 +121,9 @@ async fn main() {
                             println!("[Starting session {}]", sess.id);
                             ready_sessions.remove(&sess.id);
                             let client = Arc::clone(&client);
+                            let white = sess.white == Some(username.clone());
                             started_sessions.insert(sess.id.clone(), tokio::spawn(async move {
-                                handle_session(client, sess).await
+                                handle_session(client, white, sess).await
                             }));
                         }
                     } else {
@@ -176,9 +178,9 @@ async fn main() {
 }
 
 async fn handle_sessions(client: Arc<Client>) -> Vec<Session> {
-    println!("[Session handler loop]");
+    println!("[Sessions handler loop]");
     let sessions = request::sessions(&client).await;
-    let active_sessions = sessions.into_iter().filter(|sess| !sess.ended).collect::<Vec<_>>();
+    let active_sessions = sessions.into_iter().filter(|sess| !sess.ended).collect::<Vec<Session>>();
     println!("{} active sessions", active_sessions.len());
 
     let mut dropped = Vec::new();
@@ -203,10 +205,21 @@ async fn handle_sessions(client: Arc<Client>) -> Vec<Session> {
     active_sessions.into_iter().filter(|x| dropped.iter().find(|d| x.id == **d).is_none()).collect()
 }
 
-async fn handle_session(client: Arc<Client>, mut session: Session) {
+async fn handle_session(client: Arc<Client>, white: bool, mut session: Session) {
+    let mut interval = time::interval(time::Duration::from_secs(PING_INTERVAL));
     println!("[Session handler: {}]", session.id);
     loop {
+        interval.tick().await;
 
+        match request::session(&client, session.id.clone()).await {
+            Some(s) => session = s,
+            None => println!("Couldn't get session {}!", session.id),
+        }
+
+        if session.player == white {
+            // do them moves
+            // send the moves
+        }
     }
 }
 
