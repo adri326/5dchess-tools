@@ -2,16 +2,16 @@
     Structures and functions related to the game's state.
 */
 
-use json::{object::Object, JsonValue};
 use std::fmt;
 use std::convert::TryFrom;
+use std::collections::HashMap;
 
 /// The main structure, contains the entire state of a game
 #[derive(Debug)]
 pub struct Game {
-    pub timelines: Vec<Timeline>,
-    pub width: usize,
-    pub height: usize,
+    pub timelines: HashMap<i32, Timeline>,
+    pub width: u8,
+    pub height: u8,
     pub info: GameInfo,
 }
 
@@ -20,31 +20,32 @@ pub struct Game {
 pub struct GameInfo {
     pub present: isize,
     pub active_player: bool,
-    pub min_timeline: f32,
-    pub max_timeline: f32,
+    pub min_timeline: i32,
+    pub max_timeline: i32,
+    pub even_initial_timelines: bool,
 }
 
 /// Represents an in-game timeline
 #[derive(Debug)]
 pub struct Timeline {
-    pub index: f32,
+    pub index: i32,
     pub states: Vec<Board>,
-    pub width: usize,
-    pub height: usize,
+    pub width: u8,
+    pub height: u8,
     pub begins_at: isize,
-    pub emerges_from: Option<f32>,
+    pub emerges_from: Option<i32>,
 }
 
 /// Represents an in-game board (be it active or not)
 #[derive(Debug, Clone)]
 pub struct Board {
     pub pieces: Vec<Piece>,
-    pub width: usize,
-    pub height: usize,
-    pub l: f32, // its timeline
+    pub width: u8,
+    pub height: u8,
+    pub l: i32, // its timeline
     pub t: isize, // its time coordinate
-    pub king_w: Option<(usize, usize)>, // TODO: update if the king moves
-    pub king_b: Option<(usize, usize)>,
+    pub king_w: Option<(u8, u8)>, // TODO: update if the king moves
+    pub king_b: Option<(u8, u8)>,
     pub castle_w: (bool, bool),
     pub castle_b: (bool, bool),
 }
@@ -76,179 +77,27 @@ pub enum Piece {
 }
 
 impl Game {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: u8, height: u8) -> Self {
         Game {
-            timelines: vec![],
+            timelines: HashMap::new(),
             width,
             height,
             info: GameInfo {
+                even_initial_timelines: false,
                 present: 0,
                 active_player: true,
-                min_timeline: 0.0,
-                max_timeline: 0.0,
+                min_timeline: 0,
+                max_timeline: 0,
             }
         }
-    }
-}
-
-impl From<JsonValue> for Game {
-    /// Calls to From<Object> for Game
-    fn from(raw: JsonValue) -> Self {
-        if let JsonValue::Object(obj) = raw {
-            Self::from(obj)
-        } else {
-            panic!("Expected JSON root element to be an object.")
-        }
-    }
-}
-
-impl From<Object> for Game {
-    /// Constructs a Game structure from a JSON Object; this object is based on what [5dchess-notation](https://github.com/adri326/5dchess-notation) outputs
-    fn from(raw: Object) -> Self {
-        let timelines = match raw.get("timelines") {
-            Some(JsonValue::Array(tl)) => tl
-                .iter()
-                .map(|raw_timeline| Timeline::from(raw_timeline))
-                .collect::<Vec<Timeline>>(),
-            _ => panic!("Expected JSON element 'timelines' to be an array!"),
-        };
-
-        let width = raw
-            .get("width")
-            .expect("Expected JSON key 'width' for Game.")
-            .as_usize()
-            .expect("Expected JSON element 'width' for Game to be a number");
-        let height = raw
-            .get("height")
-            .expect("Expected JSON key 'height' for Game.")
-            .as_usize()
-            .expect("Expected JSON element 'height' for Game to be a number");
-
-        let active_player = raw
-            .get("active_player")
-            .expect("Expected JSON key 'active_player' for Game.")
-            .as_bool()
-            .expect("Expected JSON element 'active_player' for Game to be a bool");
-        let min_timeline = timelines
-            .iter()
-            .map(|tl| tl.index)
-            .min_by_key(|x| (*x) as isize)
-            .expect("No timeline!");
-        let max_timeline = timelines
-            .iter()
-            .map(|tl| tl.index)
-            .max_by_key(|x| (*x) as isize)
-            .expect("No timeline!");
-
-        let timeline_width = ((-min_timeline).min(max_timeline) + 1.0).round();
-        let active_timelines = timelines
-            .iter()
-            .filter(|tl| tl.index.abs() <= timeline_width);
-        let present = active_timelines
-            .map(|tl| tl.begins_at + (tl.states.len() as isize) - 1)
-            .min()
-            .expect("No timeline!");
-        let mut res = Game {
-            timelines,
-            width,
-            height,
-            info: GameInfo {
-                active_player,
-                present,
-                min_timeline,
-                max_timeline,
-            },
-        };
-
-        populate_castling_rights(&mut res);
-
-        res
     }
 }
 
 impl Timeline {
-    pub fn new(index: f32, width: usize, height: usize, begins_at: isize, emerges_from: Option<f32>) -> Self {
+    pub fn new(index: i32, width: u8, height: u8, begins_at: isize, emerges_from: Option<i32>) -> Self {
         Timeline {
             index,
             states: vec![],
-            width,
-            height,
-            begins_at,
-            emerges_from,
-        }
-    }
-}
-
-impl From<&JsonValue> for Timeline {
-    // Calls to From<&Object> for Timeline
-    fn from(raw: &JsonValue) -> Self {
-        if let JsonValue::Object(obj) = raw {
-            Self::from(obj)
-        } else {
-            panic!("Expected JSON Timeline to be an object.")
-        }
-    }
-}
-
-impl From<&Object> for Timeline {
-    /// Constructs a Timeline from a JSON object; refer to From<Object> for Game
-    fn from(raw: &Object) -> Self {
-        let index = raw
-            .get("index")
-            .expect("Expected JSON to contain key 'index' for Timeline.")
-            .as_f32()
-            .expect("Expected JSON element 'index' for Timeline to be a number.");
-        let width = raw
-            .get("width")
-            .expect("Expected JSON to contain key 'width' for Timeline.")
-            .as_usize()
-            .expect("Expected JSON element 'width' for Timeline to be a number.");
-        let height = raw
-            .get("height")
-            .expect("Expected JSON to contain key 'height' for Timeline.")
-            .as_usize()
-            .expect("Expected JSON element 'height' for Timeline to be a number.");
-        let begins_at = raw
-            .get("begins_at")
-            .expect("Expected JSON to contain key 'begins_at' for Timeline.")
-            .as_isize()
-            .expect("Expected JSON element 'begins_at' for Timeline to be a number.");
-        let emerges_from = raw.get("emerges_from").map(|x| x.as_f32()).flatten();
-        let states = match raw.get("states") {
-            Some(JsonValue::Array(arr)) => {
-                let mut res: Vec<Board> = Vec::new();
-                let mut t: isize = 0;
-                for board in arr {
-                    if let JsonValue::Array(raw_pieces) = board {
-                        let mut pieces: Vec<Piece> = Vec::with_capacity(width * height);
-                        for raw_piece in raw_pieces {
-                            pieces.push(Piece::from(
-                                raw_piece.as_usize().expect("Expected piece to be a number"),
-                            ));
-                        }
-                        res.push(Board {
-                            pieces,
-                            width,
-                            height,
-                            l: index,
-                            t: t + begins_at,
-                            king_w: None,
-                            king_b: None,
-                            castle_w: (false, false),
-                            castle_b: (false, false),
-                        });
-                        t += 1;
-                    } else {
-                        panic!("Expected JSON State to be an array.")
-                    }
-                }
-                res
-            }
-            _ => panic!("Expected JSON element 'states' to be an array."),
-        };
-        Timeline {
-            index,
-            states,
             width,
             height,
             begins_at,
@@ -507,70 +356,58 @@ impl Piece {
 }
 
 impl Game {
-    /// Returns whether or not the starting boards contain `+0L`/`-0L`
+    /// Returns whether or not there are +0/-0 timelines
     pub fn even_initial_timelines(&self) -> bool {
-        self.timelines
-            .iter()
-            .any(|tl| tl.index == 0.5 || tl.index == -0.5)
+        self.info.even_initial_timelines
     }
 
     /// Returns the `l`-th timeline
-    pub fn get_timeline<'a>(&'a self, l: f32) -> Option<&'a Timeline> {
-        for timeline in self.timelines.iter() {
-            if timeline.index == l {
-                return Some(timeline);
-            }
-        }
-        None
+    pub fn get_timeline<'a>(&'a self, l: i32) -> Option<&'a Timeline> {
+        self.timelines.get(&l)
     }
 
     /// Returns a mutable reference to the `l`-th timeline
-    pub fn get_timeline_mut<'a>(&'a mut self, l: f32) -> Option<&'a mut Timeline> {
-        for timeline in self.timelines.iter_mut() {
-            if timeline.index == l {
-                return Some(timeline);
-            }
-        }
-        None
+    pub fn get_timeline_mut<'a>(&'a mut self, l: i32) -> Option<&'a mut Timeline> {
+        self.timelines.get_mut(&l)
     }
 
     /// Returns the `(l, t)` board, None if not found
-    pub fn get_board<'a>(&'a self, l: f32, t: isize) -> Option<&'a Board> {
+    pub fn get_board<'a>(&'a self, l: i32, t: isize) -> Option<&'a Board> {
         self.get_timeline(l).map(|tl| tl.get_board(t)).flatten()
     }
 
     /// Returns the `(l, t)` board, panics if not found
-    pub fn get_board_unsafe<'a>(&'a self, l: f32, t: isize) -> &'a Board {
+    pub fn get_board_unsafe<'a>(&'a self, l: i32, t: isize) -> &'a Board {
         self.get_timeline(l).expect("Couldn't find timeline!").get_board_unsafe(t)
     }
 
     /// Returns a mutable reference to the `(l, t)` board, None if not found
-    pub fn get_board_mut<'a>(&'a mut self, l: f32, t: isize) -> Option<&'a mut Board> {
+    pub fn get_board_mut<'a>(&'a mut self, l: i32, t: isize) -> Option<&'a mut Board> {
         self.get_timeline_mut(l)
             .map(|tl| tl.get_board_mut(t))
             .flatten()
     }
 
     /// Returns a mutable reference to the `(l, t)` board, panics if not found
-    pub fn get_board_mut_unsafe<'a>(&'a mut self, l: f32, t: isize) -> &'a mut Board {
+    pub fn get_board_mut_unsafe<'a>(&'a mut self, l: i32, t: isize) -> &'a mut Board {
         self.get_timeline_mut(l)
             .expect("Couldn't find timeline!")
             .get_board_mut_unsafe(t)
     }
 
     /// Returns the last board in the `l`-th timeline, None if not found
-    pub fn get_last_board<'a>(&'a self, l: f32) -> Option<&'a Board> {
+    pub fn get_last_board<'a>(&'a self, l: i32) -> Option<&'a Board> {
         self.get_timeline(l).map(|tl| tl.get_last_board()).flatten()
     }
 
     /// Returns the `(l, t, x, y)` piece, None if not found
-    pub fn get<'a>(&'a self, l: f32, t: isize, x: usize, y: usize) -> Option<Piece> {
+    pub fn get<'a>(&'a self, l: i32, t: isize, x: u8, y: u8) -> Option<Piece> {
         self.get_timeline(l).map(|tl| tl.get(t, x, y)).flatten()
     }
 
     /// Returns the `(l, t, x, y)` piece, panics if not found
-    pub fn get_unsafe<'a>(&'a self, l: f32, t: isize, x: usize, y: usize) -> Piece {
-        self.get_timeline(l).expect("Couldn't find timeline!").get_unsafe(t, x, y)
+    pub fn get_unsafe<'a>(&'a self, l: i32, t: isize, x: u8, y: u8) -> Piece {
+        self.timelines[&l].get_unsafe(t, x, y)
     }
 
     /** Appends a set of boards to the current game structure; currently only supports appending one board to every timeline.
@@ -594,12 +431,15 @@ impl Game {
                 if tl.get_board(b.t).is_none() {
                     tl.states.push(b)
                 } else {
+                    for (i, b2) in tl.states.iter().enumerate() {
+                        println!("> {}+{}={} : {}", tl.begins_at, i, tl.begins_at + i as isize, b2.t);
+                    }
                     println!("{:?}", tl.get_board(b.t));
                     println!("{:?}", b);
                     panic!("Board already there: {}/{}", b.l, b.t);
                 }
             } else {
-                self.timelines.push(Timeline {
+                self.timelines.insert(b.l, Timeline {
                     index: b.l,
                     begins_at: b.t,
                     width: self.width,
@@ -648,25 +488,25 @@ impl Timeline {
     }
 
     /// Returns the piece at `(t, x, y)` in this timeline, None if not found
-    pub fn get<'a>(&'a self, t: isize, x: usize, y: usize) -> Option<Piece> {
+    pub fn get<'a>(&'a self, t: isize, x: u8, y: u8) -> Option<Piece> {
         self.get_board(t).map(|board| board.get(x, y)).flatten()
     }
 
     /// Returns the piece at `(t, x, y)` in this timeline, panics if the square does not exist. UB if that board's size is not equal to the timeline's own size
-    pub fn get_unsafe<'a>(&'a self, t: isize, x: usize, y: usize) -> Piece {
-        self.states[(t - self.begins_at) as usize].pieces[x + self.width * y]
+    pub fn get_unsafe<'a>(&'a self, t: isize, x: u8, y: u8) -> Piece {
+        self.states[(t - self.begins_at) as usize].pieces[(x + self.width * y) as usize]
     }
 }
 
 impl Board {
     /// Creates a new Board instance
-    pub fn new(t: isize, l: f32, width: usize, height: usize) -> Self {
+    pub fn new(t: isize, l: i32, width: u8, height: u8) -> Self {
         Board {
             t,
             l,
             width,
             height,
-            pieces: vec![Piece::Blank; width * height],
+            pieces: vec![Piece::Blank; (width as usize) * (height as usize)],
             king_w: None,
             king_b: None,
             castle_w: (false, false),
@@ -675,32 +515,32 @@ impl Board {
     }
 
     /// Returns the piece at `(x, y)`, None if not found
-    pub fn get(&self, x: usize, y: usize) -> Option<Piece> {
+    pub fn get(&self, x: u8, y: u8) -> Option<Piece> {
         if x >= self.width || y >= self.height {
             None
         } else {
-            self.pieces.get(x + y * self.width).copied()
+            self.pieces.get((x + y * self.width) as usize).copied()
         }
     }
 
     /// Returns the piece at `(x, y)`, panics if not found
-    pub fn get_unsafe(&self, x: usize, y: usize) -> Piece {
-        self.pieces[x + y * self.width]
+    pub fn get_unsafe(&self, x: u8, y: u8) -> Piece {
+        self.pieces[(x + y * self.width) as usize]
     }
 
     /// Sets the piece at `(x, y)`, returns `Ok` on success and `Err` if the square does not exist
-    pub fn set(&mut self, x: usize, y: usize, piece: Piece) -> Result<(), ()> {
+    pub fn set(&mut self, x: u8, y: u8, piece: Piece) -> Result<(), ()> {
         if x >= self.width || y >= self.height {
             Err(())
         } else {
-            self.pieces[x + y * self.width] = piece;
+            self.pieces[(x + y * self.width) as usize] = piece;
             Ok(())
         }
     }
 
     /// Sets the piece at `(x, y)`, panics if the square does not exist
-    pub fn set_unsafe(&mut self, x: usize, y: usize, piece: Piece) {
-        self.pieces[x + y * self.width] = piece;
+    pub fn set_unsafe(&mut self, x: u8, y: u8, piece: Piece) {
+        self.pieces[(x + y * self.width) as usize] = piece;
     }
 
     /// Returns whose player's turn it is on this board
@@ -710,12 +550,21 @@ impl Board {
 
     /// Returns whether or not this board must be played on (does not check if it is the last board in its timeline)
     pub fn is_active(&self, info: &GameInfo) -> bool {
-        self.t <= info.present
-            && if self.l < 0.0 {
-                self.l >= -info.max_timeline.round() - 1.0
-            } else {
-                self.l <= -info.min_timeline.round() + 1.0
-            }
+        if info.even_initial_timelines {
+            self.t <= info.present
+                && if self.l < 0 {
+                    self.l >= -info.max_timeline - 2
+                } else {
+                    self.l <= -info.min_timeline + 1
+                }
+        } else {
+            self.t <= info.present
+                && if self.l < 0 {
+                    self.l >= -info.max_timeline - 1
+                } else {
+                    self.l <= -info.min_timeline + 1
+                }
+        }
     }
 }
 
@@ -753,7 +602,7 @@ impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for y in (0..self.height).rev() {
             for x in 0..self.width {
-                write!(f, "{}", self.pieces[x + y * self.height])?;
+                write!(f, "{}", self.pieces[(x + y * self.height) as usize])?;
             }
             if y > 0 {
                 write!(f, "\n")?;
@@ -764,7 +613,7 @@ impl fmt::Display for Board {
 }
 
 /// Applies a function on the `(l, t)` board and on all of its predecessors, stops if the function returns false
-pub fn bubble_up<'a, F>(game: &'a Game, mut l: f32, mut t: isize, mut f: F)
+pub fn bubble_up<'a, F>(game: &'a Game, mut l: i32, mut t: isize, mut f: F)
 where
     F: FnMut(&'a Board) -> bool,
 {
@@ -796,15 +645,15 @@ where
     }, ());
     ```
 **/
-pub fn bubble_down<'a, F, T>(game: &'a mut Game, l: f32, mut t: isize, mut f: F, initial: T)
+pub fn bubble_down<'a, F, T>(game: &'a mut Game, l: i32, mut t: isize, mut f: F, initial: T)
 where
     F: FnMut(&'_ mut Board, T) -> (bool, T),
     F: Copy,
     T: Copy,
 {
-    let checkpoints: Vec<(f32, isize)> = game
+    let checkpoints: Vec<(i32, isize)> = game
         .timelines
-        .iter()
+        .values()
         .filter(|tl| tl.emerges_from == Some(l))
         .map(|tl| (tl.index, tl.begins_at))
         .filter(|x| x.1 > t)
@@ -831,70 +680,27 @@ where
     }
 }
 
-/// Returns the index of the timeline "below" (whose index is lower than) the `l`-th timeline; takes in account games with an even number of starting boards
-pub fn timeline_below(game: &Game, l: f32) -> f32 {
-    if l == 1.0 && game.even_initial_timelines() {
-        0.5
-    } else if l == -0.5 {
-        -1.0
-    } else {
-        l - 1.0
-    }
-}
-
-/// Returns the index of the timeline "above" (whose index is greater than) the `l`-th timeline; takes in account games with an even number of starting boards
-pub fn timeline_above(game: &Game, l: f32) -> f32 {
-    if l == -1.0 && game.even_initial_timelines() {
-        -0.5
-    } else if l == 0.5 {
-        1.0
-    } else {
-        l + 1.0
-    }
-}
-
-/// Returns the index of the timeline that is `dl` timelines above/below the `l`-th timeline; takes in account games with an even number of starting boards
-pub fn shift_timeline(game: &Game, mut l: f32, dl: isize) -> f32 {
-    if game.even_initial_timelines() {
-        if l == -0.5 {
-            l = 0.0;
-        } else if l == 0.5 {
-            l = 1.0;
-        } else if l > 0.0 {
-            l += 1.0;
-        }
-        l += dl as f32;
-        if l == 0.0 {
-            -0.5
-        } else if l == 1.0 {
-            0.5
-        } else if l > 1.0 {
-            l - 1.0
-        } else {
-            l
-        }
-    } else {
-        l + dl as f32
-    }
-}
-
 /// Returns the string version out the timeline index as displayed in-game; does not prepend a `+` if `l >= 1`
-pub fn write_timeline(l: f32) -> String {
-    if l == -0.5 {
-        String::from("-0")
-    } else if l == 0.5 {
-        String::from("+0")
+pub fn write_timeline(l: i32, even_initial_timelines: bool) -> String {
+    if even_initial_timelines {
+        if l < 0 {
+            format!("-{}", -l - 1)
+        } else if l == 0 {
+            String::from("+0")
+        } else {
+            l.to_string()
+        }
     } else {
-        (l as isize).to_string()
+        l.to_string()
     }
 }
 
 /// Returns the string version of the `x` coordinate as displayed in-game
-pub fn write_file(x: usize) -> char {
+pub fn write_file(x: u8) -> char {
     [
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
         's', 't', 'u', 'v', 'w',
-    ][x]
+    ][x as usize]
 }
 
 /**
@@ -905,9 +711,9 @@ pub fn populate_castling_rights(game: &mut Game) {
 
     let width = game.width;
     let height = game.height;
-    let timeline_indices: Vec<f32> = game
+    let timeline_indices: Vec<i32> = game
         .timelines
-        .iter()
+        .values()
         .filter(|tl| tl.begins_at == 0)
         .map(|tl| tl.index.clone())
         .collect();
@@ -934,8 +740,8 @@ pub fn populate_castling_rights(game: &mut Game) {
                 continue;
             }
             (
-                kings_w.get(0).map(|k| (k.0 % width, k.0 / width)),
-                kings_b.get(0).map(|k| (k.0 % width, k.0 / width)),
+                kings_w.get(0).map(|k| ((k.0 % width as usize) as u8, (k.0 / width as usize) as u8)),
+                kings_b.get(0).map(|k| ((k.0 % width as usize) as u8, (k.0 / width as usize) as u8)),
             )
         };
 
@@ -949,7 +755,7 @@ pub fn populate_castling_rights(game: &mut Game) {
                 .copied()
                 .enumerate()
                 .filter(|(i, p)| {
-                    *p == Piece::RookW && *i / width == king_w.map(|k| k.1).unwrap_or(height)
+                    *p == Piece::RookW && *i / width as usize == king_w.map(|k| k.1).unwrap_or(height) as usize
                 })
                 .collect();
             let rooks_b: Vec<(usize, Piece)> = board
@@ -958,32 +764,32 @@ pub fn populate_castling_rights(game: &mut Game) {
                 .copied()
                 .enumerate()
                 .filter(|(i, p)| {
-                    *p == Piece::RookB && *i / width == king_b.map(|k| k.1).unwrap_or(height)
+                    *p == Piece::RookB && *i / width as usize == king_b.map(|k| k.1).unwrap_or(height) as usize
                 })
                 .collect();
 
             let rook_w_left = rooks_w
                 .iter()
-                .filter(|(i, _p)| i % width < king_w.map(|k| k.0).unwrap_or(0))
-                .max_by_key(|(i, _p)| i % width);
+                .filter(|(i, _p)| i % (width as usize) < king_w.map(|k| k.0).unwrap_or(0) as usize)
+                .max_by_key(|(i, _p)| i % width as usize);
             let rook_w_right = rooks_w
                 .iter()
-                .filter(|(i, _p)| i % width > king_w.map(|k| k.0).unwrap_or(width))
-                .min_by_key(|(i, _p)| i % width);
+                .filter(|(i, _p)| i % (width as usize) > king_w.map(|k| k.0).unwrap_or(width) as usize)
+                .min_by_key(|(i, _p)| i % width as usize);
             let rook_b_left = rooks_b
                 .iter()
-                .filter(|(i, _p)| i % width < king_b.map(|k| k.0).unwrap_or(0))
-                .max_by_key(|(i, _p)| i % width);
+                .filter(|(i, _p)| i % (width as usize) < king_b.map(|k| k.0).unwrap_or(0) as usize)
+                .max_by_key(|(i, _p)| i % width as usize);
             let rook_b_right = rooks_b
                 .iter()
-                .filter(|(i, _p)| i % width > king_b.map(|k| k.0).unwrap_or(width))
-                .min_by_key(|(i, _p)| i % width);
+                .filter(|(i, _p)| i % (width as usize) > king_b.map(|k| k.0).unwrap_or(width) as usize)
+                .min_by_key(|(i, _p)| i % width as usize);
 
             (
-                rook_w_left.map(|(i, _p)| (i % width, i / width)),
-                rook_w_right.map(|(i, _p)| (i % width, i / width)),
-                rook_b_left.map(|(i, _p)| (i % width, i / width)),
-                rook_b_right.map(|(i, _p)| (i % width, i / width)),
+                rook_w_left.map(|(i, _p)| ((i % width as usize) as u8, (i / width as usize) as u8)),
+                rook_w_right.map(|(i, _p)| ((i % width as usize) as u8, (i / width as usize) as u8)),
+                rook_b_left.map(|(i, _p)| ((i % width as usize) as u8, (i / width as usize) as u8)),
+                rook_b_right.map(|(i, _p)| ((i % width as usize) as u8, (i / width as usize) as u8)),
             )
         };
 

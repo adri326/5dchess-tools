@@ -650,6 +650,7 @@ pub mod iddfs {
             white: !game.info.active_player,
             pruned: false,
         }));
+        let mut initial_nodes: Vec<(Node, Rc<RefCell<BFSTree>>)> = Vec::new();
         queue.push_back(BFSBranch {
             moves: vec![],
             boards: vec![],
@@ -674,6 +675,9 @@ pub mod iddfs {
                     {
                         has_looped = true;
                         let new_tree = BFSTree::after(&branch.tree, moveset.3).unwrap();
+                        if branch.depth == 0 {
+                            initial_nodes.push((moveset.clone(), new_tree.clone()));
+                        }
                         queue.push_back(BFSBranch::from((moveset, &branch, new_tree)));
                     }
                     if !has_looped {
@@ -768,10 +772,10 @@ pub mod iddfs {
 
         bfs_recalculate_tree(&root);
         bfs_keep_best(&root, false);
-        for candidate in queue.into_iter() {
-            if !candidate.tree.borrow().pruned {
-                let score = candidate.score;
-                return Some((candidate.into(), score));
+        for candidate in initial_nodes.into_iter() {
+            if !candidate.1.borrow().pruned {
+                let score = candidate.1.borrow().score;
+                return Some((candidate.0, score));
             }
         }
         None

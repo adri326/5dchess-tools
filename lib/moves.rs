@@ -71,11 +71,11 @@ lazy_static! {
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Move {
-    pub src: (f32, isize, usize, usize), // l, t, x, y
-    pub dst: (f32, isize, usize, usize), // l, t, x, y
+    pub src: (i32, isize, u8, u8), // l, t, x, y
+    pub dst: (i32, isize, u8, u8), // l, t, x, y
     pub castle: bool,
     pub castle_long: bool,
-    pub en_passant: Option<(usize, usize)>,
+    pub en_passant: Option<(u8, u8)>,
     pub src_piece: Piece,
     pub dst_piece: Piece,
     pub noop: bool,
@@ -92,14 +92,14 @@ impl fmt::Debug for Move {
                 write!(
                     f,
                     "({}T{})O-O-O",
-                    write_timeline(self.src.0),
+                    (self.src.0).to_string(),
                     self.src.1 / 2 + 1
                 )
             } else {
                 write!(
                     f,
                     "({}T{})O-O",
-                    write_timeline(self.src.0),
+                    (self.src.0).to_string(),
                     self.src.1 / 2 + 1
                 )
             }
@@ -110,7 +110,7 @@ impl fmt::Debug for Move {
                         write!(
                             f,
                             "({}T{}){}{}",
-                            write_timeline(self.src.0),
+                            (self.src.0).to_string(),
                             self.src.1 / 2 + 1,
                             write_file(self.dst.2),
                             (self.dst.3 + 1),
@@ -119,7 +119,7 @@ impl fmt::Debug for Move {
                         write!(
                             f,
                             "({}T{}){}x{}{}",
-                            write_timeline(self.src.0),
+                            (self.src.0).to_string(),
                             self.src.1 / 2 + 1,
                             write_file(self.src.2),
                             write_file(self.dst.2),
@@ -131,7 +131,7 @@ impl fmt::Debug for Move {
                         write!(
                             f,
                             "({}T{}){}{}{}{}{}",
-                            write_timeline(self.src.0),
+                            (self.src.0).to_string(),
                             self.src.1 / 2 + 1,
                             self.src_piece.as_uppercase(),
                             write_file(self.src.2),
@@ -143,7 +143,7 @@ impl fmt::Debug for Move {
                         write!(
                             f,
                             "({}T{}){}{}{}x{}{}",
-                            write_timeline(self.src.0),
+                            (self.src.0).to_string(),
                             self.src.1 / 2 + 1,
                             self.src_piece.as_uppercase(),
                             write_file(self.src.2),
@@ -158,12 +158,12 @@ impl fmt::Debug for Move {
                     write!(
                         f,
                         "({}T{}){}{}{}>>({}T{}){}{}{}",
-                        write_timeline(self.src.0),
+                        (self.src.0).to_string(),
                         self.src.1 / 2 + 1,
                         self.src_piece.as_uppercase(),
                         write_file(self.src.2),
                         (self.src.3 + 1),
-                        write_timeline(self.dst.0),
+                        (self.dst.0).to_string(),
                         self.dst.1 / 2 + 1,
                         self.dst_piece,
                         write_file(self.dst.2),
@@ -173,12 +173,12 @@ impl fmt::Debug for Move {
                     write!(
                         f,
                         "({}T{}){}{}{}>>x({}T{}){}{}{}",
-                        write_timeline(self.src.0),
+                        (self.src.0).to_string(),
                         self.src.1 / 2 + 1,
                         self.src_piece.as_uppercase(),
                         write_file(self.src.2),
                         (self.src.3 + 1),
-                        write_timeline(self.dst.0),
+                        (self.dst.0).to_string(),
                         self.dst.1 / 2 + 1,
                         self.dst_piece,
                         write_file(self.dst.2),
@@ -193,8 +193,8 @@ impl fmt::Debug for Move {
 impl Move {
     /// Creates a new normal move; extracts piece information from `game` and `virtual_boards`
     pub fn new(
-        src: (f32, isize, usize, usize),
-        dst: (f32, isize, usize, usize),
+        src: (i32, isize, u8, u8),
+        dst: (i32, isize, u8, u8),
         game: &Game,
         virtual_boards: &Vec<&Board>,
     ) -> Option<Self> {
@@ -225,8 +225,8 @@ impl Move {
 
     /// Creates a new normal move; extracts piece information from `game`, `board` `virtual_boards`. Does not need `board` to be within `game` or `virtual_boards`
     fn new_with_board(
-        src: (f32, isize, usize, usize),
-        dst: (f32, isize, usize, usize),
+        src: (i32, isize, u8, u8),
+        dst: (i32, isize, u8, u8),
         game: &Game,
         board: &Board,
         virtual_boards: &Vec<&Board>,
@@ -259,8 +259,8 @@ impl Move {
     /// Creates a new castling move
     pub fn castle(
         long: bool,
-        src: (f32, isize, usize, usize),
-        dst: (usize, usize),
+        src: (i32, isize, u8, u8),
+        dst: (u8, u8),
         white: bool,
     ) -> Option<Self> {
         let src_piece = if white { Piece::KingW } else { Piece::KingB };
@@ -277,7 +277,7 @@ impl Move {
     }
 
     /// Creates an empty move (which moves no piece)
-    pub fn noop(src: (f32, isize)) -> Self {
+    pub fn noop(src: (i32, isize)) -> Self {
         Move {
             src: (src.0, src.1, 0, 0),
             dst: (src.0, src.1, 0, 0),
@@ -401,10 +401,10 @@ impl Move {
                         .is_some()
                 {
                     new_dst_board.l = if new_src_board.active_player() {
-                        new_info.max_timeline = timeline_above(game, info.max_timeline);
+                        new_info.max_timeline = info.max_timeline + 1;
                         new_info.max_timeline
                     } else {
-                        new_info.min_timeline = timeline_below(game, info.min_timeline);
+                        new_info.min_timeline = info.min_timeline - 1;
                         new_info.min_timeline
                     };
                 }
@@ -598,7 +598,7 @@ pub fn get_opponent_boards<'a>(
 ) -> Vec<&'a Board> {
     let mut res: Vec<&Board> = game
         .timelines
-        .iter()
+        .values()
         .map(|tl| &tl.states[tl.states.len() - 1])
         .filter(|b| b.active_player() != info.active_player && is_last(game, virtual_boards, b))
         .collect();
@@ -618,7 +618,7 @@ pub fn get_own_boards<'a>(
 ) -> Vec<&'a Board> {
     let mut res: Vec<&Board> = game
         .timelines
-        .iter()
+        .values()
         .map(|tl| &tl.states[tl.states.len() - 1])
         .filter(|b| b.active_player() == info.active_player && is_last(game, virtual_boards, b))
         .collect();
@@ -673,7 +673,7 @@ pub fn legal_movesets<'a>(
 pub fn get_board<'a, 'b, 'd>(
     game: &'a Game,
     virtual_boards: &'b Vec<&'b Board>,
-    pos: (f32, isize),
+    pos: (i32, isize),
 ) -> Option<&'d Board>
 where
     'a: 'd,
@@ -691,7 +691,7 @@ where
 fn get(
     game: &Game,
     virtual_boards: &Vec<&Board>,
-    pos: (f32, isize, usize, usize),
+    pos: (i32, isize, u8, u8),
 ) -> Option<Piece> {
     get_board(game, virtual_boards, (pos.0, pos.1))
         .map(|b| b.get(pos.2, pos.3))
@@ -703,7 +703,7 @@ fn get_with_board(
     game: &Game,
     board: &Board,
     virtual_boards: &Vec<&Board>,
-    pos: (f32, isize, usize, usize),
+    pos: (i32, isize, u8, u8),
 ) -> Option<Piece> {
     if pos.0 == board.l && pos.1 == board.t {
         board.get(pos.2, pos.3)
@@ -736,15 +736,15 @@ pub fn probable_moves_for(
     virtual_boards: &Vec<&Board>,
     res: &mut Vec<Move>,
     piece: Piece,
-    x: usize,
-    y: usize,
+    x: u8,
+    y: u8,
 ) -> Option<()> {
     let src = (board.l, board.t, x, y);
     let active_player = board.active_player();
     if piece.is_pawn() {
         let dy: isize = if piece.is_white() { 1 } else { -1 };
-        let y1 = ((y as isize) + dy) as usize;
-        let y2 = ((y as isize) + 2 * dy) as usize;
+        let y1 = ((y as isize) + dy) as u8;
+        let y2 = ((y as isize) + 2 * dy) as u8;
         if board.get(x, y1)? == Piece::Blank {
             res.push(Move::new_with_board(
                 src,
@@ -812,15 +812,15 @@ pub fn probable_moves_for(
                             continue;
                         }
                         let l1 = if dl == -1 {
-                            timeline_below(game, board.l)
+                            board.l - 1
                         } else if dl == 1 {
-                            timeline_above(game, board.l)
+                            board.l + 1
                         } else {
                             board.l
                         };
                         let t1 = board.t + 2 * dt;
-                        let x1 = ((x as isize) + dx) as usize;
-                        let y1 = ((y as isize) + dy) as usize;
+                        let x1 = ((x as isize) + dx) as u8;
+                        let y1 = ((y as isize) + dy) as u8;
                         if let Some(true) = get_with_board(game, board, virtual_boards, (l1, t1, x1, y1))
                             .map(|p| p.is_takable_piece(active_player))
                         {
@@ -951,8 +951,8 @@ fn may_en_passant(
     game: &Game,
     board: &Board,
     virtual_boards: &Vec<&Board>,
-    x: usize,
-    y: usize,
+    x: u8,
+    y: u8,
 ) -> bool {
     if board.t < 2 || y == 0 || y == game.height - 1 {
         return false;
@@ -981,14 +981,14 @@ fn n_gonal(
     board: &Board,
     virtual_boards: &Vec<&Board>,
     res: &mut Vec<Move>,
-    src: (f32, isize, usize, usize),
+    src: (i32, isize, u8, u8),
     n: usize,
     active_player: bool,
 ) -> Option<()> {
     for permutation in &PERMUTATIONS[n] {
         let mut length: isize = 1;
         loop {
-            let l0 = shift_timeline(game, src.0, permutation.0 * length);
+            let l0 = (src.0 as isize + permutation.0 * length) as i32;
             let t0 = src.1 as isize + permutation.1 * length * 2;
             let x0 = src.2 as isize + permutation.2 * length;
             let y0 = src.3 as isize + permutation.3 * length;
@@ -996,7 +996,7 @@ fn n_gonal(
             {
                 break;
             }
-            let dst = (l0, t0, x0 as usize, y0 as usize);
+            let dst = (l0, t0, x0 as u8, y0 as u8);
             let piece = get_with_board(game, board, virtual_boards, dst);
 
             if let Some(true) = piece.map(|piece| piece.is_takable_piece(active_player)) {
@@ -1020,7 +1020,7 @@ fn n_gonal(
 pub fn find_present(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) -> isize {
     let mut min = info.present;
     game.timelines
-        .iter()
+        .values()
         .map(|tl| &tl.states[tl.states.len() - 1])
         .filter(|b| is_last(game, virtual_boards, b) && b.is_active(info))
         .for_each(|b| {
@@ -1037,11 +1037,12 @@ pub fn find_present(game: &Game, virtual_boards: &Vec<&Board>, info: &GameInfo) 
     min
 }
 
+// TODO: fix this
 /// Returns whether or not making the move `mv` is optional (currently unused, might change it to if the move can be safely omitted)
 pub fn is_optional(info: &GameInfo, mv: &Move) -> bool {
     if mv.src.1 > info.present
-        || mv.src.0 < -info.max_timeline - 1.0
-        || mv.src.0 > -info.min_timeline + 1.0
+        || mv.src.0 < -info.max_timeline - 1
+        || mv.src.0 > -info.min_timeline + 1
     {
         mv.src.0 == mv.dst.0 && mv.src.1 == mv.dst.1
     } else {

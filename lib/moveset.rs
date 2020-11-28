@@ -90,7 +90,7 @@ impl<'a> MovesetIter<'a> {
         let moves = moves
             .into_iter()
             .map(|mut ms| {
-                ms.insert(0, (Move::noop((0.0, 0)), vec![], info.clone(), 0));
+                ms.insert(0, (Move::noop((0, 0)), vec![], info.clone(), 0));
                 ms
             })
             .collect::<Vec<_>>();

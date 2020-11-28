@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use chess5dlib::{game::*, moves::*, moveset::*, resolve::*, tree::*};
+use chess5dlib::{game::*, moves::*, moveset::*, resolve::*, tree::*, parse::parse};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -20,7 +20,7 @@ fn main() -> std::io::Result<()> {
 
     file.read_to_string(&mut contents)?;
 
-    let mut game = Game::from(json::parse(&contents).expect("Couldn't parse JSON"));
+    let mut game = parse(&contents).expect("Couldn't parse JSON");
 
     let virtual_boards: Vec<&Board> = vec![];
 
@@ -28,6 +28,7 @@ fn main() -> std::io::Result<()> {
     let own_boards = get_own_boards(&game, &virtual_boards, &game.info);
     for b in own_boards {
         println!("{}", b);
+        println!("({}T{}{}) - {}/{}\n", write_timeline(b.l, game.info.even_initial_timelines), b.t / 2 + 1, if b.active_player() {"w"} else {"b"}, b.l, b.t);
         println!("");
     }
 
@@ -46,16 +47,17 @@ fn main() -> std::io::Result<()> {
     // }
 
     println!(
-        "Turn {}, {} to play:",
+        "Turn {}, {} to play: (raw present = {})",
         ((game.info.present) / 2) + 1,
         if game.info.active_player {
             "white"
         } else {
             "black"
-        }
+        },
+        game.info.present
     );
     println!("Candidates:");
-    // let best_move = dfs::dfs(&game, 2, 10000, 64, 256, 16);
+    // let best_move = dfs::dfs(&game, 3, 10000, 64, 256, 16);
     // let best_move = bfs::bfs(
     //     &game,
     //     10000,
@@ -74,14 +76,14 @@ fn main() -> std::io::Result<()> {
         64,
         1024,
         16,
-        std::time::Duration::new(60 * 2, 0),
+        std::time::Duration::new(5, 0),
     );
-    if let Some((best, value)) = best_move {
+    if let Some((mut best, value)) = best_move {
         println!("Best move:");
         println!("{:?}: {}", best.0, value);
         for b in &best.1 {
             println!("{}", b);
-            println!("({}T{}{})\n", write_timeline(b.l), b.t / 2 + 1, if b.active_player() {"w"} else {"b"});
+            println!("({}T{}{})\n", write_timeline(b.l, game.info.even_initial_timelines), b.t / 2 + 1, if b.active_player() {"w"} else {"b"});
         }
         game.commit_moves(best.1);
         game.info = best.2;

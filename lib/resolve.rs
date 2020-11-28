@@ -47,7 +47,7 @@ pub const MANY_KINGS_COST: i32 = -6;
 pub struct Lore<'a> {
     pub board: &'a Board,
     pub danger: Vec<usize>,
-    pub enemies: Vec<(f32, isize, usize, usize)>,
+    pub enemies: Vec<(i32, isize, u8, u8)>,
 }
 
 impl<'a> Lore<'a> {
@@ -104,7 +104,7 @@ impl<'a> Lore<'a> {
     #[inline]
     fn register_danger(&mut self, mv: &Move) {
         if mv.dst.0 == self.board.l && (mv.dst.1 == self.board.t + 1 || mv.dst.1 == self.board.t) {
-            self.danger[mv.dst.2 + mv.dst.3 * self.board.width] += 1;
+            self.danger[(mv.dst.2 + mv.dst.3 * self.board.width) as usize] += 1;
         }
     }
 }
@@ -134,9 +134,9 @@ pub fn score_moves<'a>(
                 )
             {
                 if if info.active_player {
-                    info.max_timeline >= -info.min_timeline + 1.0
+                    info.max_timeline >= -info.min_timeline + 1
                 } else {
-                    info.max_timeline <= -info.min_timeline - 1.0
+                    info.max_timeline <= -info.min_timeline - 1
                 } {
                     score += JUMP_INACTIVE_COST;
                 } else {
@@ -331,26 +331,27 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                 };
             }
 
-            let board_mult: f32 = if board.l < 0.0 && -board.l > info.max_timeline + 1.0
-                || board.l > 0.0 && board.l > -info.min_timeline + 1.0
+            // TODO: fix this as per the new index system
+            let board_mult: f32 = if board.l < 0 && -board.l > info.max_timeline + 1
+                || board.l > 0 && board.l > -info.min_timeline + 1
             {
-                INACTIVE_BRANCH_MULTIPLIER.powf((info.max_timeline + info.min_timeline).abs() - 1.0)
+                INACTIVE_BRANCH_MULTIPLIER.powf((info.max_timeline + info.min_timeline).abs() as f32 - 1.0)
             } else {
                 1.0
             };
             let mut w_kings: usize = 0;
             let mut b_kings: usize = 0;
 
-            let mut controlled_squares_w: Vec<bool> = Vec::with_capacity(board.width * board.height);
-            let mut controlled_squares_b: Vec<bool> = Vec::with_capacity(board.width * board.height);
+            let mut controlled_squares_w: Vec<bool> = Vec::with_capacity((board.width * board.height) as usize);
+            let mut controlled_squares_b: Vec<bool> = Vec::with_capacity((board.width * board.height) as usize);
             for _ in 0..(board.width * board.height) {
                 controlled_squares_w.push(false);
                 controlled_squares_b.push(false);
             }
 
             for (index, piece) in board.pieces.iter().enumerate() {
-                let x = index % board.width;
-                let y = index / board.width;
+                let x = (index % board.width as usize) as u8;
+                let y = (index / board.width as usize) as u8;
                 if piece.is_blank() {
                     continue;
                 }
@@ -379,14 +380,14 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
                                 continue;
                             }
                             if board
-                                .get((x as isize + dx) as usize, (y as isize + dy) as usize)
+                                .get((x as isize + dx) as u8, (y as isize + dy) as u8)
                                 .map(|p| p.is_blank() || p.is_opponent_piece(piece.is_white()))
                                 .unwrap_or(false)
                             {
                                 score -= KING_PROTECTION_VALUE * mult;
 
                                 if board
-                                    .get((x as isize + 2 * dx) as usize, (y as isize + 2 * dy) as usize)
+                                    .get((x as isize + 2 * dx) as u8, (y as isize + 2 * dy) as u8)
                                     .map(|p| p.is_blank() || p.is_opponent_piece(piece.is_white()))
                                     .unwrap_or(false)
                                 {
@@ -490,18 +491,19 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
 
         }
 
+        // TODO: fix this
         // Timeline advantages
         if info.max_timeline > -info.min_timeline {
             // black advantageous
             score -= BRANCH_VALUE;
-            if info.max_timeline > -info.min_timeline + 1.0 {
-                score -= INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline - 1.0);
+            if info.max_timeline > -info.min_timeline + 1 {
+                score -= INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline - 1) as f32;
             }
         } else if info.max_timeline < -info.min_timeline {
             // white advantageous
             score += BRANCH_VALUE;
-            if info.max_timeline < -info.min_timeline - 1.0 {
-                score -= INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline + 1.0);
+            if info.max_timeline < -info.min_timeline - 1 {
+                score -= INACTIVE_BRANCH_COST * (info.max_timeline + info.min_timeline + 1) as f32;
             }
         }
 
@@ -511,12 +513,12 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
     }
 }
 
-fn set_controlled_square(controlled_squares: &mut Vec<bool>, index: usize, dx: isize, dy: isize, width: usize, height: usize) {
+fn set_controlled_square(controlled_squares: &mut Vec<bool>, index: usize, dx: isize, dy: isize, width: u8, height: u8) {
     if
-        ((index % width) as isize) + dx < 0
-        || ((index % width) as isize) + dx >= width as isize
-        || ((index / width) as isize) + dy < 0
-        || ((index / width) as isize) + dy >= height as isize
+        ((index % width as usize) as isize) + dx < 0
+        || ((index % width as usize) as isize) + dx >= width as isize
+        || ((index / width as usize) as isize) + dy < 0
+        || ((index / width as usize) as isize) + dy >= height as isize
     {
         return;
     }
@@ -524,14 +526,14 @@ fn set_controlled_square(controlled_squares: &mut Vec<bool>, index: usize, dx: i
     controlled_squares[((index as isize) + dx + (width as isize) * dy) as usize] = true;
 }
 
-fn set_controlled_square_slide(board: &Board, controlled_squares: &mut Vec<bool>, index: usize, dx: isize, dy: isize, width: usize, height: usize, white: bool) {
+fn set_controlled_square_slide(board: &Board, controlled_squares: &mut Vec<bool>, index: usize, dx: isize, dy: isize, width: u8, height: u8, white: bool) {
     let mut length = 1;
 
     while
-        ((index % width) as isize) + length * dx >= 0
-        && ((index % width) as isize) + length * dx < width as isize
-        && ((index / width) as isize) + length * dy >= 0
-        && ((index / width) as isize) + length * dy < height as isize
+        ((index % width as usize) as isize) + length * dx >= 0
+        && ((index % width as usize) as isize) + length * dx < width as isize
+        && ((index / width as usize) as isize) + length * dy >= 0
+        && ((index / width as usize) as isize) + length * dy < height as isize
     {
         let n_index = ((index as isize) + length * (dx + (width as isize) * dy)) as usize;
         if board.pieces[n_index].is_takable_piece(white) {
