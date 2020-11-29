@@ -1,4 +1,4 @@
-use crate::{game::*, moves::*, resolve::*};
+use crate::{game::*, moves::*, resolve::*, vboard::*};
 
 // TODO: optional boards
 
@@ -6,10 +6,9 @@ use crate::{game::*, moves::*, resolve::*};
     An iterator over movesets. Movesets are lazily yielded, based on the sorting done on `moves`.
 **/
 #[allow(dead_code)]
-pub struct MovesetIter<'a> {
-    game: &'a Game,
-    virtual_boards: &'a Vec<&'a Board>,
-    info: GameInfo,
+pub struct MovesetIter<'a, V: VirtualBoardset<'a>> {
+    /// Virtual boardset
+    boards: &'a V,
     /// List of moves per board, scored and sorted
     moves: Vec<Vec<(Move, Vec<Board>, GameInfo, i32)>>,
     /// How many moves per board have been considered already
@@ -26,7 +25,7 @@ pub struct MovesetIter<'a> {
     pub movesets_considered: usize,
 }
 
-impl<'a> Iterator for MovesetIter<'a> {
+impl<'a, V: VirtualBoardset<'a>> Iterator for MovesetIter<'a, V> {
     type Item = Vec<Move>;
 
     /// Yields a moveset, if there are still any to yield
@@ -77,27 +76,23 @@ impl<'a> Iterator for MovesetIter<'a> {
     }
 }
 
-impl<'a> MovesetIter<'a> {
+impl<'a, V: VirtualBoardset<'a>> MovesetIter<'a, V> {
     /**
     Generates a new MovesetIter. Assumes that `moves` was already sorted.
     **/
     pub fn new(
-        game: &'a Game,
-        virtual_boards: &'a Vec<&'a Board>,
-        info: &'a GameInfo,
+        boards: &'a V,
         moves: Vec<Vec<(Move, Vec<Board>, GameInfo, i32)>>,
     ) -> Self {
         let moves = moves
             .into_iter()
             .map(|mut ms| {
-                ms.insert(0, (Move::noop((0, 0)), vec![], info.clone(), 0));
+                ms.insert(0, (Move::noop((0, 0)), vec![], boards.info(), 0));
                 ms
             })
             .collect::<Vec<_>>();
         MovesetIter {
-            game,
-            virtual_boards,
-            info: info.clone(),
+            boards,
             max_moves: moves.iter().map(|m| m.len()).max().unwrap_or(0) + 1,
             moves,
             moves_considered: 1,
@@ -220,11 +215,13 @@ impl<'a> MovesetIter<'a> {
     Appends a combination and its derived permutations to `permutation_stack`.
     **/
     fn commit_combination(&mut self, combination: Vec<(Move, GameInfo)>) {
+        let min_timeline = self.boards.info().min_timeline;
+        let max_timeline = self.boards.info().max_timeline;
         let jumping_moves = combination
             .iter()
             .filter(|(m, i)| {
-                i.max_timeline == self.info.max_timeline
-                    && i.min_timeline == self.info.min_timeline
+                i.max_timeline == max_timeline
+                    && i.min_timeline == min_timeline
                     && (m.src.0 != m.dst.0 || m.src.1 != m.dst.1)
             })
             .collect::<Vec<_>>();
@@ -235,8 +232,8 @@ impl<'a> MovesetIter<'a> {
         let branching_moves = combination
             .iter()
             .filter(|(m, i)| {
-                (i.max_timeline != self.info.max_timeline
-                    || i.min_timeline != self.info.min_timeline)
+                (i.max_timeline != max_timeline
+                    || i.min_timeline != min_timeline)
                     && (m.src.0 != m.dst.0 || m.src.1 != m.dst.1)
             })
             .collect::<Vec<_>>();
@@ -269,18 +266,14 @@ impl<'a> MovesetIter<'a> {
     /**
     Lazily applies the `score_moveset` function to the movesets and filters out the illegal movesets
     **/
-    pub fn score(self) -> impl Iterator<Item = (Vec<Move>, Vec<Board>, GameInfo, f32)> + 'a {
+    pub fn score(self) -> impl Iterator<Item = (Vec<Move>, V, f32)> + 'a {
         // NOTE: I still don't quite understand why this doesn't fail to compile
-        let game = self.game;
-        let virtual_boards = self.virtual_boards;
-        let info = self.info;
+        let boards = self.boards;
 
         self.map(move |ms| {
             score_moveset(
-                &game,
-                &virtual_boards,
-                &info,
-                get_opponent_boards(game, virtual_boards, &info).into_iter(),
+                boards,
+                get_opponent_boards(boards).into_iter(),
                 ms,
             )
         })

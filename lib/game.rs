@@ -93,6 +93,14 @@ impl Game {
     }
 }
 
+impl GameInfo {
+    pub fn tick(mut self) -> Self {
+        self.present += 1;
+        self.active_player = !self.active_player;
+        self
+    }
+}
+
 impl Timeline {
     pub fn new(index: i32, width: u8, height: u8, begins_at: isize, emerges_from: Option<i32>) -> Self {
         Timeline {

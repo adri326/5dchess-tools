@@ -1,6 +1,6 @@
 // Functions around scoring states and moves
 
-use crate::{game::*, moves::*};
+use crate::{game::*, moves::*, vboard::*};
 
 pub const JUMP_COST: i32 = -4;
 pub const JUMP_INACTIVE_COST: i32 = -24;
@@ -54,13 +54,7 @@ impl<'a> Lore<'a> {
     /**
         Generates a board's "Lore" (danger map and target pieces)
     **/
-    pub fn new<'b, T: Iterator<Item = &'b Board>>(
-        game: &Game,
-        virtual_boards: &Vec<&Board>,
-        board: &'a Board,
-        opponent_boards: T,
-        _info: &GameInfo,
-    ) -> Lore<'a> {
+    pub fn new<'b>(boards: &'a impl VirtualBoardset<'a>, board: &'a Board) -> Lore<'a> {
         let mut res = Lore {
             board,
             danger: vec![0; board.pieces.len()],
@@ -70,11 +64,10 @@ impl<'a> Lore<'a> {
         let mut noop_board = board.clone();
         noop_board.t += 1;
 
-        let mut n_virtual_boards = virtual_boards.clone();
-        n_virtual_boards.push(&noop_board);
+        let mut n_boards = boards.push(boards.info().tick(), vec![noop_board.clone()]);
 
-        for b in opponent_boards {
-            let probables = probable_moves(game, b, &n_virtual_boards);
+        for b in get_opponent_boards(boards) {
+            let probables = probable_moves(boards, b);
             for mv in probables {
                 if mv.dst_piece.is_king() {
                     res.register_enemy(&mv);
@@ -83,7 +76,7 @@ impl<'a> Lore<'a> {
             }
         }
 
-        let probables = probable_moves(game, &noop_board, &n_virtual_boards);
+        let probables = probable_moves(&n_boards, &noop_board);
         for mv in probables {
             if mv.dst_piece.is_king() {
                 res.register_enemy(&mv);
@@ -114,23 +107,20 @@ impl<'a> Lore<'a> {
 **/
 #[allow(unused_variables)]
 pub fn score_moves<'a>(
-    game: &Game,
-    virtual_boards: &Vec<&Board>,
+    boards: &'a impl VirtualBoardset<'a>,
     board: &'a Board,
     lore: &Lore<'a>,
     moves: Vec<(Move, GameInfo, Vec<Board>)>,
-    info: &GameInfo,
 ) -> Vec<(Move, Vec<Board>, GameInfo, i32)> {
     let mut res = moves
         .into_iter()
-        .map(|(mv, info, boards)| {
+        .map(|(mv, info, m_boards)| {
             let mut score: i32 = 0;
 
             if (mv.src.0 != mv.dst.0 || mv.src.1 != mv.dst.1)
                 && !is_last(
-                    game,
-                    virtual_boards,
-                    get_board(game, virtual_boards, (mv.dst.0, mv.dst.1)).unwrap(),
+                    boards,
+                    boards.get_board(mv.dst.0, mv.dst.1).unwrap(),
                 )
             {
                 if if info.active_player {
@@ -174,9 +164,8 @@ pub fn score_moves<'a>(
             let mut moves: Vec<Move> = Vec::new();
 
             probable_moves_for(
-                game,
-                get_board(game, virtual_boards, (mv.dst.0, mv.dst.1)).unwrap(),
-                virtual_boards,
+                boards,
+                boards.get_board(mv.dst.0, mv.dst.1).unwrap(),
                 &mut moves,
                 mv.src_piece,
                 mv.dst.2,
@@ -213,7 +202,7 @@ pub fn score_moves<'a>(
                 }
             }
 
-            for b in &boards {
+            for b in &m_boards {
                 let mut n_kings: usize = 0;
                 for (index, piece) in b.pieces.iter().enumerate() {
                     if *piece != Piece::Blank && piece.is_white() == board.active_player() {
@@ -246,10 +235,10 @@ pub fn score_moves<'a>(
                 }
             }
 
-            (mv, boards, info, score)
+            (mv, m_boards, info, score)
         })
-        .filter(|(_mv, boards, info, _score)| {
-            is_moveset_legal(game, virtual_boards, info, boards.iter())
+        .filter(|(_mv, m_boards, info, _score)| {
+            is_moveset_legal(boards, m_boards.iter())
         })
         .collect::<Vec<_>>();
     res.sort_unstable_by_key(|(_mv, _boards, _info, score)| -(*score as i32));
@@ -289,37 +278,31 @@ pub const CONTROLLED_SQUARE_SCORE: f32 = 0.025;
 /**
     Checks that `moveset` is legal and gives it a score. The `GameInfo` returned will correspond to that of the submitted move.
 **/
-pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
-    game: &Game,
-    virtual_boards: &Vec<&Board>,
-    info: &GameInfo,
+pub fn score_moveset<'a, T: Iterator<Item = &'a Board>, V: VirtualBoardset<'a>>(
+    boards: &'a V,
     opponent_boards: T,
     moveset: Vec<Move>,
-) -> Option<(Vec<Move>, Vec<Board>, GameInfo, f32)> {
+) -> Option<(Vec<Move>, V, f32)> {
     let mut moveset_boards: Vec<Board> = Vec::new();
-    let mut info = info.clone();
+    let mut info = boards.info();
     let white = info.active_player;
 
     for mv in &moveset {
         let (new_info, mut new_vboards) =
-            mv.generate_vboards(game, &info, &virtual_boards, &moveset_boards)?;
+            mv.generate_vboards(boards, &moveset_boards)?;
         moveset_boards.append(&mut new_vboards);
         info = new_info;
     }
 
-    let merged_vboards: Vec<&Board> = virtual_boards
-        .iter()
-        .map(|x| *x)
-        .chain(moveset_boards.iter())
-        .collect();
+    info.present += 1;
+    info.active_player = !info.active_player;
 
-    if is_moveset_legal(game, &merged_vboards, &info, moveset_boards.iter())
-        && is_moveset_legal(game, &merged_vboards, &info, opponent_boards)
-        && all_boards_played(game, &merged_vboards, &info)
+    let merged_boards = boards.push(info, moveset_boards.clone());
+
+    if is_moveset_legal(&merged_boards, moveset_boards.iter())
+        && is_moveset_legal(&merged_boards, opponent_boards)
+        && all_boards_played(&merged_boards)
     {
-        info.present += 1;
-        info.active_player = !info.active_player;
-
         let mut score: f32 = 0.0;
 
         for board in &moveset_boards {
@@ -507,7 +490,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>>(
             }
         }
 
-        Some((moveset, moveset_boards, info, score))
+        Some((moveset, merged_boards, score))
     } else {
         None
     }
