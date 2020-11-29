@@ -13,3 +13,4 @@ pub mod moveset;
 pub mod resolve;
 pub mod tree;
 pub mod parse;
+pub mod vboard;
