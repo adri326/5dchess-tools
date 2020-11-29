@@ -5,7 +5,7 @@ use std::collections::HashMap;
 /// The way the additional, "virtual" boards (as part of the state of a branch) are stored is implementation-dependent.
 pub trait VirtualBoardset<'a> {
     /// Crates a new virtual boardset from a game instance and a set of boards
-    fn new(game: &'a Game, boards: Vec<Board>) -> Self;
+    fn new(game: &'a Game, info: GameInfo, boards: Vec<Board>) -> Self;
 
     /// Returns the board at (l, t) or None if none was found.
     /// If `(l, t)` corresponds to a board within the game instance, then that board should be returned.
@@ -22,25 +22,29 @@ pub trait VirtualBoardset<'a> {
     /// Returns the underlying Game instance
     fn game(&'a self) -> &'a Game;
 
+    fn info(&'a self) -> GameInfo;
+
     /// Appends a set of boards to a boardset.
     /// It is expected that `∀l ∀t, (a.get_board(l, t) is Some) => (push(a, ...).get_board(l, t) is Some)` (ie. `a ⊂ push(a, ...)`)
-    fn push(&'a self, boards: Vec<Board>) -> Self;
+    fn push(&'a self, info: GameInfo, boards: Vec<Board>) -> Self;
 }
 
 pub fn empty<'b>(game: &'b Game) -> EmptyVirtualBoardset<'b> {
-    EmptyVirtualBoardset::new(game, vec![])
+    EmptyVirtualBoardset::new(game, game.info, vec![])
 }
 
 #[derive(Debug, Clone)]
 pub struct SimpleVirtualBoardset<'a> {
     pub game: &'a Game,
+    pub info: GameInfo,
     pub virtual_boards: HashMap<(i32, isize), Board>,
 }
 
 impl<'a> VirtualBoardset<'a> for SimpleVirtualBoardset<'a> {
-    fn new(game: &'a Game, boards: Vec<Board>) -> Self {
+    fn new(game: &'a Game, info: GameInfo, boards: Vec<Board>) -> Self {
         let mut res = Self {
             game,
+            info,
             virtual_boards: HashMap::with_capacity(boards.len()),
         };
 
@@ -57,8 +61,10 @@ impl<'a> VirtualBoardset<'a> for SimpleVirtualBoardset<'a> {
         })
     }
 
-    fn push(&'a self, boards: Vec<Board>) -> Self {
+    fn push(&'a self, info: GameInfo, boards: Vec<Board>) -> Self {
         let mut res = self.clone();
+
+        res.info = info;
         for board in boards.into_iter() {
             res.virtual_boards.insert((board.l, board.t), board);
         }
@@ -70,6 +76,10 @@ impl<'a> VirtualBoardset<'a> for SimpleVirtualBoardset<'a> {
         self.game
     }
 
+    fn info(&'a self) -> GameInfo {
+        self.info
+    }
+
     fn virtual_boards(&'a self) -> Box<dyn Iterator<Item=&'a Board> + '_> {
         Box::new(self.virtual_boards.values())
     }
@@ -78,14 +88,16 @@ impl<'a> VirtualBoardset<'a> for SimpleVirtualBoardset<'a> {
 #[derive(Debug, Clone)]
 pub struct RecursiveVirtualBoardset<'a> {
     pub game: &'a Game,
+    pub info: GameInfo,
     pub virtual_boards: HashMap<(i32, isize), Board>,
     pub parent: Option<&'a RecursiveVirtualBoardset<'a>>,
 }
 
 impl<'a> VirtualBoardset<'a> for RecursiveVirtualBoardset<'a> {
-    fn new(game: &'a Game, boards: Vec<Board>) -> Self {
+    fn new(game: &'a Game, info: GameInfo, boards: Vec<Board>) -> Self {
         let mut res = Self {
             game,
+            info,
             virtual_boards: HashMap::with_capacity(boards.len()),
             parent: None,
         };
@@ -103,9 +115,10 @@ impl<'a> VirtualBoardset<'a> for RecursiveVirtualBoardset<'a> {
         })
     }
 
-    fn push(&'a self, boards: Vec<Board>) -> Self {
+    fn push(&'a self, info: GameInfo, boards: Vec<Board>) -> Self {
         let mut res = RecursiveVirtualBoardset {
             game: self.game,
+            info: info,
             virtual_boards: HashMap::with_capacity(boards.len()),
             parent: Some(self),
         };
@@ -119,6 +132,10 @@ impl<'a> VirtualBoardset<'a> for RecursiveVirtualBoardset<'a> {
 
     fn game(&'a self) -> &'a Game {
         self.game
+    }
+
+    fn info(&'a self) -> GameInfo {
+        self.info
     }
 
     fn virtual_boards(&'a self) -> Box<dyn Iterator<Item=&'a Board> + '_> {
@@ -159,23 +176,27 @@ impl<'a> Iterator for RecursiveVirtualBoardsetIter<'a> {
     }
 }
 
-pub struct EmptyVirtualBoardset<'a>(&'a Game);
+pub struct EmptyVirtualBoardset<'a>(&'a Game, GameInfo);
 
 impl<'a> VirtualBoardset<'a> for EmptyVirtualBoardset<'a> {
-    fn new(game: &'a Game, _boards: Vec<Board>) -> Self {
-        Self(game)
+    fn new(game: &'a Game, info: GameInfo, _boards: Vec<Board>) -> Self {
+        Self(game, info)
     }
 
     fn get_board(&'a self, l: i32, t: isize) -> Option<&'a Board> {
         self.0.get_board(l, t)
     }
 
-    fn push(&'a self, _boards: Vec<Board>) -> Self {
-        Self(self.0)
+    fn push(&'a self, info: GameInfo, _boards: Vec<Board>) -> Self {
+        Self(self.0, info)
     }
 
     fn game(&'a self) -> &'a Game {
         self.0
+    }
+
+    fn info(&'a self) -> GameInfo {
+        self.1
     }
 
     fn virtual_boards(&'a self) -> Box<dyn Iterator<Item=&'a Board> + '_> {
@@ -185,25 +206,25 @@ impl<'a> VirtualBoardset<'a> for EmptyVirtualBoardset<'a> {
 
 impl<'a> From<EmptyVirtualBoardset<'a>> for SimpleVirtualBoardset<'a> {
     fn from(empty: EmptyVirtualBoardset<'a>) -> Self {
-        Self::new(empty.0, vec![])
+        Self::new(empty.0, empty.1, vec![])
     }
 }
 
 impl<'a> From<&'a EmptyVirtualBoardset<'a>> for SimpleVirtualBoardset<'a> {
     fn from(empty: &'a EmptyVirtualBoardset<'a>) -> Self {
-        Self::new(empty.0, vec![])
+        Self::new(empty.0, empty.1, vec![])
     }
 }
 
 impl<'a> From<EmptyVirtualBoardset<'a>> for RecursiveVirtualBoardset<'a> {
     fn from(empty: EmptyVirtualBoardset<'a>) -> Self {
-        Self::new(empty.0, vec![])
+        Self::new(empty.0, empty.1, vec![])
     }
 }
 
 impl<'a> From<&'a EmptyVirtualBoardset<'a>> for RecursiveVirtualBoardset<'a> {
     fn from(empty: &'a EmptyVirtualBoardset<'a>) -> Self {
-        Self::new(empty.0, vec![])
+        Self::new(empty.0, empty.1, vec![])
     }
 }
 
@@ -211,6 +232,7 @@ impl<'a> From<SimpleVirtualBoardset<'a>> for RecursiveVirtualBoardset<'a> {
     fn from(simple: SimpleVirtualBoardset<'a>) -> Self {
         Self {
             game: simple.game,
+            info: simple.info,
             virtual_boards: simple.virtual_boards,
             parent: None,
         }
@@ -221,8 +243,23 @@ impl<'a> From<&'a SimpleVirtualBoardset<'a>> for RecursiveVirtualBoardset<'a> {
     fn from(simple: &'a SimpleVirtualBoardset<'a>) -> Self {
         Self {
             game: simple.game,
+            info: simple.info,
             virtual_boards: simple.virtual_boards.clone(),
             parent: None,
+        }
+    }
+}
+
+impl<'a> Into<RecursiveVirtualBoardset<'a>> for &'a VirtualBoardset<'a> {
+    fn into(self) -> RecursiveVirtualBoardset<'a> {
+        let mut iter = self.virtual_boards();
+        let mut res = RecursiveVirtualBoardset {
+            game: self.game(),
+            info: self.info(),
+            virtual_boards: HashMap::with_capacity(iter.size_hint().0),
+        };
+        for b in iter {
+            res.virtual_boards.insert((b.l, b.t), b.clone());
         }
     }
 }
