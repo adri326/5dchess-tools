@@ -672,7 +672,7 @@ pub mod iddfs {
                         queue_fails = 0;
                     }
                 }
-                // println!("> {}", queue.len());
+                println!("> {}", queue.len());
                 if queue.len() == 0 {
                     panic!("Queue got emptied!");
                 }

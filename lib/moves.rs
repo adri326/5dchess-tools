@@ -308,7 +308,7 @@ impl Move {
                 .find(|b| b.l == new_board.l && b.t == new_board.t + 1)
                 .is_some()
         {
-            // panic!("Duplicate board!");
+            // Illegal move
             return None;
         }
 
@@ -553,7 +553,7 @@ pub fn is_moveset_legal<'a>(
     boards: &impl VirtualBoardset<'a>,
     boards_iter: impl Iterator<Item = Board>,
 ) -> bool {
-    let opponent = !boards.info().active_player;
+    let opponent = boards.info().active_player;
 
     for board in boards_iter {
         if is_last(boards, &board) {
@@ -579,7 +579,7 @@ pub fn is_moveset_legal<'a>(
 /// Returns whether or not every mandatory boards were played on (accepts time travel escapes)
 pub fn all_boards_played<'a>(boards: &impl VirtualBoardset<'a>) -> bool {
     for board in get_own_boards(boards) {
-        if board.t <= boards.info().present {
+        if board.t < boards.info().present {
             return false;
         }
     }
