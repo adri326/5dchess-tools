@@ -18,7 +18,7 @@ pub trait VirtualBoardset<'a> {
     }
 
     /// Returns an iterator over the virtual boards stored within the virtual boardset
-    fn virtual_boards<'b>(&'b self) -> Box<dyn Iterator<Item=&'b Board> + '_>;
+    fn virtual_boards<'b>(&'b self) -> Box<dyn Iterator<Item=Board> + '_>;
 
     /// Returns the underlying Game instance
     fn game(&self) -> &'a Game;
@@ -81,8 +81,8 @@ impl<'a> VirtualBoardset<'a> for SimpleVirtualBoardset<'a> {
         self.info
     }
 
-    fn virtual_boards<'b>(&'b self) -> Box<dyn Iterator<Item=&'b Board> + '_> {
-        Box::new(self.virtual_boards.values())
+    fn virtual_boards<'b>(&'b self) -> Box<dyn Iterator<Item=Board> + '_> {
+        Box::new(self.virtual_boards.values().cloned())
     }
 }
 
@@ -142,42 +142,53 @@ impl<'a> VirtualBoardset<'a> for RecursiveVirtualBoardset<'a> {
         self.0.info
     }
 
-    fn virtual_boards<'b>(&'b self) -> Box<dyn Iterator<Item=&'b Board> + '_> {
+    fn virtual_boards<'b>(&'b self) -> Box<dyn Iterator<Item=Board> + '_> {
         Box::new(RecursiveVirtualBoardsetIter {
-            rvb: Some(self.0.clone()),
-            iter: self.0.virtual_boards.values(),
+            rvb: self.0.clone(),
+            vec: collect(self.0.clone()),
+            index: 0,
         })
     }
 }
 
 pub struct RecursiveVirtualBoardsetIter<'a> {
-    pub rvb: Option<Rc<RecursiveVirtualBoardsetRaw<'a>>>,
-    pub iter: std::collections::hash_map::Values<'a, (i32, isize), Board>,
+    pub rvb: Rc<RecursiveVirtualBoardsetRaw<'a>>,
+    pub vec: Vec<(i32, isize)>,
+    pub index: usize,
 }
 
 impl<'a> Iterator for RecursiveVirtualBoardsetIter<'a> {
-    type Item = &'a Board;
+    type Item = Board;
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.iter.size_hint().0, None)
+        (self.vec.len() - self.index, None)
     }
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            Some(b) => Some(b),
+        self.index += 1;
+        match self.vec.get(self.index - 1) {
+            Some(key) => Some(self.rvb.virtual_boards[key].clone()),
             None => {
-                if self.rvb.is_some() {
-                    self.rvb = self.rvb.unwrap().parent;
-                    if let Some(rvb) = self.rvb {
-                        self.iter = rvb.virtual_boards.values();
-                    }
-                    self.next()
-                } else {
-                    None
+                match self.rvb.parent.clone() {
+                    Some(parent) => {
+                        self.rvb = parent.clone();
+                        self.vec = collect(parent);
+                        self.index = 0;
+                        self.next()
+                    },
+                    None => None
                 }
             }
         }
     }
+}
+
+fn collect<'a>(hm: Rc<RecursiveVirtualBoardsetRaw<'a>>) -> Vec<(i32, isize)> {
+    let mut res = Vec::with_capacity(hm.virtual_boards.len());
+    for k in hm.virtual_boards.keys() {
+        res.push(*k);
+    }
+    res
 }
 
 pub struct EmptyVirtualBoardset<'a>(&'a Game, GameInfo);
@@ -203,7 +214,7 @@ impl<'a> VirtualBoardset<'a> for EmptyVirtualBoardset<'a> {
         self.1
     }
 
-    fn virtual_boards<'b>(&'b self) -> Box<dyn Iterator<Item=&'b Board> + '_> {
+    fn virtual_boards<'b>(&'b self) -> Box<dyn Iterator<Item=Board> + '_> {
         Box::new(std::iter::empty())
     }
 }

@@ -10,6 +10,7 @@ use scoped_threadpool::Pool;
 
 // Tree search algorithms
 
+#[allow(type_alias_bounds)]
 type Node<'a, V: VirtualBoardset<'a>> = (Vec<Move>, V, f32);
 type RecursiveNode<'a> = Node<'a, RecursiveVirtualBoardset<'a>>;
 type SimpleNode<'a> = Node<'a, SimpleVirtualBoardset<'a>>;
@@ -32,8 +33,9 @@ pub mod dfs {
         bucket_size: usize,
         max_bf: usize,
         n_threads: u32,
-    ) -> Option<(SimpleNode<'a>, f32)> {
-        let initial_iter = legal_movesets(&SimpleVirtualBoardset::new(game, game.info, vec![]), 0, 0).take(max_bf);
+    ) -> Option<(Vec<Move>, GameInfo, Vec<Board>, f32)> {
+        let initial_vboard = SimpleVirtualBoardset::new(game, game.info, vec![]);
+        let initial_iter = legal_movesets(initial_vboard, 0, 0).take(max_bf);
         let mut pool = Pool::new(n_threads);
 
         let res_data: Arc<Mutex<(Option<SimpleNode>, f32)>> = Arc::new(Mutex::new((
@@ -70,7 +72,6 @@ pub mod dfs {
 
                     if depth > 0 {
                         let (best_branch, new_value) = dfs_rec(
-                            &RecursiveVirtualBoardset::new(game, game.info.clone(), vec![]),
                             node.clone(),
                             depth - 1,
                             std::f32::NEG_INFINITY,
@@ -129,14 +130,13 @@ pub mod dfs {
         };
 
         match res {
-            (Some(n), v) => Some((n, v)),
+            (Some(n), v) => Some((n.0, n.1.info(), n.1.virtual_boards().collect(), v)),
             _ => None,
         }
     }
 
     /// Recursive bit of `dfs(...)`, see the documentation about `dfs` for more information!
     fn dfs_rec<'a>(
-        boards: &'a RecursiveVirtualBoardset<'a>,
         node: RecursiveNode<'a>,
         depth: usize,
         mut alpha: f32,
@@ -154,7 +154,7 @@ pub mod dfs {
             let mut info = node.1.info();
             info.active_player = white;
             let merged_vboards = node.1;
-            let movesets = legal_movesets(&merged_vboards, 0, max_ms);
+            let movesets = legal_movesets(merged_vboards.clone(), 0, max_ms);
 
             if white { // White:
                 let mut value = std::f32::NEG_INFINITY;
@@ -164,7 +164,6 @@ pub mod dfs {
                 for ms in opt_apply_bucket(bucket_size, max_bf, white, movesets) {
                     yielded_move = true;
                     let (best_branch, n_value) = dfs_rec(
-                        &merged_vboards,
                         ms.clone(),
                         depth - 1,
                         alpha,
@@ -201,7 +200,6 @@ pub mod dfs {
                 for ms in opt_apply_bucket(bucket_size, max_bf, white, movesets) {
                     yielded_move = true;
                     let (best_branch, n_value) = dfs_rec(
-                        &merged_vboards,
                         ms.clone(),
                         depth - 1,
                         alpha,
@@ -270,17 +268,16 @@ pub mod bfs {
         tolerance_mult: f32,
         n_threads: u32,
         max_duration: Duration,
-    ) -> Option<(SimpleNode<'a>, f32)> {
+    ) -> Option<(Vec<Move>, GameInfo, Vec<Board>, f32)> {
         let mut pool = Pool::new(n_threads);
         let mut res = pool.scoped(|scope| {
             let results = Arc::new(Mutex::new(Vec::new()));
             for initial_node in
-                legal_movesets(&SimpleVirtualBoardset::new(game, game.info.clone(), vec![]), 0, 0).take(initial_movesets)
+                legal_movesets(SimpleVirtualBoardset::new(game, game.info.clone(), vec![]), 0, 0).take(initial_movesets)
             {
                 let results = Arc::clone(&results);
                 scope.execute(move || {
                     let res = bfs_sub(
-                        game,
                         initial_node.clone(),
                         max_ms,
                         bucket_size,
@@ -306,7 +303,7 @@ pub mod bfs {
 
         // Need to hold the state of the search per branch
         // Have some branch pruning action?
-        res.pop()
+        res.pop().map(|(node, score)| (node.0, node.1.info(), node.1.virtual_boards().collect(), score))
     }
 
     /**
@@ -328,15 +325,16 @@ pub mod bfs {
 
     impl<'a, V: VirtualBoardset<'a>> From<(Node<'a, V>, &BFSBranch<'a, V>, RBFSTree)> for BFSBranch<'a, V> {
         fn from(raw: (Node<'a, V>, &BFSBranch<'a, V>, RBFSTree)) -> Self {
+            let info = (raw.0).1.info();
             BFSBranch {
                 boards: (raw.0).1,
+                info,
                 moves: (raw.1)
                     .moves
                     .clone()
                     .into_iter()
                     .chain(vec![(raw.0).0].into_iter())
                     .collect(),
-                info: (raw.0).1.info(),
                 depth: raw.1.depth + 1,
                 score: (raw.0).2,
                 tree: raw.2,
@@ -391,7 +389,6 @@ pub mod bfs {
 
     /// Per-thread bit of the `bfs(...)` method. See this function's documentation for more information.
     fn bfs_sub<'a>(
-        game: &'a Game,
         initial_node: SimpleNode<'a>,
         max_ms: usize,
         bucket_size: usize,
@@ -415,8 +412,8 @@ pub mod bfs {
         }));
         pool.push_back(BFSBranch {
             moves: vec![initial_node.0],
-            boards: initial_node.1,
             info: initial_node.1.info(),
+            boards: initial_node.1,
             score: initial_node.2,
             depth: 0,
             tree: initial_tree.clone(),
@@ -441,7 +438,8 @@ pub mod bfs {
                         pool.push_back(branch);
                         continue;
                     }
-                    let mut movesets = legal_movesets(&branch.boards, 0, max_ms)
+                    // TODO: remove that clone?
+                    let mut movesets = legal_movesets(branch.boards.clone(), 0, max_ms)
                         .take(bucket_size)
                         .collect::<Vec<_>>();
                     movesets.sort_by(|a, b| {
@@ -614,7 +612,7 @@ pub mod iddfs {
         pool_size: usize,
         n_threads: u32,
         max_duration: Duration,
-    ) -> Option<(SimpleNode<'a>, f32)> {
+    ) -> Option<(Vec<Move>, GameInfo, Vec<Board>, f32)> {
         let queue_fail_threshold = 4;
         let begin = Instant::now();
         let mut queue: VecDeque<SimpleBFSBranch> = VecDeque::new();
@@ -645,7 +643,7 @@ pub mod iddfs {
             while queue.len() < pool_size {
                 if let Some(mut branch) = queue.pop_front() {
                     let mut has_looped = false;
-                    for moveset in legal_movesets(&branch.boards, 0, max_ms)
+                    for moveset in legal_movesets(branch.boards.clone(), 0, max_ms)
                         .take(bucket_size)
                     {
                         has_looped = true;
@@ -690,7 +688,7 @@ pub mod iddfs {
                     if node.depth <= depth {
                         let depth = depth - node.depth;
                         let results = Arc::clone(&results);
-                        let boards = node.boards;
+                        let boards = &node.boards;
                         scope.execute(move || {
                             let node: RecursiveNode = (vec![], boards.into(), 0.0);
                             let res = iddfs_bfs_sub(
@@ -749,7 +747,7 @@ pub mod iddfs {
         for candidate in initial_nodes.into_iter() {
             if !candidate.1.borrow().pruned {
                 let score = candidate.1.borrow().score;
-                return Some((candidate.0, score));
+                return Some(((candidate.0).0, (candidate.0).1.info(), (candidate.0).1.virtual_boards().collect(), score));
             }
         }
         None
@@ -775,7 +773,7 @@ pub mod iddfs {
             let merged_vboards: &RecursiveVirtualBoardset<'a> = &node.1;
             let mut best: (Option<RecursiveNode>, f32) = (None, if node.1.info().active_player {std::f32::NEG_INFINITY} else {std::f32::INFINITY});
             // Loop over the child nodes
-            for moveset in legal_movesets(merged_vboards, 0, max_ms).take(bucket_size) {
+            for moveset in legal_movesets(merged_vboards.clone(), 0, max_ms).take(bucket_size) {
                 let res = iddfs_bfs_sub(
                     moveset,
                     max_ms,

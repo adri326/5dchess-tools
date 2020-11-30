@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use crate::{game::*, moves::*, resolve::*, vboard::*};
 
 // TODO: optional boards
@@ -8,7 +9,7 @@ use crate::{game::*, moves::*, resolve::*, vboard::*};
 #[allow(dead_code)]
 pub struct MovesetIter<'a, V: VirtualBoardset<'a>> {
     /// Virtual boardset
-    boards: &'a V,
+    boards: V,
     /// List of moves per board, scored and sorted
     moves: Vec<Vec<(Move, Vec<Board>, GameInfo, i32)>>,
     /// How many moves per board have been considered already
@@ -23,9 +24,11 @@ pub struct MovesetIter<'a, V: VirtualBoardset<'a>> {
     pub max_movesets_considered: usize, // 0 for ∞
     /// The number of movesets that have been yielded already
     pub movesets_considered: usize,
+
+    phantom: PhantomData<&'a V>,
 }
 
-impl<'a, V: VirtualBoardset<'a>> Iterator for MovesetIter<'a, V> {
+impl<'a, V: VirtualBoardset<'a> + Clone> Iterator for MovesetIter<'a, V> {
     type Item = Vec<Move>;
 
     /// Yields a moveset, if there are still any to yield
@@ -76,12 +79,12 @@ impl<'a, V: VirtualBoardset<'a>> Iterator for MovesetIter<'a, V> {
     }
 }
 
-impl<'a, V: VirtualBoardset<'a>> MovesetIter<'a, V> {
+impl<'a, V: VirtualBoardset<'a> + Clone> MovesetIter<'a, V> {
     /**
     Generates a new MovesetIter. Assumes that `moves` was already sorted.
     **/
     pub fn new(
-        boards: &'a V,
+        boards: V,
         moves: Vec<Vec<(Move, Vec<Board>, GameInfo, i32)>>,
     ) -> Self {
         let moves = moves
@@ -100,6 +103,7 @@ impl<'a, V: VirtualBoardset<'a>> MovesetIter<'a, V> {
             max_movesets_considered: 0,
             max_moves_considered: 0,
             movesets_considered: 0,
+            phantom: PhantomData,
         }
     }
 
@@ -268,12 +272,12 @@ impl<'a, V: VirtualBoardset<'a>> MovesetIter<'a, V> {
     **/
     pub fn score(self) -> impl Iterator<Item = (Vec<Move>, V, f32)> + 'a {
         // NOTE: I still don't quite understand why this doesn't fail to compile
-        let boards = self.boards;
+        let boards = self.boards.clone();
 
         self.map(move |ms| {
             score_moveset(
-                boards,
-                get_opponent_boards(boards).into_iter(),
+                &boards,
+                get_opponent_boards(&boards).into_iter(),
                 ms,
             )
         })

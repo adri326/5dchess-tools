@@ -54,7 +54,7 @@ impl<'a> Lore<'a> {
     /**
         Generates a board's "Lore" (danger map and target pieces)
     **/
-    pub fn new<'b>(boards: &'a impl VirtualBoardset<'a>, board: &'a Board) -> Lore<'a> {
+    pub fn new<'b>(boards: &'_ impl VirtualBoardset<'b>, board: &'a Board) -> Lore<'a> {
         let mut res = Lore {
             board,
             danger: vec![0; board.pieces.len()],
@@ -64,10 +64,10 @@ impl<'a> Lore<'a> {
         let mut noop_board = board.clone();
         noop_board.t += 1;
 
-        let mut n_boards = boards.push(boards.info().tick(), vec![noop_board.clone()]);
+        let n_boards = boards.push(boards.info().tick(), vec![noop_board.clone()]);
 
         for b in get_opponent_boards(boards) {
-            let probables = probable_moves(boards, b);
+            let probables = probable_moves(boards, &b);
             for mv in probables {
                 if mv.dst_piece.is_king() {
                     res.register_enemy(&mv);
@@ -106,10 +106,10 @@ impl<'a> Lore<'a> {
     Gives each move in a set of moves (all of which happen on one board) a score and sorts them.
 **/
 #[allow(unused_variables)]
-pub fn score_moves<'a>(
-    boards: &'a impl VirtualBoardset<'a>,
-    board: &'a Board,
-    lore: &Lore<'a>,
+pub fn score_moves<'a, 'b>(
+    boards: &'_ impl VirtualBoardset<'a>,
+    board: &'b Board,
+    lore: &Lore<'b>,
     moves: Vec<(Move, GameInfo, Vec<Board>)>,
 ) -> Vec<(Move, Vec<Board>, GameInfo, i32)> {
     let mut res = moves
@@ -238,7 +238,7 @@ pub fn score_moves<'a>(
             (mv, m_boards, info, score)
         })
         .filter(|(_mv, m_boards, info, _score)| {
-            is_moveset_legal(boards, m_boards.iter())
+            is_moveset_legal(boards, m_boards.iter().cloned())
         })
         .collect::<Vec<_>>();
     res.sort_unstable_by_key(|(_mv, _boards, _info, score)| -(*score as i32));
@@ -278,8 +278,8 @@ pub const CONTROLLED_SQUARE_SCORE: f32 = 0.025;
 /**
     Checks that `moveset` is legal and gives it a score. The `GameInfo` returned will correspond to that of the submitted move.
 **/
-pub fn score_moveset<'a, T: Iterator<Item = &'a Board>, V: VirtualBoardset<'a>>(
-    boards: &'a V,
+pub fn score_moveset<'a, 'b, T: Iterator<Item = Board>, V: VirtualBoardset<'b>>(
+    boards: &'_ V,
     opponent_boards: T,
     moveset: Vec<Move>,
 ) -> Option<(Vec<Move>, V, f32)> {
@@ -299,7 +299,7 @@ pub fn score_moveset<'a, T: Iterator<Item = &'a Board>, V: VirtualBoardset<'a>>(
 
     let merged_boards = boards.push(info, moveset_boards.clone());
 
-    if is_moveset_legal(&merged_boards, moveset_boards.iter())
+    if is_moveset_legal(&merged_boards, moveset_boards.iter().cloned())
         && is_moveset_legal(&merged_boards, opponent_boards)
         && all_boards_played(&merged_boards)
     {

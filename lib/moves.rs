@@ -291,7 +291,7 @@ impl Move {
     /// Generate the boards that are created as a result of the move being played out. The target and source boards must be present in either `game`, `virtual_boards` or `already_generated`
     pub fn generate_vboards<'a>(
         &self,
-        boards: &impl VirtualBoardset<'a>,
+        boards: &'_ impl VirtualBoardset<'a>,
         already_generated: &Vec<Board>,
     ) -> Option<(GameInfo, Vec<Board>)> {
         // TODO: properly handle Board::set's result
@@ -549,16 +549,16 @@ pub fn probable_moves<'a>(boards: &impl VirtualBoardset<'a>, board: &Board) -> V
 
 // TODO: move this to moveset.rs
 /// Returns whether or not a moveset is legal (ie. if it doesn't put the player in check).
-pub fn is_moveset_legal<'a, 'b>(
+pub fn is_moveset_legal<'a>(
     boards: &impl VirtualBoardset<'a>,
-    boards_iter: impl Iterator<Item = &'b Board>,
+    boards_iter: impl Iterator<Item = Board>,
 ) -> bool {
     let opponent = !boards.info().active_player;
 
     for board in boards_iter {
-        if is_last(boards, board) {
+        if is_last(boards, &board) {
             if board.active_player() == opponent {
-                for m in probable_moves(boards, board) {
+                for m in probable_moves(boards, &board) {
                     if m.dst_piece == (if opponent { Piece::KingB } else { Piece::KingW }) {
                         return false;
                     }
@@ -587,15 +587,15 @@ pub fn all_boards_played<'a>(boards: &impl VirtualBoardset<'a>) -> bool {
 }
 
 /// Returns the set of boards on which the opponent can make a move
-pub fn get_opponent_boards<'a: 'b, 'b>(boards: &'b impl VirtualBoardset<'a>) -> Vec<&'b Board> {
-    let mut res: Vec<&Board> = boards.game()
+pub fn get_opponent_boards<'a: 'b, 'b>(boards: &'b impl VirtualBoardset<'a>) -> Vec<Board> {
+    let mut res: Vec<Board> = boards.game()
         .timelines
         .values()
-        .map(|tl| &tl.states[tl.states.len() - 1])
+        .map(|tl| tl.states[tl.states.len() - 1].clone())
         .filter(|b| b.active_player() != boards.info().active_player && is_last(boards, b))
         .collect();
     for b in boards.virtual_boards() {
-        if b.active_player() != boards.info().active_player && is_last(boards, b) {
+        if b.active_player() != boards.info().active_player && is_last(boards, &b) {
             res.push(b);
         }
     }
@@ -603,15 +603,15 @@ pub fn get_opponent_boards<'a: 'b, 'b>(boards: &'b impl VirtualBoardset<'a>) -> 
 }
 
 /// Returns the set of board on which the active player can make a move
-pub fn get_own_boards<'a: 'b, 'b>(boards: &'b impl VirtualBoardset<'a>) -> Vec<&'b Board> {
-    let mut res: Vec<&Board> = boards.game()
+pub fn get_own_boards<'a: 'b, 'b>(boards: &'b impl VirtualBoardset<'a>) -> Vec<Board> {
+    let mut res: Vec<Board> = boards.game()
         .timelines
         .values()
-        .map(|tl| &tl.states[tl.states.len() - 1])
+        .map(|tl| tl.states[tl.states.len() - 1].clone())
         .filter(|b| b.active_player() == boards.info().active_player && is_last(boards, b))
         .collect();
     for b in boards.virtual_boards() {
-        if b.active_player() == boards.info().active_player && is_last(boards, b) {
+        if b.active_player() == boards.info().active_player && is_last(boards, &b) {
             res.push(b);
         }
     }
@@ -620,27 +620,26 @@ pub fn get_own_boards<'a: 'b, 'b>(boards: &'b impl VirtualBoardset<'a>) -> Vec<&
 
 // TODO: move this into moveset.rs or resolve.rs
 /// Returns a lazy iterator over the legal movesets that the active player can make
-pub fn legal_movesets<'a, 'b: 'a, V: VirtualBoardset<'a>>(
-    boards: &'b V,
+pub fn legal_movesets<'a, V: VirtualBoardset<'a> + Clone + 'a>(
+    boards: V,
     max_moves_considered: usize,
     max_movesets_considered: usize,
 ) -> impl Iterator<Item = (Vec<Move>, V, f32)> + 'a {
-    let ranked_moves = get_own_boards(boards)
-        .into_iter()
-        .map(|board| {
-            let lore = Lore::new(boards, board);
-            let probables = probable_moves(boards, board)
-                .into_iter()
-                .map(|mv| {
-                    let (new_info, new_vboards) = mv
-                        .generate_vboards(boards, &vec![])
-                        .unwrap();
-                    (mv, new_info, new_vboards)
-                })
-                .collect::<Vec<_>>();
-            score_moves(boards, board, &lore, probables)
-        })
-        .collect::<Vec<_>>();
+    let mut ranked_moves = Vec::new();
+
+    for board in get_own_boards(&boards).into_iter() {
+        let lore = Lore::new(&boards, &board);
+        let probables = probable_moves(&boards, &board)
+            .into_iter()
+            .map(|mv| {
+                let (new_info, new_vboards) = mv
+                    .generate_vboards(&boards, &vec![])
+                    .unwrap();
+                (mv, new_info, new_vboards)
+            })
+            .collect::<Vec<_>>();
+        ranked_moves.push(score_moves(&boards, &board, &lore, probables));
+    }
 
     let mut iter = MovesetIter::new(boards, ranked_moves);
 
@@ -949,7 +948,7 @@ pub fn find_present<'a>(boards: &impl VirtualBoardset<'a>) -> isize {
             }
         });
     for b in boards.virtual_boards() {
-        if is_last(boards, b) && b.t < min && b.is_active(&boards.info()) {
+        if is_last(boards, &b) && b.t < min && b.is_active(&boards.info()) {
             min = b.t;
         }
     }
@@ -975,7 +974,6 @@ pub fn is_draw<'a>(boards: &impl VirtualBoardset<'a>) -> bool {
     let opponent_boards = get_opponent_boards(boards).into_iter().filter(|b| b.is_active(&boards.info())).collect::<Vec<_>>();
     let own_boards = get_own_boards(boards)
         .into_iter()
-        .cloned()
         .filter(|b| b.is_active(&boards.info()))
         .map(|mut x| {
             x.t += 1;
@@ -983,12 +981,12 @@ pub fn is_draw<'a>(boards: &impl VirtualBoardset<'a>) -> bool {
         })
         .collect::<Vec<_>>();
 
-    let merged_boardset = boards.push(boards.info().tick(), own_boards);
+    let merged_boardset = boards.push(boards.info().tick(), own_boards.clone());
 
     // TODO: merge mutated own_boards with virtual_boards
 
     for b in opponent_boards.into_iter() {
-        for mv in probable_moves(&merged_boardset, b) {
+        for mv in probable_moves(&merged_boardset, &b) {
             if mv.dst_piece.is_king() {
                 return false;
             }

@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use chess5dlib::{game::*, moves::*, moveset::*, resolve::*, tree::*, parse::parse};
+use chess5dlib::{game::*, moves::*, moveset::*, resolve::*, tree::*, parse::parse, vboard::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -22,15 +22,16 @@ fn main() -> std::io::Result<()> {
 
     let mut game = parse(&contents).expect("Couldn't parse JSON");
 
-    let virtual_boards: Vec<&Board> = vec![];
 
     println!("Boards:");
-    let own_boards = get_own_boards(&game, &virtual_boards, &game.info);
+    let e = empty(&game);
+    let own_boards = get_own_boards(&e);
     for b in own_boards {
         println!("{}", b);
         println!("({}T{}{}) - {}/{}\n", write_timeline(b.l, game.info.even_initial_timelines), b.t / 2 + 1, if b.active_player() {"w"} else {"b"}, b.l, b.t);
         println!("");
     }
+
 
     // println!("Moves per board:");
     // for b in get_own_boards(&game, &virtual_boards, &game.info) {
@@ -78,17 +79,16 @@ fn main() -> std::io::Result<()> {
         16,
         std::time::Duration::new(5, 0),
     );
-    if let Some((best, value)) = best_move {
+    if let Some((moves, info, boards, score)) = best_move {
         println!("Best move:");
-        println!("{:?}: {}", best.0, value);
-        for b in &best.1 {
+        println!("{:?}: {}", moves, score);
+        for b in boards.iter() {
             println!("{}", b);
             println!("({}T{}{})\n", write_timeline(b.l, game.info.even_initial_timelines), b.t / 2 + 1, if b.active_player() {"w"} else {"b"});
         }
-        game.commit_moves(best.1);
-        game.info = best.2;
+        game.commit_moves(boards, info);
     } else {
-        if is_draw(&game, &virtual_boards, &game.info) {
+        if is_draw(&empty(&game)) {
             println!("Draw!");
         } else {
             println!("Checkmate! {} wins!", if game.info.active_player {"Black"} else {"White"});

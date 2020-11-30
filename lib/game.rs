@@ -431,7 +431,8 @@ impl Game {
         game.commit_moves(boards);
         ```
     **/
-    pub fn commit_moves(&mut self, mut boards: Vec<Board>) {
+    pub fn commit_moves(&mut self, mut boards: Vec<Board>, info: GameInfo) {
+        self.info = info;
         boards.sort_by_key(|b| b.t);
         boards.reverse();
         for b in boards.into_iter() {
