@@ -8,9 +8,3 @@ extern crate serde;
 extern crate serde_json;
 
 pub mod game;
-pub mod moves;
-pub mod moveset;
-pub mod resolve;
-pub mod tree;
-pub mod parse;
-pub mod vboard;
