@@ -8,10 +8,6 @@ extern crate json;
 // TODO: move replay, game analysis, args
 
 fn main() -> std::io::Result<()> {
-    env_logger::builder()
-        .format_timestamp(None)
-        .init();
-
     // This is a simple example which will take the 40 most promising movesets, sort them by their score and display the 3 best movesets
     let path = env::args().last().unwrap();
 

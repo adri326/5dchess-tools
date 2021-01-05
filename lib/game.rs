@@ -3,12 +3,11 @@
 */
 
 use std::fmt;
-use std::convert::TryFrom;
 use std::collections::HashMap;
 
-type Layer = isize;
-type Time = isize;
-type Physical = u8;
+pub type Layer = isize;
+pub type Time = isize;
+pub type Physical = u8;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum PieceKind {
@@ -103,10 +102,12 @@ impl TimelineInfo {
     }
 }
 
+// timelines_white correspond to white's timelines and timelines_black correspond to black's timelines
+// on an odd variant, white's timelines include the 0-timeline
+// on an even variant, black's timeline include the -0-timeline and white's the +0-timeline
 impl Info {
     pub fn new(
         even_timelines: bool,
-        active_player: bool,
         timelines_white: Vec<TimelineInfo>,
         timelines_black: Vec<TimelineInfo>
     ) -> Self {
@@ -130,6 +131,8 @@ impl Info {
                 present = tl.last_board;
             }
         }
+
+        let active_player = present % 2 == 0;
 
         Info {
             present,
@@ -190,7 +193,7 @@ impl Game {
             boards: HashMap::new(),
             width,
             height,
-            info: Info::new(even_timelines, true, timelines_white, timelines_black),
+            info: Info::new(even_timelines, timelines_white, timelines_black),
         }
     }
 

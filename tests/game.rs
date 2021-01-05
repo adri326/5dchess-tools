@@ -10,7 +10,7 @@ fn test_even_timelines() {
         ];
         let timelines_black = vec![];
 
-        let info = Info::new(false, false, timelines_white, timelines_black);
+        let info = Info::new(false, timelines_white, timelines_black);
         assert!(info.is_active(0));
         assert!(info.is_active(1));
         assert!(!info.is_active(2));
@@ -28,7 +28,7 @@ fn test_even_timelines() {
             TimelineInfo::new(-1, None, 3),
         ];
 
-        let info = Info::new(true, false, timelines_white, timelines_black);
+        let info = Info::new(true, timelines_white, timelines_black);
         assert!(info.is_active(0));
         assert!(info.is_active(1));
         assert!(!info.is_active(2));
@@ -46,7 +46,7 @@ fn test_even_timelines() {
             TimelineInfo::new(-2, Some((0, 1)), 2),
         ];
 
-        let info = Info::new(false, false, timelines_white, timelines_black);
+        let info = Info::new(false, timelines_white, timelines_black);
         assert!(info.is_active(0));
         assert!(info.is_active(-1));
         assert!(!info.is_active(-2));
@@ -64,7 +64,7 @@ fn test_even_timelines() {
             TimelineInfo::new(-3, Some((0, 1)), 2),
         ];
 
-        let info = Info::new(true, false, timelines_white, timelines_black);
+        let info = Info::new(true, timelines_white, timelines_black);
         assert!(info.is_active(0));
         assert!(info.is_active(-1));
         assert!(info.is_active(-2));
