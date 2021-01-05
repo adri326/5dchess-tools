@@ -45,6 +45,7 @@ pub struct TimelineInfo {
     pub index: Layer,
     pub starts_from: Option<(Layer, Time)>,
     pub last_board: Time,
+    pub first_board: Time,
 }
 
 pub struct Info {
@@ -93,11 +94,12 @@ impl Piece {
 }
 
 impl TimelineInfo {
-    pub fn new(index: Layer, starts_from: Option<(Layer, Time)>, last_board: Time) -> Self {
+    pub fn new(index: Layer, starts_from: Option<(Layer, Time)>, last_board: Time, first_board: Time) -> Self {
         TimelineInfo {
             index,
             starts_from,
             last_board,
+            first_board,
         }
     }
 }

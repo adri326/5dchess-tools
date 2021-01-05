@@ -134,7 +134,12 @@ where
     - `x₂ = function(B, ⟨0, 1⟩, x₁)`
     - `x₃ = function(A, ⟨0, 0⟩, x₂)`
 **/
-pub fn bubble_up_mut<'a, F, T>(game: &'a mut Game, mut coords: (Layer, Time), function: F, initial_state: T) -> T
+pub fn bubble_up_mut<'a, F, T>(
+    game: &'a mut Game,
+    mut coords: (Layer, Time),
+    function: F,
+    initial_state: T,
+) -> T
 where
     T: Clone,
     F: (Fn(&mut Board, (Layer, Time), T) -> T) + Copy,
@@ -184,7 +189,12 @@ where
     - `x₂ = function(B, ⟨0, 1⟩, x₁)`
     - `x₃ = function(A, ⟨0, 0⟩, x₂)`
 **/
-pub fn bubble_up<'a, F, T>(game: &'a Game, mut coords: (Layer, Time), function: F, initial_state: T) -> T
+pub fn bubble_up<'a, F, T>(
+    game: &'a Game,
+    mut coords: (Layer, Time),
+    function: F,
+    initial_state: T,
+) -> T
 where
     T: Clone,
     F: (Fn(&Board, (Layer, Time), T) -> T) + Copy,
