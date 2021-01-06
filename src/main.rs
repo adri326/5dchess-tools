@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use chess5dlib::{game::*};
+use chess5dlib::{game::*, parse::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -15,5 +15,9 @@ fn main() -> std::io::Result<()> {
     let mut contents = String::new();
 
     file.read_to_string(&mut contents)?;
+    let game = parse(&contents).unwrap();
+
+    println!("{:#?}", game);
+
     Ok(())
 }

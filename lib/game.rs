@@ -4,12 +4,13 @@
 
 use std::fmt;
 use std::collections::HashMap;
+use colored::*;
 
 pub type Layer = isize;
 pub type Time = isize;
 pub type Physical = u8;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum PieceKind {
     Pawn,
     Knight,
@@ -25,14 +26,13 @@ pub enum PieceKind {
     RoyalQueen,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Piece {
     pub kind: PieceKind,
     pub white: bool,
     pub moved: bool,
 }
 
-#[derive(Debug)]
 pub struct Board {
     pub l: Layer,
     pub t: Time,
@@ -41,6 +41,7 @@ pub struct Board {
     pub pieces: Vec<Option<Piece>>,
 }
 
+#[derive(Debug)]
 pub struct TimelineInfo {
     pub index: Layer,
     pub starts_from: Option<(Layer, Time)>,
@@ -48,6 +49,7 @@ pub struct TimelineInfo {
     pub first_board: Time,
 }
 
+#[derive(Debug)]
 pub struct Info {
     pub present: Time,
     pub active_player: bool,
@@ -58,6 +60,7 @@ pub struct Info {
     pub timelines_black: Vec<TimelineInfo>,
 }
 
+#[derive(Debug)]
 pub struct Game {
     pub boards: HashMap<(Layer, Time), Board>,
     pub width: Physical,
@@ -90,6 +93,60 @@ impl Piece {
             | PieceKind::Brawn => true,
             _ => false
         }
+    }
+}
+
+impl fmt::Debug for Piece {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = format!("{:?}", self.kind);
+        if self.moved {
+            if self.white {
+                write!(f, "{}", s.green().bold())
+            } else {
+                write!(f, "{}", s.magenta().bold())
+            }
+        } else {
+            if self.white {
+                write!(f, "{}", s.green())
+            } else {
+                write!(f, "{}", s.magenta())
+            }
+        }
+    }
+}
+
+impl fmt::Debug for PieceKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match self {
+            PieceKind::Pawn => "P",
+            PieceKind::Knight => "N",
+            PieceKind::Bishop => "B",
+            PieceKind::Rook => "R",
+            PieceKind::Queen => "Q",
+            PieceKind::Princess => "S",
+            PieceKind::King => "K",
+            PieceKind::Brawn => "β",
+            PieceKind::Unicorn => "U",
+            PieceKind::Dragon => "D",
+            PieceKind::CommonKing => "κ",
+            PieceKind::RoyalQueen => "ρ",
+        })
+    }
+}
+
+impl fmt::Debug for Board {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\n")?;
+        for y in 0..self.height {
+            for x in 0..self.width {
+                match self.get(x, y) {
+                    Some(x) => write!(f, "{:?}", x)?,
+                    None => write!(f, "{}", ".".white())?,
+                }
+            }
+            write!(f, "\n")?;
+        }
+        Ok(())
     }
 }
 
