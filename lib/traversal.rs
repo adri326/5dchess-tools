@@ -1,4 +1,4 @@
-use crate::game::*;
+use crate::prelude::*;
 
 /** Preorder tree traversal algorithm, or "bubble down" algorithm (down as in https://www.reddit.com/r/ProgrammerHumor/comments/kk5ng1/finally_after_years_of_search_i_found_a_real_tree/).
     Traverses a game state by going forward in time.

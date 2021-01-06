@@ -1,4 +1,4 @@
-use crate::game::{Board, Game, Layer, Physical, Piece, PieceKind, Time, TimelineInfo};
+use crate::prelude::{Board, Game, Layer, Physical, Piece, PieceKind, Time, TimelineInfo};
 use crate::traversal::bubble_down_mut;
 use serde::Deserialize;
 use std::collections::HashMap;
