@@ -15,7 +15,7 @@ impl fmt::Debug for Board {
         write!(f, "\n")?;
         for y in 0..self.height {
             for x in 0..self.width {
-                match self.get(x, y) {
+                match self.get((x, y)) {
                     Some(x) => write!(f, "{:?}", x)?,
                     None => write!(f, "{}", ".".white())?,
                 }
@@ -37,11 +37,11 @@ impl Board {
         }
     }
 
-    pub fn get(&self, x: Physical, y: Physical) -> Option<Piece> {
+    pub fn get(&self, (x, y): (Physical, Physical)) -> Option<Piece> {
         self.pieces.get((x + self.width * y) as usize).map(|x| *x).flatten()
     }
 
-    pub fn get_unchecked(&self, x: Physical, y: Physical) -> Option<Piece> {
+    pub fn get_unchecked(&self, (x, y): (Physical, Physical)) -> Option<Piece> {
         self.pieces[(x + self.width * y) as usize]
     }
 }

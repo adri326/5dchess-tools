@@ -23,19 +23,19 @@ impl Game {
         }
     }
 
-    pub fn get_board(&self, l: Layer, t: Time) -> Option<&Board> {
+    pub fn get_board(&self, (l, t): (Layer, Time)) -> Option<&Board> {
         self.boards.get(&(l, t))
     }
 
-    pub fn get_board_unchecked(&self, l: Layer, t: Time) -> &Board {
+    pub fn get_board_unchecked(&self, (l, t): (Layer, Time)) -> &Board {
         &self.boards[&(l, t)]
     }
 
-    pub fn get(&self, (l, t, x, y): Coords) -> Option<Piece> {
-        self.boards.get(&(l, t)).map(|b| b.get(x, y)).flatten()
+    pub fn get(&self, Coords(l, t, x, y): Coords) -> Option<Piece> {
+        self.boards.get(&(l, t)).map(|b| b.get((x, y))).flatten()
     }
 
-    pub fn get_unchecked(&self, (l, t, x, y): Coords) -> Option<Piece> {
-        self.boards[&(l, t)].get_unchecked(x, y)
+    pub fn get_unchecked(&self, Coords(l, t, x, y): Coords) -> Option<Piece> {
+        self.boards[&(l, t)].get_unchecked((x, y))
     }
 }

@@ -1,4 +1,4 @@
-use chess5dlib::game::*;
+use chess5dlib::prelude::*;
 
 #[test]
 fn test_even_timelines() {

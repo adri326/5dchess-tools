@@ -1,4 +1,4 @@
-use crate::prelude::{Board, Game, Layer, Physical, Piece, PieceKind, Time, TimelineInfo};
+use crate::prelude::{Board, Game, Layer, Physical, Piece, PieceKind, Time, TimelineInfo, Coords};
 use crate::traversal::bubble_down_mut;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -103,7 +103,7 @@ pub fn parse(raw: &str) -> Option<Game> {
         let mut initial_state: Vec<Option<Piece>> = Vec::new();
 
         for index in 0..board_size {
-            initial_state.push(res.get((
+            initial_state.push(res.get(Coords(
                 coords.0,
                 coords.1,
                 (index % game_raw.width as usize) as Physical,
