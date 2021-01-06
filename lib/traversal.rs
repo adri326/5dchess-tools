@@ -51,7 +51,7 @@ pub fn bubble_down_mut<'a, F, T>(
     }
 
     for coords in next_coords.into_iter() {
-        bubble_up_mut(game, coords, function, new_state.clone());
+        bubble_down_mut(game, coords, function, new_state.clone());
     }
 }
 
@@ -97,7 +97,7 @@ where
         .chain(game.info.timelines_black.iter())
     {
         if timeline.starts_from == Some(coords) {
-            bubble_up(
+            bubble_down(
                 game,
                 (timeline.index, coords.1 + 1),
                 function,
