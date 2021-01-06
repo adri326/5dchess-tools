@@ -2,6 +2,9 @@ use std::fmt;
 use colored::*;
 use super::*;
 
+/**
+    Represents the kind of a piece (pawn, knight, etc.)
+**/
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum PieceKind {
     Pawn,
@@ -18,6 +21,9 @@ pub enum PieceKind {
     RoyalQueen,
 }
 
+/**
+    Represents a piece within the game, stores its kind, its color and whether or not it had already moved.
+**/
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Piece {
     pub kind: PieceKind,
@@ -44,7 +50,21 @@ impl Piece {
     }
 
     #[inline]
+    pub fn can_castle(&self) -> bool {
+        self.kind == PieceKind::King
+    }
+
+    #[inline]
     pub fn can_promote(&self) -> bool {
+        match self.kind {
+            PieceKind::Pawn
+            | PieceKind::Brawn => true,
+            _ => false
+        }
+    }
+
+    #[inline]
+    pub fn can_enpassant(&self) -> bool {
         match self.kind {
             PieceKind::Pawn
             | PieceKind::Brawn => true,

@@ -103,12 +103,12 @@ pub fn parse(raw: &str) -> Option<Game> {
         let mut initial_state: Vec<Option<Piece>> = Vec::new();
 
         for index in 0..board_size {
-            initial_state.push(res.get(
+            initial_state.push(res.get((
                 coords.0,
                 coords.1,
                 (index % game_raw.width as usize) as Physical,
                 (index / game_raw.width as usize) as Physical,
-            ));
+            )));
         }
 
         bubble_down_mut(

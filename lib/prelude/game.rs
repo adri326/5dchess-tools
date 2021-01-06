@@ -2,7 +2,6 @@
     Structures and functions related to the game's state.
 */
 
-use std::fmt;
 use std::collections::HashMap;
 use super::*;
 
@@ -32,11 +31,11 @@ impl Game {
         &self.boards[&(l, t)]
     }
 
-    pub fn get(&self, l: Layer, t: Time, x: Physical, y: Physical) -> Option<Piece> {
+    pub fn get(&self, (l, t, x, y): Coords) -> Option<Piece> {
         self.boards.get(&(l, t)).map(|b| b.get(x, y)).flatten()
     }
 
-    pub fn get_unchecked(&self, l: Layer, t: Time, x: Physical, y: Physical) -> Option<Piece> {
+    pub fn get_unchecked(&self, (l, t, x, y): Coords) -> Option<Piece> {
         self.boards[&(l, t)].get_unchecked(x, y)
     }
 }
