@@ -1,8 +1,5 @@
 use super::*;
-use std::borrow::Borrow;
 use std::collections::hash_map::{HashMap, Keys};
-use std::fmt;
-use std::hash::Hash;
 
 /** Represents a "partial game state": the game state that a branch of a tree search algorithm needs to store.
     This structure is recursive to allow for recursive algorithms to perform better (by reducing the number of clones needed).
@@ -88,8 +85,8 @@ impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
         }
     }
 
-    pub fn get_with_game<'b>(&'b self, game: &'b Game, coords: Coords) -> Option<Piece> {
-        self.get_board_with_game(game, coords.non_physical()).map(|b| b.get(coords.physical())).flatten()
+    pub fn get_with_game<'b>(&'b self, game: &'b Game, coords: Coords) -> Tile {
+        self.get_board_with_game(game, coords.non_physical()).map(|b| b.get(coords.physical())).into()
     }
 }
 

@@ -1,11 +1,10 @@
 use std::fmt;
 use colored::*;
-use super::*;
 
 /**
     Represents the kind of a piece (pawn, knight, etc.)
 **/
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash)]
 pub enum PieceKind {
     Pawn,
     Knight,
@@ -24,7 +23,7 @@ pub enum PieceKind {
 /**
     Represents a piece within the game, stores its kind, its color and whether or not it had already moved.
 **/
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Piece {
     pub kind: PieceKind,
     pub white: bool,

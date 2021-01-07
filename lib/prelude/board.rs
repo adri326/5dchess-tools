@@ -7,7 +7,7 @@ pub struct Board {
     pub t: Time,
     pub width: Physical,
     pub height: Physical,
-    pub pieces: Vec<Option<Piece>>,
+    pub pieces: Vec<Tile>,
 }
 
 impl fmt::Debug for Board {
@@ -16,8 +16,8 @@ impl fmt::Debug for Board {
         for y in 0..self.height {
             for x in 0..self.width {
                 match self.get((x, y)) {
-                    Some(x) => write!(f, "{:?}", x)?,
-                    None => write!(f, "{}", ".".white())?,
+                    Tile::Piece(x) => write!(f, "{:?}", x)?,
+                    _ => write!(f, "{}", ".".white())?,
                 }
             }
             write!(f, "\n")?;
@@ -27,7 +27,7 @@ impl fmt::Debug for Board {
 }
 
 impl Board {
-    pub fn new(width: Physical, height: Physical, l: Layer, t: Time, pieces: Vec<Option<Piece>>) -> Self {
+    pub fn new(width: Physical, height: Physical, l: Layer, t: Time, pieces: Vec<Tile>) -> Self {
         Board {
             width,
             height,
@@ -37,11 +37,11 @@ impl Board {
         }
     }
 
-    pub fn get(&self, (x, y): (Physical, Physical)) -> Option<Piece> {
-        self.pieces.get((x + self.width * y) as usize).map(|x| *x).flatten()
+    pub fn get(&self, (x, y): (Physical, Physical)) -> Tile {
+        self.pieces.get((x + self.width * y) as usize).map(|x| *x).into()
     }
 
-    pub fn get_unchecked(&self, (x, y): (Physical, Physical)) -> Option<Piece> {
+    pub fn get_unchecked(&self, (x, y): (Physical, Physical)) -> Tile {
         self.pieces[(x + self.width * y) as usize]
     }
 }

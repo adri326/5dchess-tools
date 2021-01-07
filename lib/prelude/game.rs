@@ -31,11 +31,11 @@ impl Game {
         &self.boards[&(l, t)]
     }
 
-    pub fn get(&self, Coords(l, t, x, y): Coords) -> Option<Piece> {
-        self.boards.get(&(l, t)).map(|b| b.get((x, y))).flatten()
+    pub fn get(&self, Coords(l, t, x, y): Coords) -> Tile {
+        self.boards.get(&(l, t)).map(|b| b.get((x, y))).into()
     }
 
-    pub fn get_unchecked(&self, Coords(l, t, x, y): Coords) -> Option<Piece> {
+    pub fn get_unchecked(&self, Coords(l, t, x, y): Coords) -> Tile {
         self.boards[&(l, t)].get_unchecked((x, y))
     }
 }

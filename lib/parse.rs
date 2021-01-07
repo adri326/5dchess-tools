@@ -1,4 +1,4 @@
-use crate::prelude::{Board, Game, Layer, Physical, Piece, PieceKind, Time, TimelineInfo, Coords};
+use crate::prelude::{Board, Game, Layer, Physical, Piece, PieceKind, Time, TimelineInfo, Coords, Tile};
 use crate::traversal::bubble_down_mut;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -71,7 +71,7 @@ pub fn parse(raw: &str) -> Option<Game> {
             let time: Time = timeline.begins_at as Time + dt as Time;
 
             // Note that any unknown piece will be interpreted as a blank square
-            let pieces: Vec<Option<Piece>> = board_raw
+            let pieces: Vec<Tile> = board_raw
                 .iter()
                 .map(|piece_raw| de_piece(*piece_raw))
                 .collect();
@@ -100,7 +100,7 @@ pub fn parse(raw: &str) -> Option<Game> {
         let coords = (layer, first_board);
         let board_size = game_raw.width as usize * game_raw.height as usize;
 
-        let mut initial_state: Vec<Option<Piece>> = Vec::new();
+        let mut initial_state: Vec<Tile> = Vec::new();
 
         for index in 0..board_size {
             initial_state.push(res.get(Coords(
@@ -120,19 +120,22 @@ pub fn parse(raw: &str) -> Option<Game> {
                     if board.pieces[index] == state[index] {
                         // If the piece didn't move...
                         board.pieces[index] = match board.pieces[index] {
-                            Some(mut piece) => {
+                            Tile::Piece(mut piece) => {
                                 piece.moved = false; // Set its flag to false
-                                Some(piece)
+                                Tile::Piece(piece)
                             }
                             x => x,
                         };
                     } else {
                         // If the piece moved...
-                        match board.pieces[index] {
-                            Some(mut piece) => piece.moved = true, // Set its flag to true
-                            _ => (),
-                        }
-                        state[index] = None;
+                        board.pieces[index] = match board.pieces[index] {
+                            Tile::Piece(mut piece) => {
+                                piece.moved = true; // Set its flag to true
+                                Tile::Piece(piece)
+                            }
+                            x => x,
+                        };
+                        state[index] = Tile::Blank;
                     }
                 }
 
@@ -157,8 +160,8 @@ pub fn de_layer(raw: f32, even_timelines: bool) -> Layer {
 /** Deserializes a piece serialized as a `usize`-encoded number.
     This list is based on `5dchess-notation`: https://github.com/adri326/5dchess-notation/blob/master/parsers/game.js#L12
 **/
-pub fn de_piece(raw: usize) -> Option<Piece> {
-    Some(match raw {
+pub fn de_piece(raw: usize) -> Tile {
+    Tile::Piece(match raw {
         1 => Piece::new(PieceKind::Pawn, true, true),
         2 => Piece::new(PieceKind::Knight, true, true),
         3 => Piece::new(PieceKind::Bishop, true, true),
@@ -185,6 +188,6 @@ pub fn de_piece(raw: usize) -> Option<Piece> {
         43 => Piece::new(PieceKind::CommonKing, false, true),
         44 => Piece::new(PieceKind::RoyalQueen, false, true),
 
-        _ => return None,
+        _ => return Tile::Blank,
     })
 }

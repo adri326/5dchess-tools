@@ -8,6 +8,9 @@ pub use game::*;
 pub mod piece;
 pub use piece::*;
 
+pub mod tile;
+pub use tile::*;
+
 pub mod info;
 pub use info::*;
 

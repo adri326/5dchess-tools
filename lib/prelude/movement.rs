@@ -21,8 +21,8 @@ impl Move {
     /** Creates a new move; the move's kind is deduced from the coordinates and the game state. **/
     pub fn new(game: &Game, from: Coords, to: Coords) -> Option<Self> {
         let mut kind = MoveKind::Normal;
-        let from = (game.get(from)?, from);
-        let to = (game.get(to), to);
+        let from: (Piece, Coords) = (game.get(from).piece()?, from);
+        let to: (Option<Piece>, Coords) = (game.get(to).into(), to);
 
         if from.0.can_enpassant() && to.0.is_none() && (from.1).2 != (to.1).2 {
             kind = MoveKind::EnPassant;
