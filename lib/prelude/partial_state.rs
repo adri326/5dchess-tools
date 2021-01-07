@@ -10,13 +10,13 @@ use std::hash::Hash;
 
     The "boards" store a hashmap over an arbitrary data structure B. You may put any extension of `Board` in it!
 **/
-pub struct PartialGame<'a, B: Clone + 'a> {
+pub struct PartialGame<'a, B: Clone + AsRef<Board> + 'a> {
     pub boards: HashMap<(Layer, Time), B>,
     pub info: Info,
     pub parent: Option<&'a PartialGame<'a, B>>,
 }
 
-impl<'a, B: Clone + 'a> PartialGame<'a, B> {
+impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
     /** Creates a new PartialGame instance.
         Use this function if you are making use of the recursive data structure or you are initializing a new partial game state
     **/
@@ -53,7 +53,7 @@ impl<'a, B: Clone + 'a> PartialGame<'a, B> {
     }
 
     /** Returns an iterator over all of the boards contained within that partial game state and its parents.
-        That iterator yields objects of type `PartialGameRef`, which implement `AsRef<B>`.
+        That iterator yields objects of type `&B`.
         If you only wish to yield an iterator over the boards in this layer of partial game state, use `iter_shallow` instead.
     **/
     pub fn iter(&'a self) -> PartialGameIter<'a, B> {
@@ -80,9 +80,20 @@ impl<'a, B: Clone + 'a> PartialGame<'a, B> {
             },
         }
     }
+
+    pub fn get_board_with_game<'b>(&'b self, game: &'b Game, coords: (Layer, Time)) -> Option<&'b Board> {
+        match game.get_board(coords) {
+            Some(b) => Some(b),
+            None => self.get_board(coords).map(|b| b.as_ref())
+        }
+    }
+
+    pub fn get_with_game<'b>(&'b self, game: &'b Game, coords: Coords) -> Option<Piece> {
+        self.get_board_with_game(game, coords.non_physical()).map(|b| b.get(coords.physical())).flatten()
+    }
 }
 
-impl<'a, B: Clone + 'a> From<&'_ Game> for PartialGame<'a, B> {
+impl<'a, B: Clone + AsRef<Board> + 'a> From<&'_ Game> for PartialGame<'a, B> {
     fn from(game: &'_ Game) -> Self {
         Self {
             boards: HashMap::new(),
@@ -92,20 +103,17 @@ impl<'a, B: Clone + 'a> From<&'_ Game> for PartialGame<'a, B> {
     }
 }
 
-pub struct PartialGameIter<'a, B: Clone + 'a> {
+pub struct PartialGameIter<'a, B: Clone + AsRef<Board> + 'a> {
     pub partial_game: &'a PartialGame<'a, B>,
     pub iter: Keys<'a, (Layer, Time), B>,
 }
 
-impl<'a, B: Clone + 'a> Iterator for PartialGameIter<'a, B> {
-    type Item = PartialGameRef<'a, B>;
+impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for PartialGameIter<'a, B> {
+    type Item = &'a B;
 
     fn next(&'_ mut self) -> Option<Self::Item> {
         match self.iter.next() {
-            Some(coords) => Some(PartialGameRef {
-                coords: *coords,
-                partial_game: self.partial_game,
-            }),
+            Some(coords) => Some(&self.partial_game.boards[coords]),
             None => match self.partial_game.parent {
                 Some(parent) => {
                     self.partial_game = parent;
@@ -122,35 +130,6 @@ impl<'a, B: Clone + 'a> Iterator for PartialGameIter<'a, B> {
             self.iter.size_hint()
         } else {
             (self.iter.size_hint().0, None)
-        }
-    }
-}
-
-pub struct PartialGameRef<'a, B: Clone + 'a> {
-    pub coords: (Layer, Time),
-    pub partial_game: &'a PartialGame<'a, B>,
-}
-
-impl<'a, B: Clone + 'a> AsRef<B> for PartialGameRef<'a, B> {
-    fn as_ref<'b>(&'b self) -> &'b B {
-        &self.partial_game.boards[&self.coords]
-    }
-}
-
-impl<'a, B: Clone + fmt::Debug + 'a> fmt::Debug for PartialGameRef<'a, B> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> std::fmt::Result {
-        f.debug_tuple("PartialGameRef")
-            .field(self.as_ref() as &B)
-            .finish()
-    }
-}
-
-impl<'a, B: Clone + 'a> Clone for PartialGameRef<'a, B> {
-    /** Does NOT clone the underlying partial_game **/
-    fn clone(&self) -> Self {
-        PartialGameRef {
-            coords: self.coords,
-            partial_game: self.partial_game,
         }
     }
 }
