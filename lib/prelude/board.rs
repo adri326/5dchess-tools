@@ -9,6 +9,7 @@ pub struct Board {
     pub width: Physical,
     pub height: Physical,
     pub pieces: Vec<Tile>,
+    pub en_passant: Option<(Physical, Physical)>,
 }
 
 impl fmt::Debug for Board {
@@ -34,21 +35,26 @@ impl std::convert::AsRef<Board> for Board {
 }
 
 impl Board {
-    pub fn new(width: Physical, height: Physical, l: Layer, t: Time, pieces: Vec<Tile>) -> Self {
+    pub fn new(width: Physical, height: Physical, l: Layer, t: Time, pieces: Vec<Tile>, en_passant: Option<(Physical, Physical)>) -> Self {
         Board {
             width,
             height,
             l,
             t,
             pieces,
+            en_passant,
         }
     }
 
     pub fn get(&self, (x, y): (Physical, Physical)) -> Tile {
-        self.pieces
-            .get((x + self.width * y) as usize)
-            .map(|x| *x)
-            .into()
+        if x < 0 || x >= self.width || y < 0 || y >= self.height {
+            Tile::Void
+        } else {
+            self.pieces
+                .get((x + self.width * y) as usize)
+                .map(|x| *x)
+                .into()
+        }
     }
 
     pub fn get_unchecked(&self, (x, y): (Physical, Physical)) -> Tile {

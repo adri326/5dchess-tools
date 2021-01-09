@@ -64,3 +64,19 @@ impl std::ops::Add<Coords> for Coords {
         Self(self.0 + w.0, self.1 + w.1, self.2 + w.2, self.3 + w.3)
     }
 }
+
+impl std::ops::Sub<Coords> for Coords {
+    type Output = Coords;
+
+    fn sub(self, w: Coords) -> Coords {
+        Self(self.0 - w.0, self.1 - w.1, self.2 - w.2, self.3 - w.3)
+    }
+}
+
+impl std::ops::Mul<isize> for Coords {
+    type Output = Coords;
+
+    fn mul(self, w: isize) -> Coords {
+        Self(self.0 * w as Layer, self.1 * w as Time, self.2 * w as Physical, self.3 * w as Physical)
+    }
+}

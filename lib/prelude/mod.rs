@@ -1,6 +1,6 @@
 pub type Layer = isize;
 pub type Time = isize;
-pub type Physical = u8;
+pub type Physical = i8;
 
 pub mod game;
 pub use game::*;
@@ -25,3 +25,6 @@ pub use coords::*;
 
 pub mod partial_state;
 pub use partial_state::*;
+
+// pub mod gen;
+// pub use gen::*;

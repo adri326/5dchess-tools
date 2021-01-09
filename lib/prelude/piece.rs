@@ -63,6 +63,14 @@ impl Piece {
             _ => false,
         }
     }
+
+    #[inline]
+    pub fn can_kickstart(&self) -> bool {
+        match self.kind {
+            PieceKind::Pawn | PieceKind::Brawn => true,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Debug for Piece {

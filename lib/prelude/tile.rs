@@ -35,7 +35,25 @@ impl Tile {
     #[inline]
     pub fn is_empty(&self) -> bool {
         match self {
-            Tile::Piece(_) => true,
+            Tile::Piece(_) => false,
+            _ => true,
+        }
+    }
+
+    /** Returns whether or not the tile is a non-void, blank. **/
+    #[inline]
+    pub fn is_blank(&self) -> bool {
+        match self {
+            Tile::Blank => true,
+            _ => false,
+        }
+    }
+
+    /** Returns whether or not the tile is a non-void, blank. **/
+    #[inline]
+    pub fn is_piece_of_color(&self, color: bool) -> bool {
+        match self {
+            Tile::Piece(p) => p.white == color,
             _ => false,
         }
     }

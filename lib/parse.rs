@@ -78,7 +78,7 @@ pub fn parse(raw: &str) -> Option<Game> {
                 .map(|piece_raw| de_piece(*piece_raw))
                 .collect();
 
-            let board: Board = Board::new(game_raw.width, game_raw.height, layer, time, pieces);
+            let board: Board = Board::new(game_raw.width, game_raw.height, layer, time, pieces, None);
             boards.insert((layer, time), board);
         }
     }
@@ -113,12 +113,17 @@ pub fn parse(raw: &str) -> Option<Game> {
             )));
         }
 
+        let initial_board = res.get_board((layer, first_board))?.clone();
+
         bubble_down_mut(
             &mut res,
             coords,
-            |board, _coords, mut state| {
+            |board, _coords, (mut state, previous_board)| {
                 // For each piece...
                 for index in 0..board_size {
+                    let x = (index % game_raw.width as usize) as Physical;
+                    let y = (index / game_raw.width as usize) as Physical;
+
                     if board.pieces[index] == state[index] {
                         // If the piece didn't move...
                         board.pieces[index] = match board.pieces[index] {
@@ -133,17 +138,31 @@ pub fn parse(raw: &str) -> Option<Game> {
                         board.pieces[index] = match board.pieces[index] {
                             Tile::Piece(mut piece) => {
                                 piece.moved = true; // Set its flag to true
+
+                                // If it is a pawn-like piece, fill in the en_passant field
+                                if piece.can_kickstart() {
+                                    if piece.white {
+                                        if previous_board.get((x, y - 1)).is_empty() {
+                                            board.en_passant = Some((x, y - 1))
+                                        }
+                                    } else {
+                                        if previous_board.get((x, y + 1)).is_empty() {
+                                            board.en_passant = Some((x, y + 1))
+                                        }
+                                    }
+                                }
+
                                 Tile::Piece(piece)
                             }
                             x => x,
                         };
-                        state[index] = Tile::Blank;
+                        state[index] = board.pieces[index];
                     }
                 }
 
-                state
+                (state, board.clone())
             },
-            initial_state,
+            (initial_state, initial_board),
         );
     }
 
