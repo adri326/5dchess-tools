@@ -1,5 +1,5 @@
-use std::fmt;
 use colored::*;
+use std::fmt;
 
 /**
     Represents the kind of a piece (pawn, knight, etc.)
@@ -32,19 +32,14 @@ pub struct Piece {
 
 impl Piece {
     pub fn new(kind: PieceKind, white: bool, moved: bool) -> Self {
-        Self {
-            kind,
-            white,
-            moved,
-        }
+        Self { kind, white, moved }
     }
 
     #[inline]
     pub fn is_royal(&self) -> bool {
         match self.kind {
-            PieceKind::King
-            | PieceKind::RoyalQueen => true,
-            _ => false
+            PieceKind::King | PieceKind::RoyalQueen => true,
+            _ => false,
         }
     }
 
@@ -56,18 +51,16 @@ impl Piece {
     #[inline]
     pub fn can_promote(&self) -> bool {
         match self.kind {
-            PieceKind::Pawn
-            | PieceKind::Brawn => true,
-            _ => false
+            PieceKind::Pawn | PieceKind::Brawn => true,
+            _ => false,
         }
     }
 
     #[inline]
     pub fn can_enpassant(&self) -> bool {
         match self.kind {
-            PieceKind::Pawn
-            | PieceKind::Brawn => true,
-            _ => false
+            PieceKind::Pawn | PieceKind::Brawn => true,
+            _ => false,
         }
     }
 }
@@ -93,19 +86,23 @@ impl fmt::Debug for Piece {
 
 impl fmt::Debug for PieceKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self {
-            PieceKind::Pawn => "P",
-            PieceKind::Knight => "N",
-            PieceKind::Bishop => "B",
-            PieceKind::Rook => "R",
-            PieceKind::Queen => "Q",
-            PieceKind::Princess => "S",
-            PieceKind::King => "K",
-            PieceKind::Brawn => "β",
-            PieceKind::Unicorn => "U",
-            PieceKind::Dragon => "D",
-            PieceKind::CommonKing => "κ",
-            PieceKind::RoyalQueen => "ρ",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                PieceKind::Pawn => "P",
+                PieceKind::Knight => "N",
+                PieceKind::Bishop => "B",
+                PieceKind::Rook => "R",
+                PieceKind::Queen => "Q",
+                PieceKind::Princess => "S",
+                PieceKind::King => "K",
+                PieceKind::Brawn => "β",
+                PieceKind::Unicorn => "U",
+                PieceKind::Dragon => "D",
+                PieceKind::CommonKing => "κ",
+                PieceKind::RoyalQueen => "ρ",
+            }
+        )
     }
 }

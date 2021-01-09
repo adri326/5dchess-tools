@@ -1,6 +1,6 @@
 use super::Piece;
 
-/** Hold the state of a coordinate's pointed tile. Such a tile may either be:
+/** Holds the state of a coordinate's pointed tile. Such a tile may either be:
     - a piece (`Tile::Piece(...)`)
     - a blank on a board (`Tile::Blank`)
     - the void (where there is no board or out of bounds) (`Tile::Void`)
@@ -11,7 +11,7 @@ use super::Piece;
 pub enum Tile {
     Piece(Piece),
     Blank,
-    Void
+    Void,
 }
 
 impl Tile {
@@ -36,7 +36,7 @@ impl Tile {
     pub fn is_empty(&self) -> bool {
         match self {
             Tile::Piece(_) => true,
-            _ => false
+            _ => false,
         }
     }
 

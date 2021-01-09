@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate lazy_static;
-extern crate scoped_threadpool;
+extern crate colored;
 extern crate permute;
+extern crate scoped_threadpool;
 extern crate serde;
 extern crate serde_json;
-extern crate colored;
 
 pub mod prelude;
 pub use prelude::*;

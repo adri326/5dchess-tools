@@ -2,8 +2,8 @@
     Structures and functions related to the game's state.
 */
 
-use std::collections::HashMap;
 use super::*;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Game {
@@ -14,7 +14,13 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(width: Physical, height: Physical, even_timelines: bool, timelines_white: Vec<TimelineInfo>, timelines_black: Vec<TimelineInfo>) -> Self {
+    pub fn new(
+        width: Physical,
+        height: Physical,
+        even_timelines: bool,
+        timelines_white: Vec<TimelineInfo>,
+        timelines_black: Vec<TimelineInfo>,
+    ) -> Self {
         Game {
             boards: HashMap::new(),
             width,
