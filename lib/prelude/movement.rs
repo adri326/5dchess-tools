@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 /** Represents a move's kind (regular move, castling move, etc.) **/
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MoveKind {
     Normal,
     Castle,
@@ -12,7 +12,7 @@ pub enum MoveKind {
 }
 
 /** Represents a piece's movement. **/
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Move {
     pub from: (Piece, Coords),
     pub to: (Option<Piece>, Coords),
@@ -83,12 +83,18 @@ pub enum MovesetValidityErr {
     - there aren't too many moves or no moves
 **/
 #[derive(Debug, Clone)]
-pub struct Moveset(Vec<Move>);
+pub struct Moveset {
+    moves: Vec<Move>,
+}
 
 impl Moveset {
     /** Creates a new moveset from a set of moves and an info, verifying the requirements of the type. **/
     pub fn new(moves: Vec<Move>, info: &Info) -> Result<Moveset, MovesetValidityErr> {
         Self::try_from((moves, info))
+    }
+
+    pub fn moves(&self) -> &Vec<Move> {
+        &self.moves
     }
 }
 
@@ -147,6 +153,6 @@ impl TryFrom<(Vec<Move>, &Info)> for Moveset {
             }
         }
 
-        Ok(Moveset(moves))
+        Ok(Moveset { moves })
     }
 }

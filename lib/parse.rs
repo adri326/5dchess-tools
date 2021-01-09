@@ -78,7 +78,8 @@ pub fn parse(raw: &str) -> Option<Game> {
                 .map(|piece_raw| de_piece(*piece_raw))
                 .collect();
 
-            let board: Board = Board::new(game_raw.width, game_raw.height, layer, time, pieces, None);
+            let board: Board =
+                Board::new(game_raw.width, game_raw.height, layer, time, pieces, None);
             boards.insert((layer, time), board);
         }
     }

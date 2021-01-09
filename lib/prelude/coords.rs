@@ -1,6 +1,6 @@
 use super::{Board, Layer, Physical, Time};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Coords(pub Layer, pub Time, pub Physical, pub Physical); // ⟨l, t, x, y⟩
 
 impl Coords {
@@ -51,6 +51,12 @@ impl From<(Layer, Time, Physical, Physical)> for Coords {
     }
 }
 
+impl From<(isize, isize, isize, isize)> for Coords {
+    fn from((l, t, x, y): (isize, isize, isize, isize)) -> Self {
+        Self(l as Layer, t as Time, x as Physical, y as Physical)
+    }
+}
+
 impl From<(Board, (Physical, Physical))> for Coords {
     fn from((board, (x, y)): (Board, (Physical, Physical))) -> Self {
         Self(board.l, board.t, x, y)
@@ -77,6 +83,11 @@ impl std::ops::Mul<isize> for Coords {
     type Output = Coords;
 
     fn mul(self, w: isize) -> Coords {
-        Self(self.0 * w as Layer, self.1 * w as Time, self.2 * w as Physical, self.3 * w as Physical)
+        Self(
+            self.0 * w as Layer,
+            self.1 * w as Time,
+            self.2 * w as Physical,
+            self.3 * w as Physical,
+        )
     }
 }

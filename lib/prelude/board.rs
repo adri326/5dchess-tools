@@ -35,7 +35,14 @@ impl std::convert::AsRef<Board> for Board {
 }
 
 impl Board {
-    pub fn new(width: Physical, height: Physical, l: Layer, t: Time, pieces: Vec<Tile>, en_passant: Option<(Physical, Physical)>) -> Self {
+    pub fn new(
+        width: Physical,
+        height: Physical,
+        l: Layer,
+        t: Time,
+        pieces: Vec<Tile>,
+        en_passant: Option<(Physical, Physical)>,
+    ) -> Self {
         Board {
             width,
             height,
