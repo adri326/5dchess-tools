@@ -78,16 +78,26 @@ impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
         }
     }
 
-    pub fn get_board_with_game<'b>(&'b self, game: &'b Game, coords: (Layer, Time)) -> Option<&'b Board> {
+    pub fn get_board_with_game<'b>(
+        &'b self,
+        game: &'b Game,
+        coords: (Layer, Time),
+    ) -> Option<&'b Board> {
         match game.get_board(coords) {
             Some(b) => Some(b),
-            None => self.get_board(coords).map(|b| b.as_ref())
+            None => self.get_board(coords).map(|b| b.as_ref()),
         }
     }
 
     pub fn get_with_game<'b>(&'b self, game: &'b Game, coords: Coords) -> Tile {
-        self.get_board_with_game(game, coords.non_physical()).map(|b| b.get(coords.physical())).into()
+        self.get_board_with_game(game, coords.non_physical())
+            .map(|b| b.get(coords.physical()))
+            .into()
     }
+}
+
+pub fn no_partial_game<'a>(game: &Game) -> PartialGame<'static, Board> {
+    PartialGame::new(HashMap::new(), game.info.clone(), None)
 }
 
 impl<'a, B: Clone + AsRef<Board> + 'a> From<&'_ Game> for PartialGame<'a, B> {

@@ -1,4 +1,4 @@
-use super::{Layer, Time, Physical, Board};
+use super::{Board, Layer, Physical, Time};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Coords(pub Layer, pub Time, pub Physical, pub Physical); // ⟨l, t, x, y⟩
@@ -16,6 +16,26 @@ impl Coords {
     #[inline]
     pub fn non_physical(self) -> (Layer, Time) {
         (self.0, self.1)
+    }
+
+    #[inline]
+    pub fn l(self) -> Layer {
+        self.0
+    }
+
+    #[inline]
+    pub fn t(self) -> Time {
+        self.1
+    }
+
+    #[inline]
+    pub fn x(self) -> Physical {
+        self.2
+    }
+
+    #[inline]
+    pub fn y(self) -> Physical {
+        self.3
     }
 }
 

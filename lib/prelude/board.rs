@@ -1,7 +1,8 @@
-use std::fmt;
-use colored::*;
 use super::*;
+use colored::*;
+use std::fmt;
 
+#[derive(Clone)]
 pub struct Board {
     pub l: Layer,
     pub t: Time,
@@ -26,6 +27,12 @@ impl fmt::Debug for Board {
     }
 }
 
+impl std::convert::AsRef<Board> for Board {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 impl Board {
     pub fn new(width: Physical, height: Physical, l: Layer, t: Time, pieces: Vec<Tile>) -> Self {
         Board {
@@ -38,7 +45,10 @@ impl Board {
     }
 
     pub fn get(&self, (x, y): (Physical, Physical)) -> Tile {
-        self.pieces.get((x + self.width * y) as usize).map(|x| *x).into()
+        self.pieces
+            .get((x + self.width * y) as usize)
+            .map(|x| *x)
+            .into()
     }
 
     pub fn get_unchecked(&self, (x, y): (Physical, Physical)) -> Tile {

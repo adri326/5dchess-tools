@@ -20,7 +20,12 @@ pub struct Info {
 }
 
 impl TimelineInfo {
-    pub fn new(index: Layer, starts_from: Option<(Layer, Time)>, last_board: Time, first_board: Time) -> Self {
+    pub fn new(
+        index: Layer,
+        starts_from: Option<(Layer, Time)>,
+        last_board: Time,
+        first_board: Time,
+    ) -> Self {
         TimelineInfo {
             index,
             starts_from,
@@ -37,7 +42,7 @@ impl Info {
     pub fn new(
         even_timelines: bool,
         timelines_white: Vec<TimelineInfo>,
-        timelines_black: Vec<TimelineInfo>
+        timelines_black: Vec<TimelineInfo>,
     ) -> Self {
         if timelines_white.len() == 0 {
             panic!("Expected at least one timeline!");
@@ -45,7 +50,8 @@ impl Info {
 
         let min_timeline = -(timelines_black.len() as Layer);
         let max_timeline = timelines_white.len() as Layer - 1;
-        let timeline_width = max_timeline.min(-min_timeline - (if even_timelines {1} else {0})) as usize + 1;
+        let timeline_width =
+            max_timeline.min(-min_timeline - (if even_timelines { 1 } else { 0 })) as usize + 1;
         let mut present = timelines_white[0].last_board;
 
         for tl in timelines_white.iter().take(timeline_width) {
@@ -54,7 +60,10 @@ impl Info {
             }
         }
 
-        for tl in timelines_black.iter().take(timeline_width - (if even_timelines {0} else {1})) {
+        for tl in timelines_black
+            .iter()
+            .take(timeline_width - (if even_timelines { 0 } else { 1 }))
+        {
             if tl.last_board < present {
                 present = tl.last_board;
             }
@@ -69,7 +78,7 @@ impl Info {
             max_timeline,
             even_timelines,
             timelines_white,
-            timelines_black
+            timelines_black,
         }
     }
 
@@ -82,7 +91,10 @@ impl Info {
     }
 
     pub fn is_active(&self, l: Layer) -> bool {
-        let timeline_width = self.max_timeline.min(-self.min_timeline - (if self.even_timelines {1} else {0})) + 1;
+        let timeline_width = self
+            .max_timeline
+            .min(-self.min_timeline - (if self.even_timelines { 1 } else { 0 }))
+            + 1;
         if l < 0 {
             if self.even_timelines {
                 -l <= timeline_width + 1
@@ -92,5 +104,17 @@ impl Info {
         } else {
             l <= timeline_width
         }
+    }
+
+    #[inline]
+    pub fn len_timelines(&self) -> usize {
+        self.timelines_black.len() + self.timelines_white.len()
+    }
+
+    /// Returns the number of active timelines that the player `white` can make
+    /// Returns 0 if they cannot make any new active timeline
+    pub fn timeline_advantage(&self, white: bool) -> usize {
+        // TODO
+        0
     }
 }
