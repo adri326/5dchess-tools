@@ -85,10 +85,10 @@ impl PawnIter {
                 // Brawn's capture moveset
                 Coords(0, 0, 1, 1),
                 Coords(0, 0, -1, 1),
-                Coords(0, -1, 0, 1),
+                Coords(0, -2, 0, 1),
                 Coords(1, 0, 0, 1),
-                Coords(1, 1, 0, 0),
-                Coords(1, -1, 0, 0),
+                Coords(1, 2, 0, 0),
+                Coords(1, -2, 0, 0),
                 Coords(1, 0, 1, 0),
                 Coords(1, 0, -1, 0),
             ]
@@ -97,8 +97,8 @@ impl PawnIter {
                 // Pawn's capture moveset
                 Coords(0, 0, 1, 1),
                 Coords(0, 0, -1, 1),
-                Coords(1, 1, 0, 0),
-                Coords(1, -1, 0, 0),
+                Coords(1, 2, 0, 0),
+                Coords(1, -2, 0, 0),
             ]
         } {
             if partial_game
@@ -282,10 +282,92 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for OneStepPieceIter<'a, B> {
     }
 }
 
+/** Iterator yielding the movements of a king, including castling **/
+pub struct KingIter<'a, B: Clone + AsRef<Board> + 'a> {
+    pub castling_direction: u8,
+    pub normal_moves: OneStepPieceIter<'a, B>,
+}
+
+impl<'a, B: Clone + AsRef<Board> + 'a> KingIter<'a, B> {
+    pub fn new(
+        piece: PiecePosition,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+    ) -> Self {
+        Self {
+            castling_direction: 0,
+            normal_moves: OneStepPieceIter::new(
+                piece,
+                game,
+                partial_game,
+                PERMUTATIONS[1]
+                    .iter()
+                    .chain(PERMUTATIONS[2].iter())
+                    .chain(PERMUTATIONS[3].iter())
+                    .chain(PERMUTATIONS[4].iter())
+                    .cloned()
+                    .collect()
+            ),
+        }
+    }
+}
+
+impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Move> {
+        if let Some(mv) = self.normal_moves.next() {
+            return Some(mv)
+        }
+
+        if self.castling_direction > 2 {
+            return None
+        }
+
+        let game = self.normal_moves.game;
+        let partial_game = self.normal_moves.partial_game;
+        let coords = self.normal_moves.coords;
+        let piece = self.normal_moves.piece;
+
+        self.castling_direction += 1;
+
+        if self.castling_direction == 1 { // castle left
+            let (mut x, y) = coords.physical();
+            let board = partial_game.get_board_with_game(game, coords.non_physical())?;
+            if x > 1 && board.get((x - 1, y)).is_empty() && board.get((x - 2, y)).is_empty() {
+                let mut rook_pos: Option<(Physical, Physical)> = None;
+                x -= 2;
+                while x >= 0 && board.get((x, y)).is_blank() {
+                    x -= 1;
+                }
+                if board.get((x, y)).piece().map(|p| p.kind == PieceKind::Rook && !p.moved && p.white == piece.white).unwrap_or(false) {
+                    return Move::new(game, partial_game, coords, Coords(coords.l(), coords.t(), coords.x() - 2, y))
+                }
+            }
+        } else if self.castling_direction == 2 { // castle right
+            let (mut x, y) = coords.physical();
+            let board = partial_game.get_board_with_game(game, coords.non_physical())?;
+            if x > 1 && board.get((x + 1, y)).is_empty() && board.get((x + 2, y)).is_empty() {
+                let mut rook_pos: Option<(Physical, Physical)> = None;
+                x += 2;
+                while x < board.width && board.get((x, y)).is_blank() {
+                    x += 1;
+                }
+                if board.get((x, y)).piece().map(|p| p.kind == PieceKind::Rook && !p.moved && p.white == piece.white).unwrap_or(false) {
+                    return Move::new(game, partial_game, coords, Coords(coords.l(), coords.t(), coords.x() + 2, y))
+                }
+            }
+        }
+
+        // CTR
+        self.next()
+    }
+}
+
 /** Iterator combining the different move kinds of all of the pieces. **/
-// TODO: castling
 pub enum PieceMoveIter<'a, B: Clone + AsRef<Board> + 'a> {
     Pawn(PawnIter),
+    King(KingIter<'a, B>),
     Ranging(RangingPieceIter<'a, B>),
     OneStep(OneStepPieceIter<'a, B>),
 }
@@ -298,6 +380,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for PieceMoveIter<'a, B> {
             PieceMoveIter::Pawn(i) => i.next(),
             PieceMoveIter::Ranging(i) => i.next(),
             PieceMoveIter::OneStep(i) => i.next(),
+            PieceMoveIter::King(i) => i.next(),
         }
     }
 }
@@ -370,8 +453,15 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, PieceMoveIter<'a, B>, B> for
                         .collect(),
                 ))
             }
-            PieceKind::King | PieceKind::CommonKing => {
-                PieceMoveIter::Ranging(RangingPieceIter::new(
+            PieceKind::King => {
+                PieceMoveIter::King(KingIter::new(
+                    *self,
+                    game,
+                    partial_game,
+                ))
+            }
+            PieceKind::CommonKing => {
+                PieceMoveIter::OneStep(OneStepPieceIter::new(
                     *self,
                     game,
                     partial_game,
@@ -403,29 +493,29 @@ lazy_static! {
         [
             (
                 vec![
-                    (2, 1, 0, 0),
-                    (1, 2, 0, 0),
-                    (0, 2, 1, 0),
-                    (0, 1, 2, 0),
+                    (2, 2, 0, 0),
+                    (1, 4, 0, 0),
+                    (0, 4, 1, 0),
+                    (0, 2, 2, 0),
                     (0, 0, 2, 1),
                     (0, 0, 1, 2),
                     (1, 0, 0, 2),
                     (2, 0, 0, 1),
                     (2, 0, 1, 0),
                     (1, 0, 2, 0),
-                    (0, 2, 0, 1),
-                    (0, 1, 0, 2),
+                    (0, 4, 0, 1),
+                    (0, 2, 0, 2),
                 ],
                 2,
             ),
             (
-                vec![(1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)],
+                vec![(1, 0, 0, 0), (0, 2, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)],
                 1,
             ),
             (
                 vec![
-                    (1, 1, 0, 0),
-                    (0, 1, 1, 0),
+                    (1, 2, 0, 0),
+                    (0, 2, 1, 0),
                     (0, 0, 1, 1),
                     (1, 0, 0, 1),
                     (1, 0, 1, 0),
@@ -434,10 +524,10 @@ lazy_static! {
                 2,
             ),
             (
-                vec![(0, 1, 1, 1), (1, 0, 1, 1), (1, 1, 0, 1), (1, 1, 1, 0)],
+                vec![(0, 2, 1, 1), (1, 0, 1, 1), (1, 2, 0, 1), (1, 2, 1, 0)],
                 3,
             ),
-            (vec![(1, 1, 1, 1)], 4),
+            (vec![(1, 2, 1, 1)], 4),
         ]
         .iter()
         .map(|(group, cardinality)| {

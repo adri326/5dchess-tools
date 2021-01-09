@@ -51,67 +51,25 @@ pub fn test_standard_empty_moves() {
 
     let game = parse(&contents).unwrap();
 
-    {
-        let position = Coords(0, 0, 1, 0);
-        let piece = PiecePosition::new(game.get(position).piece().unwrap(), position);
+    test_piece_movement(
+        &game,
+        &no_partial_game(&game),
+        Coords::new(0, 0, 1, 0),
+        vec![
+            Coords::new(0, 0, 0, 2),
+            Coords::new(0, 0, 2, 2),
+        ]
+    );
 
-        let movements: HashSet<Move> = piece
-            .generate_moves(&game, &no_partial_game(&game))
-            .unwrap()
-            .collect();
-        let mut movements_ground_truth: HashSet<Move> = HashSet::new();
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                Coords::new(0, 0, 1, 0),
-                Coords::new(0, 0, 0, 2),
-            )
-            .unwrap(),
-        );
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                Coords::new(0, 0, 1, 0),
-                Coords::new(0, 0, 2, 2),
-            )
-            .unwrap(),
-        );
-
-        assert_eq!(movements, movements_ground_truth);
-    }
-
-    {
-        let position = Coords(0, 0, 4, 1);
-        let piece = PiecePosition::new(game.get(position).piece().unwrap(), position);
-
-        let movements: HashSet<Move> = piece
-            .generate_moves(&game, &no_partial_game(&game))
-            .unwrap()
-            .collect();
-        let mut movements_ground_truth: HashSet<Move> = HashSet::new();
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                Coords::new(0, 0, 4, 1),
-                Coords::new(0, 0, 4, 2),
-            )
-            .unwrap(),
-        );
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                Coords::new(0, 0, 4, 1),
-                Coords::new(0, 0, 4, 3),
-            )
-            .unwrap(),
-        );
-
-        assert_eq!(movements, movements_ground_truth);
-    }
+    test_piece_movement(
+        &game,
+        &no_partial_game(&game),
+        Coords::new(0, 0, 4, 1),
+        vec![
+            Coords::new(0, 0, 4, 2),
+            Coords::new(0, 0, 4, 3),
+        ]
+    );
 }
 
 #[test]
@@ -123,61 +81,65 @@ pub fn test_standard_d4d5_moves() {
 
     let game = parse(&contents).unwrap();
 
-    {
-        let position = Coords(0, 2, 2, 0);
-        let piece = PiecePosition::new(game.get(position).piece().unwrap(), position);
+    // c1-bishop
+    test_piece_movement(
+        &game,
+        &no_partial_game(&game),
+        Coords::new(0, 2, 2, 0),
+        vec![
+            Coords::new(0, 2, 3, 1),
+            Coords::new(0, 2, 4, 2),
+            Coords::new(0, 2, 5, 3),
+            Coords::new(0, 2, 6, 4),
+            Coords::new(0, 2, 7, 5),
+        ]
+    );
 
-        let movements: HashSet<Move> = piece
-            .generate_moves(&game, &no_partial_game(&game))
-            .unwrap()
-            .collect();
-        let mut movements_ground_truth: HashSet<Move> = HashSet::new();
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                Coords::new(0, 2, 2, 0),
-                Coords::new(0, 2, 3, 1),
-            )
-            .unwrap(),
-        );
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                Coords::new(0, 2, 2, 0),
-                Coords::new(0, 2, 4, 2),
-            )
-            .unwrap(),
-        );
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                Coords::new(0, 2, 2, 0),
-                Coords::new(0, 2, 5, 3),
-            )
-            .unwrap(),
-        );
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                Coords::new(0, 2, 2, 0),
-                Coords::new(0, 2, 6, 4),
-            )
-            .unwrap(),
-        );
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                Coords::new(0, 2, 2, 0),
-                Coords::new(0, 2, 7, 5),
-            )
-            .unwrap(),
-        );
+    // e1-king
+    test_piece_movement(
+        &game,
+        &no_partial_game(&game),
+        Coords::new(0, 2, 4, 0),
+        vec![
+            Coords::new(0, 2, 3, 1),
+        ]
+    );
 
-        assert_eq!(movements, movements_ground_truth);
+    // b1-knight
+    test_piece_movement(
+        &game,
+        &no_partial_game(&game),
+        Coords(0, 2, 1, 0),
+        vec![
+            Coords(0, 2, 2, 2),
+            Coords(0, 2, 0, 2),
+            Coords(0, 0, 1, 2),
+            Coords(0, 2, 3, 1),
+        ]
+    );
+}
+
+
+pub fn test_piece_movement<'a, B: Clone + AsRef<Board> + 'a>(game: &Game, partial_game: &PartialGame<'a, B>, src: Coords, targets: Vec<Coords>) {
+    let piece = PiecePosition::new(game.get(src).piece().unwrap(), src);
+
+    let movements: HashSet<Move> = piece
+        .generate_moves(&game, &no_partial_game(&game))
+        .unwrap()
+        .collect();
+    let mut movements_ground_truth: HashSet<Move> = HashSet::new();
+
+    for target in targets.into_iter() {
+        movements_ground_truth.insert(
+            Move::new(
+                &game,
+                &no_partial_game(&game),
+                src,
+                target,
+            )
+            .unwrap(),
+        );
     }
+
+    assert_eq!(movements, movements_ground_truth);
 }
