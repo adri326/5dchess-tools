@@ -73,7 +73,10 @@ impl std::fmt::Debug for Move {
             self.from.1.t(),
             write_file(self.from.1.x()),
             self.from.1.y(),
-            self.to.0.map(|x| format!("{:?}", x)).unwrap_or("_".white().to_string()),
+            self.to
+                .0
+                .map(|x| format!("{:?}", x))
+                .unwrap_or("_".white().to_string()),
             self.to.1.l(),
             self.to.1.t(),
             write_file(self.to.1.x()),

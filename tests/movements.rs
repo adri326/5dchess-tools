@@ -55,20 +55,14 @@ pub fn test_standard_empty_moves() {
         &game,
         &no_partial_game(&game),
         Coords::new(0, 0, 1, 0),
-        vec![
-            Coords::new(0, 0, 0, 2),
-            Coords::new(0, 0, 2, 2),
-        ]
+        vec![Coords::new(0, 0, 0, 2), Coords::new(0, 0, 2, 2)],
     );
 
     test_piece_movement(
         &game,
         &no_partial_game(&game),
         Coords::new(0, 0, 4, 1),
-        vec![
-            Coords::new(0, 0, 4, 2),
-            Coords::new(0, 0, 4, 3),
-        ]
+        vec![Coords::new(0, 0, 4, 2), Coords::new(0, 0, 4, 3)],
     );
 }
 
@@ -92,7 +86,7 @@ pub fn test_standard_d4d5_moves() {
             Coords::new(0, 2, 5, 3),
             Coords::new(0, 2, 6, 4),
             Coords::new(0, 2, 7, 5),
-        ]
+        ],
     );
 
     // e1-king
@@ -100,9 +94,7 @@ pub fn test_standard_d4d5_moves() {
         &game,
         &no_partial_game(&game),
         Coords::new(0, 2, 4, 0),
-        vec![
-            Coords::new(0, 2, 3, 1),
-        ]
+        vec![Coords::new(0, 2, 3, 1)],
     );
 
     // b1-knight
@@ -115,12 +107,16 @@ pub fn test_standard_d4d5_moves() {
             Coords(0, 2, 0, 2),
             Coords(0, 0, 1, 2),
             Coords(0, 2, 3, 1),
-        ]
+        ],
     );
 }
 
-
-pub fn test_piece_movement<'a, B: Clone + AsRef<Board> + 'a>(game: &Game, partial_game: &PartialGame<'a, B>, src: Coords, targets: Vec<Coords>) {
+pub fn test_piece_movement<'a, B: Clone + AsRef<Board> + 'a>(
+    game: &Game,
+    partial_game: &PartialGame<'a, B>,
+    src: Coords,
+    targets: Vec<Coords>,
+) {
     let piece = PiecePosition::new(game.get(src).piece().unwrap(), src);
 
     let movements: HashSet<Move> = piece
@@ -130,15 +126,8 @@ pub fn test_piece_movement<'a, B: Clone + AsRef<Board> + 'a>(game: &Game, partia
     let mut movements_ground_truth: HashSet<Move> = HashSet::new();
 
     for target in targets.into_iter() {
-        movements_ground_truth.insert(
-            Move::new(
-                &game,
-                &no_partial_game(&game),
-                src,
-                target,
-            )
-            .unwrap(),
-        );
+        movements_ground_truth
+            .insert(Move::new(&game, &no_partial_game(&game), src, target).unwrap());
     }
 
     assert_eq!(movements, movements_ground_truth);

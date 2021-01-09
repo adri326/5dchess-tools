@@ -27,7 +27,7 @@ pub use piece::PiecePosition;
 
 pub mod board;
 
-pub trait GenMoves<'a, I: Iterator<Item = Move> + 'a, B: Clone + AsRef<Board> + 'a> : Sized {
+pub trait GenMoves<'a, I: Iterator<Item = Move> + 'a, B: Clone + AsRef<Board> + 'a>: Sized {
     /**
         Returns the iterator that yields all of the moves.
     **/

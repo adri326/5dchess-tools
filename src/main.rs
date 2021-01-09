@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use chess5dlib::{prelude::*, parse::*};
+use chess5dlib::{parse::*, prelude::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -17,7 +17,14 @@ fn main() -> std::io::Result<()> {
     file.read_to_string(&mut contents)?;
     let game = parse(&contents).unwrap();
 
-    println!("{:#?}", game.get_board((0, game.info.get_timeline(0).unwrap().last_board)).unwrap().generate_moves(&game, &no_partial_game(&game)).unwrap().collect::<Vec<_>>());
+    println!(
+        "{:#?}",
+        game.get_board((0, game.info.get_timeline(0).unwrap().last_board))
+            .unwrap()
+            .generate_moves(&game, &no_partial_game(&game))
+            .unwrap()
+            .collect::<Vec<_>>()
+    );
 
     Ok(())
 }

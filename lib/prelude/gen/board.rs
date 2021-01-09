@@ -21,7 +21,9 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
         match &mut self.current_piece {
             None => {
                 while self.index < self.board.width * self.board.height
-                    && self.board.pieces[self.index as usize].map(|p| p.white != self.board.white()).unwrap_or(true)
+                    && self.board.pieces[self.index as usize]
+                        .map(|p| p.white != self.board.white())
+                        .unwrap_or(true)
                 {
                     self.index += 1;
                 }
@@ -30,13 +32,13 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
                 }
             }
             Some(i) => match i.next() {
-                Some(m) => {
-                    return Some(m)
-                }
+                Some(m) => return Some(m),
                 None => {
                     self.index += 1;
                     while self.index < self.board.width * self.board.height
-                        && self.board.pieces[self.index as usize].map(|p| p.white != self.board.white()).unwrap_or(true)
+                        && self.board.pieces[self.index as usize]
+                            .map(|p| p.white != self.board.white())
+                            .unwrap_or(true)
                     {
                         self.index += 1;
                     }
