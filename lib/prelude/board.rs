@@ -67,4 +67,9 @@ impl Board {
     pub fn get_unchecked(&self, (x, y): (Physical, Physical)) -> Tile {
         self.pieces[(x + self.width * y) as usize]
     }
+
+    #[inline]
+    pub fn white(&self) -> bool {
+        self.t % 2 == 0
+    }
 }

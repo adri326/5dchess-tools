@@ -289,11 +289,7 @@ pub struct KingIter<'a, B: Clone + AsRef<Board> + 'a> {
 }
 
 impl<'a, B: Clone + AsRef<Board> + 'a> KingIter<'a, B> {
-    pub fn new(
-        piece: PiecePosition,
-        game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
-    ) -> Self {
+    pub fn new(piece: PiecePosition, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Self {
         Self {
             castling_direction: 0,
             normal_moves: OneStepPieceIter::new(
@@ -306,7 +302,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> KingIter<'a, B> {
                     .chain(PERMUTATIONS[3].iter())
                     .chain(PERMUTATIONS[4].iter())
                     .cloned()
-                    .collect()
+                    .collect(),
             ),
         }
     }
@@ -317,11 +313,11 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
 
     fn next(&mut self) -> Option<Move> {
         if let Some(mv) = self.normal_moves.next() {
-            return Some(mv)
+            return Some(mv);
         }
 
         if self.castling_direction > 2 {
-            return None
+            return None;
         }
 
         let game = self.normal_moves.game;
@@ -331,30 +327,50 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
 
         self.castling_direction += 1;
 
-        if self.castling_direction == 1 { // castle left
+        if self.castling_direction == 1 {
+            // castle left
             let (mut x, y) = coords.physical();
             let board = partial_game.get_board_with_game(game, coords.non_physical())?;
             if x > 1 && board.get((x - 1, y)).is_empty() && board.get((x - 2, y)).is_empty() {
-                let mut rook_pos: Option<(Physical, Physical)> = None;
                 x -= 2;
                 while x >= 0 && board.get((x, y)).is_blank() {
                     x -= 1;
                 }
-                if board.get((x, y)).piece().map(|p| p.kind == PieceKind::Rook && !p.moved && p.white == piece.white).unwrap_or(false) {
-                    return Move::new(game, partial_game, coords, Coords(coords.l(), coords.t(), coords.x() - 2, y))
+                if board
+                    .get((x, y))
+                    .piece()
+                    .map(|p| p.kind == PieceKind::Rook && !p.moved && p.white == piece.white)
+                    .unwrap_or(false)
+                {
+                    return Move::new(
+                        game,
+                        partial_game,
+                        coords,
+                        Coords(coords.l(), coords.t(), coords.x() - 2, y),
+                    );
                 }
             }
-        } else if self.castling_direction == 2 { // castle right
+        } else if self.castling_direction == 2 {
+            // castle right
             let (mut x, y) = coords.physical();
             let board = partial_game.get_board_with_game(game, coords.non_physical())?;
             if x > 1 && board.get((x + 1, y)).is_empty() && board.get((x + 2, y)).is_empty() {
-                let mut rook_pos: Option<(Physical, Physical)> = None;
                 x += 2;
                 while x < board.width && board.get((x, y)).is_blank() {
                     x += 1;
                 }
-                if board.get((x, y)).piece().map(|p| p.kind == PieceKind::Rook && !p.moved && p.white == piece.white).unwrap_or(false) {
-                    return Move::new(game, partial_game, coords, Coords(coords.l(), coords.t(), coords.x() + 2, y))
+                if board
+                    .get((x, y))
+                    .piece()
+                    .map(|p| p.kind == PieceKind::Rook && !p.moved && p.white == piece.white)
+                    .unwrap_or(false)
+                {
+                    return Move::new(
+                        game,
+                        partial_game,
+                        coords,
+                        Coords(coords.l(), coords.t(), coords.x() + 2, y),
+                    );
                 }
             }
         }
@@ -391,46 +407,46 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, PieceMoveIter<'a, B>, B> for
         You should be using this function if you wish to generate the moves of a piece.
     **/
     fn generate_moves(
-        &'a self,
+        self,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
     ) -> Option<PieceMoveIter<'a, B>> {
         Some(match self.0.kind {
             PieceKind::Pawn | PieceKind::Brawn => {
-                PieceMoveIter::Pawn(PawnIter::new(*self, game, partial_game)?)
+                PieceMoveIter::Pawn(PawnIter::new(self, game, partial_game)?)
             }
             PieceKind::Knight => PieceMoveIter::OneStep(OneStepPieceIter::new(
-                *self,
+                self,
                 game,
                 partial_game,
                 PERMUTATIONS[0].clone(),
             )),
             PieceKind::Rook => PieceMoveIter::Ranging(RangingPieceIter::new(
-                *self,
+                self,
                 game,
                 partial_game,
                 PERMUTATIONS[1].clone(),
             )),
             PieceKind::Bishop => PieceMoveIter::Ranging(RangingPieceIter::new(
-                *self,
+                self,
                 game,
                 partial_game,
                 PERMUTATIONS[2].clone(),
             )),
             PieceKind::Unicorn => PieceMoveIter::Ranging(RangingPieceIter::new(
-                *self,
+                self,
                 game,
                 partial_game,
                 PERMUTATIONS[3].clone(),
             )),
             PieceKind::Dragon => PieceMoveIter::Ranging(RangingPieceIter::new(
-                *self,
+                self,
                 game,
                 partial_game,
                 PERMUTATIONS[4].clone(),
             )),
             PieceKind::Princess => PieceMoveIter::Ranging(RangingPieceIter::new(
-                *self,
+                self,
                 game,
                 partial_game,
                 PERMUTATIONS[1]
@@ -441,7 +457,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, PieceMoveIter<'a, B>, B> for
             )),
             PieceKind::Queen | PieceKind::RoyalQueen => {
                 PieceMoveIter::Ranging(RangingPieceIter::new(
-                    *self,
+                    self,
                     game,
                     partial_game,
                     PERMUTATIONS[1]
@@ -453,38 +469,24 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, PieceMoveIter<'a, B>, B> for
                         .collect(),
                 ))
             }
-            PieceKind::King => {
-                PieceMoveIter::King(KingIter::new(
-                    *self,
-                    game,
-                    partial_game,
-                ))
-            }
-            PieceKind::CommonKing => {
-                PieceMoveIter::OneStep(OneStepPieceIter::new(
-                    *self,
-                    game,
-                    partial_game,
-                    PERMUTATIONS[1]
-                        .iter()
-                        .chain(PERMUTATIONS[2].iter())
-                        .chain(PERMUTATIONS[3].iter())
-                        .chain(PERMUTATIONS[4].iter())
-                        .cloned()
-                        .collect(),
-                ))
-            }
+            PieceKind::King => PieceMoveIter::King(KingIter::new(self, game, partial_game)),
+            PieceKind::CommonKing => PieceMoveIter::OneStep(OneStepPieceIter::new(
+                self,
+                game,
+                partial_game,
+                PERMUTATIONS[1]
+                    .iter()
+                    .chain(PERMUTATIONS[2].iter())
+                    .chain(PERMUTATIONS[3].iter())
+                    .chain(PERMUTATIONS[4].iter())
+                    .cloned()
+                    .collect(),
+            )),
         })
     }
 
-    fn validate_move(&'a self, game: &Game, partial_game: &PartialGame<B>, mv: &Move) -> bool {
-        // TODO: a more optimized way of determining whether or not the move is legal
-        // I don't want to do this right now
-        Self::generate_moves(self, game, partial_game)
-            .map(|mut i| i.find(|m| m == mv))
-            .flatten()
-            .is_some()
-    }
+    // TODO: a more optimized way of determining whether or not the move is legal
+    // I don't want to do this right now
 }
 
 lazy_static! {

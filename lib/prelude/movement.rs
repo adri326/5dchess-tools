@@ -1,4 +1,5 @@
 use super::*;
+use colored::*;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
@@ -12,7 +13,7 @@ pub enum MoveKind {
 }
 
 /** Represents a piece's movement. **/
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Move {
     pub from: (Piece, Coords),
     pub to: (Option<Piece>, Coords),
@@ -33,10 +34,11 @@ impl Move {
         to: Coords,
     ) -> Option<Self> {
         let mut kind = MoveKind::Normal;
+        let board = partial_game.get_board_with_game(game, from.non_physical())?;
         let from: (Piece, Coords) = (partial_game.get_with_game(game, from).piece()?, from);
         let to: (Option<Piece>, Coords) = (partial_game.get_with_game(game, to).piece().into(), to);
 
-        if from.0.white != partial_game.info.active_player {
+        if from.0.white != board.white() {
             return None;
         }
 
@@ -58,6 +60,25 @@ impl Move {
     #[inline]
     pub fn captures(&self) -> bool {
         self.to.0.is_some()
+    }
+}
+
+impl std::fmt::Debug for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?}(L{}T{}){}{} → {}(L{}T{}){}{}",
+            self.from.0,
+            self.from.1.l(),
+            self.from.1.t(),
+            write_file(self.from.1.x()),
+            self.from.1.y(),
+            self.to.0.map(|x| format!("{:?}", x)).unwrap_or("_".white().to_string()),
+            self.to.1.l(),
+            self.to.1.t(),
+            write_file(self.to.1.x()),
+            self.to.1.y(),
+        )
     }
 }
 
@@ -155,4 +176,12 @@ impl TryFrom<(Vec<Move>, &Info)> for Moveset {
 
         Ok(Moveset { moves })
     }
+}
+
+/// Returns the string version of the `x` coordinate as displayed in-game
+pub fn write_file(x: Physical) -> char {
+    [
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+        's', 't', 'u', 'v', 'w',
+    ][x as usize]
 }
