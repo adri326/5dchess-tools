@@ -120,7 +120,7 @@ pub fn test_piece_movement<'a, B: Clone + AsRef<Board> + 'a>(
     let piece = PiecePosition::new(game.get(src).piece().unwrap(), src);
 
     let movements: HashSet<Move> = piece
-        .generate_moves(&game, &no_partial_game(&game))
+        .generate_moves(&game, partial_game)
         .unwrap()
         .collect();
     let mut movements_ground_truth: HashSet<Move> = HashSet::new();

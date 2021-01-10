@@ -23,8 +23,8 @@ pub use movement::*;
 pub mod coords;
 pub use coords::*;
 
-pub mod partial_state;
-pub use partial_state::*;
+pub mod partial_game;
+pub use partial_game::*;
 
 pub mod gen;
 pub use gen::*;

@@ -94,6 +94,28 @@ impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
             .map(|b| b.get(coords.physical()))
             .into()
     }
+
+    pub fn own_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item=&'b Board> {
+        self
+            .info
+            .timelines_white
+            .iter()
+            .chain(self.info.timelines_black.iter())
+            .map(move |tl| self.get_board_with_game(game, (tl.index, tl.last_board)))
+            .filter_map(std::convert::identity)
+            .filter(move |b| b.white() == self.info.active_player)
+    }
+
+    pub fn opponent_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item=&'b Board> {
+        self
+            .info
+            .timelines_white
+            .iter()
+            .chain(self.info.timelines_black.iter())
+            .map(move |tl| self.get_board_with_game(game, (tl.index, tl.last_board)))
+            .filter_map(std::convert::identity)
+            .filter(move |b| b.white() != self.info.active_player)
+    }
 }
 
 pub fn no_partial_game<'a>(game: &Game) -> PartialGame<'static, Board> {

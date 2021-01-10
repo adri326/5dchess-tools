@@ -2,7 +2,7 @@ use super::*;
 use colored::*;
 use std::fmt;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Board {
     pub l: Layer,
     pub t: Time,
@@ -71,5 +71,10 @@ impl Board {
     #[inline]
     pub fn white(&self) -> bool {
         self.t % 2 == 0
+    }
+
+    #[inline]
+    pub fn active(&self, info: &Info) -> bool {
+        info.is_active(self.l) && info.present >= self.t
     }
 }

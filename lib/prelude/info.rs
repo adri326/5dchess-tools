@@ -114,7 +114,20 @@ impl Info {
     /// Returns the number of active timelines that the player `white` can make
     /// Returns 0 if they cannot make any new active timeline
     pub fn timeline_advantage(&self, white: bool) -> usize {
-        // TODO
-        0
+        let n_timelines_white = self.timelines_white.len() - 1;
+        let n_timelines_black = self.timelines_black.len() - if self.even_timelines {1} else {0};
+        if white {
+            if n_timelines_white > n_timelines_black {
+                0
+            } else {
+                n_timelines_black + 1 - n_timelines_white
+            }
+        } else {
+            if n_timelines_black > n_timelines_white {
+                0
+            } else {
+                n_timelines_white + 1 - n_timelines_black
+            }
+        }
     }
 }
