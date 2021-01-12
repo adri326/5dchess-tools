@@ -339,7 +339,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
                 if board
                     .get((x, y))
                     .piece()
-                    .map(|p| p.kind == PieceKind::Rook && !p.moved && p.white == piece.white)
+                    .map(|p| p.can_castle_to() && !p.moved && p.white == piece.white)
                     .unwrap_or(false)
                 {
                     return Move::new(
@@ -362,7 +362,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
                 if board
                     .get((x, y))
                     .piece()
-                    .map(|p| p.kind == PieceKind::Rook && !p.moved && p.white == piece.white)
+                    .map(|p| p.can_castle_to() && !p.moved && p.white == piece.white)
                     .unwrap_or(false)
                 {
                     return Move::new(

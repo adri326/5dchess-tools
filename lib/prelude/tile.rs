@@ -49,6 +49,15 @@ impl Tile {
         }
     }
 
+    /** Returns whether or not the tile is the void. **/
+    #[inline]
+    pub fn is_void(&self) -> bool {
+        match self {
+            Tile::Void => true,
+            _ => false,
+        }
+    }
+
     /** Returns whether or not the tile is a non-void, blank. **/
     #[inline]
     pub fn is_piece_of_color(&self, color: bool) -> bool {
@@ -93,9 +102,9 @@ impl From<Option<Tile>> for Tile {
     }
 }
 
-impl Into<Option<Piece>> for Tile {
-    fn into(self) -> Option<Piece> {
-        match self {
+impl From<Tile> for Option<Piece> {
+    fn from(tile: Tile) -> Option<Piece> {
+        match tile {
             Tile::Piece(piece) => Some(piece),
             _ => None,
         }

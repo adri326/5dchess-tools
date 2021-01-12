@@ -49,6 +49,11 @@ impl Piece {
     }
 
     #[inline]
+    pub fn can_castle_to(&self) -> bool {
+        self.kind == PieceKind::Rook
+    }
+
+    #[inline]
     pub fn can_promote(&self) -> bool {
         match self.kind {
             PieceKind::Pawn | PieceKind::Brawn => true,
