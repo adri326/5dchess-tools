@@ -401,7 +401,9 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for PieceMoveIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, PieceMoveIter<'a, B>, B> for PiecePosition {
+impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
+    type Iter = PieceMoveIter<'a, B>;
+
     /**
         Generates the moves for a single piece, given a partial game state and its complementary game state.
         You should be using this function if you wish to generate the moves of a piece.

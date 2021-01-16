@@ -68,7 +68,9 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, BoardIter<'a, B>, B> for &'a Board {
+impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for &'a Board {
+    type Iter = BoardIter<'a, B>;
+
     /** Generates the moves for a given board.
         Moves are supposed valid and are only made by the pieces that belong to the given board's color.
     **/
