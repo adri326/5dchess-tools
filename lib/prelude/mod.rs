@@ -28,3 +28,6 @@ pub use partial_game::*;
 
 pub mod gen;
 pub use gen::*;
+
+pub mod strategy;
+pub use strategy::*;

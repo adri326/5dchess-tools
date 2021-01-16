@@ -99,3 +99,53 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for &'a Board {
         }
     }
 }
+
+pub enum BoardIterOr<'a, B>
+where
+    B: Clone + AsRef<Board> + 'a,
+    &'a B: GenMoves<'a, B>,
+{
+    Board(BoardIter<'a, B>),
+    B(<&'a B as GenMoves<'a, B>>::Iter),
+}
+
+impl<'a, B> Iterator for BoardIterOr<'a, B>
+where
+    B: Clone + AsRef<Board> + 'a,
+    &'a B: GenMoves<'a, B>,
+{
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Move> {
+        match self {
+            BoardIterOr::Board(iter) => iter.next(),
+            BoardIterOr::B(iter) => iter.next(),
+        }
+    }
+}
+
+impl<'a, B> GenMoves<'a, B> for BoardOr<'a, B>
+where
+    B: Clone + AsRef<Board> + 'a,
+    &'a B: GenMoves<'a, B>,
+{
+    type Iter = BoardIterOr<'a, B>;
+
+    fn generate_moves(
+        self,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+    ) -> Option<Self::Iter> {
+        Some(match self {
+            BoardOr::Board(board) => BoardIterOr::Board(board.generate_moves(game, partial_game)?),
+            BoardOr::B(board) => BoardIterOr::B(board.generate_moves(game, partial_game)?),
+        })
+    }
+
+    fn validate_move(self, game: &'a Game, partial_game: &'a PartialGame<B>, mv: &Move) -> bool {
+        match self {
+            BoardOr::Board(board) => board.validate_move(game, partial_game, mv),
+            BoardOr::B(board) => board.validate_move(game, partial_game, mv),
+        }
+    }
+}

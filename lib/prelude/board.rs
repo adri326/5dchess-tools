@@ -78,3 +78,26 @@ impl Board {
         info.is_active(self.l) && info.present >= self.t
     }
 }
+
+pub enum BoardOr<'a, B: Clone + AsRef<Board> + 'a> {
+    Board(&'a Board),
+    B(&'a B),
+}
+
+impl<'a, B: Clone + AsRef<Board> + 'a> From<BoardOr<'a, B>> for Board {
+    fn from(borb: BoardOr<B>) -> Board {
+        match borb {
+            BoardOr::Board(board) => board.clone(),
+            BoardOr::B(board) => board.as_ref().clone(),
+        }
+    }
+}
+
+impl<'a, B: Clone + AsRef<Board> + 'a> std::convert::AsRef<Board> for BoardOr<'a, B> {
+    fn as_ref(&self) -> &Board {
+        match &self {
+            BoardOr::Board(board) => board,
+            BoardOr::B(board) => board.as_ref(),
+        }
+    }
+}
