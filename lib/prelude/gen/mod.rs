@@ -36,7 +36,11 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board> + 'a>: Sized {
     /**
         Returns the iterator that yields all of the moves.
     **/
-    fn generate_moves(self, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<Self::Iter>;
+    fn generate_moves(
+        self,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+    ) -> Option<Self::Iter>;
 
     /**
         Returns true if `mv` is a valid move. The default implementation traverses the iterator yielded by `generate_moves` and checks

@@ -7,13 +7,19 @@ fn new_blank() {
     assert!(Tile::new_blank(None) == Tile::Blank);
     assert!(match Tile::new_blank(None) {
         Tile::Blank => true,
-        _ => false
+        _ => false,
     });
     assert!(!Tile::new_blank(Some(Piece::new(PieceKind::Pawn, true, false))).is_blank());
     assert!(!Tile::new_blank(Some(Piece::new(PieceKind::Pawn, true, false))).is_void());
     assert!(!Tile::new_blank(Some(Piece::new(PieceKind::Pawn, true, false))).is_empty());
-    assert!(Tile::new_blank(Some(Piece::new(PieceKind::Pawn, true, false))).is_piece_of_color(true));
-    assert!(Tile::new_blank(Some(Piece::new(PieceKind::Pawn, true, false))).piece().is_some());
+    assert!(
+        Tile::new_blank(Some(Piece::new(PieceKind::Pawn, true, false))).is_piece_of_color(true)
+    );
+    assert!(
+        Tile::new_blank(Some(Piece::new(PieceKind::Pawn, true, false)))
+            .piece()
+            .is_some()
+    );
 }
 
 #[test]
@@ -23,13 +29,17 @@ fn new_void() {
     assert!(Tile::new_void(None) == Tile::Void);
     assert!(match Tile::new_void(None) {
         Tile::Void => true,
-        _ => false
+        _ => false,
     });
     assert!(!Tile::new_void(Some(Piece::new(PieceKind::Pawn, true, false))).is_blank());
     assert!(!Tile::new_void(Some(Piece::new(PieceKind::Pawn, true, false))).is_void());
     assert!(!Tile::new_void(Some(Piece::new(PieceKind::Pawn, true, false))).is_empty());
     assert!(Tile::new_void(Some(Piece::new(PieceKind::Pawn, true, false))).is_piece_of_color(true));
-    assert!(Tile::new_void(Some(Piece::new(PieceKind::Pawn, true, false))).piece().is_some());
+    assert!(
+        Tile::new_void(Some(Piece::new(PieceKind::Pawn, true, false)))
+            .piece()
+            .is_some()
+    );
 }
 
 #[test]

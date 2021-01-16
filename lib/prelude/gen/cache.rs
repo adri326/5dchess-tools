@@ -15,7 +15,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> CacheMoves<'a, B, G> 
     pub fn new(generator: G, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<Self> {
         Some(Self {
             iterator: generator.generate_moves(game, partial_game)?,
-            cache: vec![]
+            cache: vec![],
         })
     }
 
@@ -30,7 +30,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> CacheMoves<'a, B, G> 
     pub fn validate_move_cached(&self, mv: &Move) -> bool {
         for cached_mv in self.cache.iter() {
             if cached_mv == mv {
-                return true
+                return true;
             }
         }
 
@@ -102,7 +102,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> Iterator for CacheMov
                 self.cache.push(m);
                 Some(m)
             }
-            None => None
+            None => None,
         }
     }
 }

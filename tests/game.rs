@@ -1,5 +1,5 @@
-use chess5dlib::prelude::*;
 use chess5dlib::parse::*;
+use chess5dlib::prelude::*;
 use std::fs::File;
 use std::io::Read;
 
@@ -78,7 +78,6 @@ fn test_even_timelines() {
         assert_eq!(info.timeline_advantage(false), 0);
     }
 }
-
 
 pub fn read_and_parse(path: String) -> Option<Game> {
     let mut file = File::open(&path).ok()?;

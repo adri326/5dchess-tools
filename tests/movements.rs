@@ -141,10 +141,7 @@ pub fn test_piece_movement<'a, B: Clone + AsRef<Board> + 'a>(
 ) {
     let piece = PiecePosition::new(game.get(src).piece().unwrap(), src);
 
-    let movements: HashSet<Move> = piece
-        .generate_moves(&game, partial_game)
-        .unwrap()
-        .collect();
+    let movements: HashSet<Move> = piece.generate_moves(&game, partial_game).unwrap().collect();
     let mut movements_ground_truth: HashSet<Move> = HashSet::new();
 
     for target in targets.into_iter() {

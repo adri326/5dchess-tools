@@ -95,9 +95,8 @@ impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
             .into()
     }
 
-    pub fn own_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item=&'b Board> {
-        self
-            .info
+    pub fn own_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = &'b Board> {
+        self.info
             .timelines_white
             .iter()
             .chain(self.info.timelines_black.iter())
@@ -106,9 +105,8 @@ impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
             .filter(move |b| b.white() == self.info.active_player)
     }
 
-    pub fn opponent_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item=&'b Board> {
-        self
-            .info
+    pub fn opponent_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = &'b Board> {
+        self.info
             .timelines_white
             .iter()
             .chain(self.info.timelines_black.iter())
