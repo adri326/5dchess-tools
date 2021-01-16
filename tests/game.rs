@@ -91,7 +91,7 @@ pub fn read_and_parse(path: String) -> Option<Game> {
 
 #[test]
 fn test_get_board() {
-    let game = read_and_parse(String::from("tests/standard-d4.json")).unwrap();
+    let game = read_and_parse(String::from("tests/games/standard-d4.json")).unwrap();
 
     assert!(game.get_board((0, 0)).is_some());
     assert!(game.get_board((0, 0)).unwrap() == game.get_board_unchecked((0, 0)));
@@ -106,7 +106,7 @@ fn test_get_board() {
 #[test]
 #[should_panic]
 fn test_get_board_unchecked_fail() {
-    let game = read_and_parse(String::from("tests/standard-d4.json"));
+    let game = read_and_parse(String::from("tests/games/standard-d4.json"));
 
     if let Some(game) = game {
         if let None = game.get_board((1, 0)) {
@@ -117,7 +117,7 @@ fn test_get_board_unchecked_fail() {
 
 #[test]
 fn test_get() {
-    let game = read_and_parse(String::from("tests/standard-d4.json")).unwrap();
+    let game = read_and_parse(String::from("tests/games/standard-d4.json")).unwrap();
 
     for y in 0..8 {
         for x in 0..8 {

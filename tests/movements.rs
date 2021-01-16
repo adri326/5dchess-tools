@@ -6,7 +6,7 @@ use std::io::prelude::*;
 
 #[test]
 pub fn test_standard_nc3() {
-    let mut file = File::open("tests/standard-empty.json").unwrap();
+    let mut file = File::open("tests/games/standard-empty.json").unwrap();
     let mut contents = String::new();
 
     file.read_to_string(&mut contents).unwrap();
@@ -25,7 +25,7 @@ pub fn test_standard_nc3() {
 
 #[test]
 pub fn test_standard_invalid_move() {
-    let mut file = File::open("tests/standard-empty.json").unwrap();
+    let mut file = File::open("tests/games/standard-empty.json").unwrap();
     let mut contents = String::new();
 
     file.read_to_string(&mut contents).unwrap();
@@ -44,7 +44,7 @@ pub fn test_standard_invalid_move() {
 
 #[test]
 pub fn test_standard_empty_moves() {
-    let mut file = File::open("tests/standard-empty.json").unwrap();
+    let mut file = File::open("tests/games/standard-empty.json").unwrap();
     let mut contents = String::new();
 
     file.read_to_string(&mut contents).unwrap();
@@ -68,7 +68,7 @@ pub fn test_standard_empty_moves() {
 
 #[test]
 pub fn test_standard_d4d5_moves() {
-    let mut file = File::open("tests/standard-d4d5.json").unwrap();
+    let mut file = File::open("tests/games/standard-d4d5.json").unwrap();
     let mut contents = String::new();
 
     file.read_to_string(&mut contents).unwrap();

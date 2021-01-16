@@ -5,7 +5,7 @@ use std::io::prelude::*;
 
 #[test]
 pub fn test_parse_standard() {
-    let mut file = File::open("tests/standard-empty.json").unwrap();
+    let mut file = File::open("tests/games/standard-empty.json").unwrap();
     let mut contents = String::new();
 
     file.read_to_string(&mut contents).unwrap();
@@ -14,7 +14,7 @@ pub fn test_parse_standard() {
 
     assert!(
         game.is_some(),
-        "Couldn't parse JSON file tests/standard-empty.json!"
+        "Couldn't parse JSON file tests/games/standard-empty.json!"
     );
     let game = game.unwrap();
 
@@ -34,7 +34,7 @@ pub fn test_parse_standard() {
 
 #[test]
 pub fn test_parse_standard_t0() {
-    let mut file = File::open("tests/standard-t0-empty.json").unwrap();
+    let mut file = File::open("tests/games/standard-t0-empty.json").unwrap();
     let mut contents = String::new();
 
     file.read_to_string(&mut contents).unwrap();
@@ -43,7 +43,7 @@ pub fn test_parse_standard_t0() {
 
     assert!(
         game.is_some(),
-        "Couldn't parse JSON file tests/standard-empty.json!"
+        "Couldn't parse JSON file tests/games/standard-empty.json!"
     );
     let game = game.unwrap();
 
@@ -66,7 +66,7 @@ pub fn test_parse_standard_t0() {
 }
 #[test]
 pub fn test_parse_standard_d4() {
-    let mut file = File::open("tests/standard-d4.json").unwrap();
+    let mut file = File::open("tests/games/standard-d4.json").unwrap();
     let mut contents = String::new();
 
     file.read_to_string(&mut contents).unwrap();
@@ -75,7 +75,7 @@ pub fn test_parse_standard_d4() {
 
     assert!(
         game.is_some(),
-        "Couldn't parse JSON file tests/standard-d4.json!"
+        "Couldn't parse JSON file tests/games/standard-d4.json!"
     );
     let game = game.unwrap();
 

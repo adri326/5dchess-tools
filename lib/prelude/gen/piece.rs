@@ -361,7 +361,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
             }
         }
 
-        // CTR
+        // TCR
         self.next()
     }
 }
