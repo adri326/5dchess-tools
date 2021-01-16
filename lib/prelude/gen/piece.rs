@@ -17,7 +17,7 @@ use super::*;
     ```
 **/
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PiecePosition(Piece, Coords);
+pub struct PiecePosition(pub Piece, pub Coords);
 
 impl PiecePosition {
     pub fn new(piece: Piece, coords: Coords) -> PiecePosition {
@@ -282,28 +282,23 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for OneStepPieceIter<'a, B> {
     }
 }
 
-/** Iterator yielding the movements of a king, including castling **/
+/** Iterator yielding the special movements of a king, castling. **/
 pub struct KingIter<'a, B: Clone + AsRef<Board> + 'a> {
     pub castling_direction: u8,
-    pub normal_moves: OneStepPieceIter<'a, B>,
+    pub piece: Piece,
+    pub game: &'a Game,
+    pub partial_game: &'a PartialGame<'a, B>,
+    pub coords: Coords,
 }
 
 impl<'a, B: Clone + AsRef<Board> + 'a> KingIter<'a, B> {
     pub fn new(piece: PiecePosition, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Self {
         Self {
             castling_direction: 0,
-            normal_moves: OneStepPieceIter::new(
-                piece,
-                game,
-                partial_game,
-                PERMUTATIONS[1]
-                    .iter()
-                    .chain(PERMUTATIONS[2].iter())
-                    .chain(PERMUTATIONS[3].iter())
-                    .chain(PERMUTATIONS[4].iter())
-                    .cloned()
-                    .collect(),
-            ),
+            piece: piece.0,
+            coords: piece.1,
+            game,
+            partial_game,
         }
     }
 }
@@ -312,25 +307,16 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
-        if let Some(mv) = self.normal_moves.next() {
-            return Some(mv);
-        }
-
         if self.castling_direction > 2 {
             return None;
         }
-
-        let game = self.normal_moves.game;
-        let partial_game = self.normal_moves.partial_game;
-        let coords = self.normal_moves.coords;
-        let piece = self.normal_moves.piece;
 
         self.castling_direction += 1;
 
         if self.castling_direction == 1 {
             // castle left
-            let (mut x, y) = coords.physical();
-            let board = partial_game.get_board_with_game(game, coords.non_physical())?;
+            let (mut x, y) = self.coords.physical();
+            let board = self.partial_game.get_board_with_game(self.game, self.coords.non_physical())?;
             if x > 1 && board.get((x - 1, y)).is_empty() && board.get((x - 2, y)).is_empty() {
                 x -= 2;
                 while x >= 0 && board.get((x, y)).is_blank() {
@@ -339,21 +325,21 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
                 if board
                     .get((x, y))
                     .piece()
-                    .map(|p| p.can_castle_to() && !p.moved && p.white == piece.white)
+                    .map(|p| p.can_castle_to() && !p.moved && p.white == self.piece.white)
                     .unwrap_or(false)
                 {
                     return Move::new(
-                        game,
-                        partial_game,
-                        coords,
-                        Coords(coords.l(), coords.t(), coords.x() - 2, y),
+                        self.game,
+                        self.partial_game,
+                        self.coords,
+                        Coords(self.coords.l(), self.coords.t(), self.coords.x() - 2, y),
                     );
                 }
             }
         } else if self.castling_direction == 2 {
             // castle right
-            let (mut x, y) = coords.physical();
-            let board = partial_game.get_board_with_game(game, coords.non_physical())?;
+            let (mut x, y) = self.coords.physical();
+            let board = self.partial_game.get_board_with_game(self.game, self.coords.non_physical())?;
             if x > 1 && board.get((x + 1, y)).is_empty() && board.get((x + 2, y)).is_empty() {
                 x += 2;
                 while x < board.width && board.get((x, y)).is_blank() {
@@ -362,14 +348,14 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
                 if board
                     .get((x, y))
                     .piece()
-                    .map(|p| p.can_castle_to() && !p.moved && p.white == piece.white)
+                    .map(|p| p.can_castle_to() && !p.moved && p.white == self.piece.white)
                     .unwrap_or(false)
                 {
                     return Move::new(
-                        game,
-                        partial_game,
-                        coords,
-                        Coords(coords.l(), coords.t(), coords.x() + 2, y),
+                        self.game,
+                        self.partial_game,
+                        self.coords,
+                        Coords(self.coords.l(), self.coords.t(), self.coords.x() + 2, y),
                     );
                 }
             }
@@ -383,6 +369,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
 /** Iterator combining the different move kinds of all of the pieces. **/
 pub enum PieceMoveIter<'a, B: Clone + AsRef<Board> + 'a> {
     Pawn(PawnIter),
+    Chain(std::iter::Chain<Box<PieceMoveIter<'a, B>>, Box<PieceMoveIter<'a, B>>>),
     King(KingIter<'a, B>),
     Ranging(RangingPieceIter<'a, B>),
     OneStep(OneStepPieceIter<'a, B>),
@@ -397,6 +384,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for PieceMoveIter<'a, B> {
             PieceMoveIter::Ranging(i) => i.next(),
             PieceMoveIter::OneStep(i) => i.next(),
             PieceMoveIter::King(i) => i.next(),
+            PieceMoveIter::Chain(i) => i.next(),
         }
     }
 }
@@ -471,7 +459,25 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
                         .collect(),
                 ))
             }
-            PieceKind::King => PieceMoveIter::King(KingIter::new(self, game, partial_game)),
+            PieceKind::King => {
+                PieceMoveIter::Chain(
+                    Box::new(PieceMoveIter::King(KingIter::new(self, game, partial_game)))
+                    .chain(
+                        Box::new(PieceMoveIter::OneStep(OneStepPieceIter::new(
+                            self,
+                            game,
+                            partial_game,
+                            PERMUTATIONS[1]
+                                .iter()
+                                .chain(PERMUTATIONS[2].iter())
+                                .chain(PERMUTATIONS[3].iter())
+                                .chain(PERMUTATIONS[4].iter())
+                                .cloned()
+                                .collect(),
+                        )))
+                    )
+                )
+            },
             PieceKind::CommonKing => PieceMoveIter::OneStep(OneStepPieceIter::new(
                 self,
                 game,
