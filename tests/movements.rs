@@ -111,6 +111,28 @@ pub fn test_standard_d4d5_moves() {
     );
 }
 
+#[test]
+pub fn test_standard_king_moves() {
+    let mut file = File::open("tests/games/standard-castle.json").unwrap();
+    let mut contents = String::new();
+
+    file.read_to_string(&mut contents).unwrap();
+
+    let game = parse(&contents).unwrap();
+
+    // e1-king
+    test_piece_movement(
+        &game,
+        &no_partial_game(&game),
+        Coords::new(0, 6, 4, 0),
+        vec![
+            Coords::new(0, 6, 5, 0),
+            Coords::new(0, 6, 6, 0),
+            Coords::new(0, 4, 4, 1),
+        ],
+    );
+}
+
 pub fn test_piece_movement<'a, B: Clone + AsRef<Board> + 'a>(
     game: &Game,
     partial_game: &PartialGame<'a, B>,
