@@ -1,17 +1,10 @@
-use chess5dlib::parse::*;
+use chess5dlib::parse::test::read_and_parse;
 use chess5dlib::prelude::*;
 use std::collections::HashSet;
-use std::fs::File;
-use std::io::prelude::*;
 
 #[test]
 pub fn test_standard_nc3() {
-    let mut file = File::open("tests/games/standard-empty.json").unwrap();
-    let mut contents = String::new();
-
-    file.read_to_string(&mut contents).unwrap();
-
-    let game = parse(&contents).unwrap();
+    let game = read_and_parse("tests/games/standard-empty.json");
 
     let mv = Move::new(
         &game,
@@ -25,12 +18,7 @@ pub fn test_standard_nc3() {
 
 #[test]
 pub fn test_standard_invalid_move() {
-    let mut file = File::open("tests/games/standard-empty.json").unwrap();
-    let mut contents = String::new();
-
-    file.read_to_string(&mut contents).unwrap();
-
-    let game = parse(&contents).unwrap();
+    let game = read_and_parse("tests/games/standard-empty.json");
 
     let mv = Move::new(
         &game,
@@ -44,12 +32,7 @@ pub fn test_standard_invalid_move() {
 
 #[test]
 pub fn test_standard_empty_moves() {
-    let mut file = File::open("tests/games/standard-empty.json").unwrap();
-    let mut contents = String::new();
-
-    file.read_to_string(&mut contents).unwrap();
-
-    let game = parse(&contents).unwrap();
+    let game = read_and_parse("tests/games/standard-empty.json");
 
     test_piece_movement(
         &game,
@@ -68,12 +51,7 @@ pub fn test_standard_empty_moves() {
 
 #[test]
 pub fn test_standard_d4d5_moves() {
-    let mut file = File::open("tests/games/standard-d4d5.json").unwrap();
-    let mut contents = String::new();
-
-    file.read_to_string(&mut contents).unwrap();
-
-    let game = parse(&contents).unwrap();
+    let game = read_and_parse("tests/games/standard-d4d5.json");
 
     // c1-bishop
     test_piece_movement(
@@ -113,12 +91,7 @@ pub fn test_standard_d4d5_moves() {
 
 #[test]
 pub fn test_standard_king_moves() {
-    let mut file = File::open("tests/games/standard-castle.json").unwrap();
-    let mut contents = String::new();
-
-    file.read_to_string(&mut contents).unwrap();
-
-    let game = parse(&contents).unwrap();
+    let game = read_and_parse("tests/games/standard-castle.json");
 
     // e1-king
     test_piece_movement(

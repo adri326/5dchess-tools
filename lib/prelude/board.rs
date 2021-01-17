@@ -185,3 +185,19 @@ impl<'a, B: Clone + AsRef<Board> + 'a> std::convert::From<&'a Board> for BoardOr
         BoardOr::Board(board)
     }
 }
+
+impl<'a, B: Clone + AsRef<Board> + 'a> std::iter::FromIterator<BoardOr<'a, B>> for Vec<&'a Board> {
+    fn from_iter<I: IntoIterator<Item = BoardOr<'a, B>>>(iter: I) -> Self {
+        let iter = iter.into_iter();
+        let mut res = Vec::with_capacity(iter.size_hint().0.max(1usize));
+
+        for i in iter {
+            match i {
+                BoardOr::Board(b) => res.push(b),
+                BoardOr::B(b) => res.push(b.as_ref()),
+            }
+        }
+
+        res
+    }
+}

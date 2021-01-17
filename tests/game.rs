@@ -1,7 +1,5 @@
-use chess5dlib::parse::*;
+use chess5dlib::parse::test::read_and_parse;
 use chess5dlib::prelude::*;
-use std::fs::File;
-use std::io::Read;
 
 #[test]
 fn test_even_timelines() {
@@ -79,18 +77,9 @@ fn test_even_timelines() {
     }
 }
 
-pub fn read_and_parse(path: String) -> Option<Game> {
-    let mut file = File::open(&path).ok()?;
-    let mut contents = String::new();
-
-    file.read_to_string(&mut contents).ok()?;
-
-    parse(&contents)
-}
-
 #[test]
 fn test_get_board() {
-    let game = read_and_parse(String::from("tests/games/standard-d4.json")).unwrap();
+    let game = read_and_parse("tests/games/standard-d4.json");
 
     assert!(game.get_board((0, 0)).is_some());
     assert!(game.get_board((0, 0)).unwrap() == game.get_board_unchecked((0, 0)));
@@ -105,18 +94,16 @@ fn test_get_board() {
 #[test]
 #[should_panic]
 fn test_get_board_unchecked_fail() {
-    let game = read_and_parse(String::from("tests/games/standard-d4.json"));
+    let game = read_and_parse("tests/games/standard-d4.json");
 
-    if let Some(game) = game {
-        if let None = game.get_board((1, 0)) {
-            game.get_board_unchecked((1, 0));
-        }
+    if let None = game.get_board((1, 0)) {
+        game.get_board_unchecked((1, 0));
     }
 }
 
 #[test]
 fn test_get() {
-    let game = read_and_parse(String::from("tests/games/standard-d4.json")).unwrap();
+    let game = read_and_parse("tests/games/standard-d4.json");
 
     for y in 0..8 {
         for x in 0..8 {

@@ -99,7 +99,7 @@ pub fn test_parse_standard_d4() {
                 assert_eq!(game.get(Coords(0, 1, x, y)), Tile::Blank);
             } else if x == 3 && y == 3 {
                 assert!(game.get(Coords(0, 1, x, y)).piece().is_some());
-                assert!(game.get_board((0, 1)).unwrap().en_passant == Some((3, 2)));
+                assert!(game.get_board((0, 1)).unwrap().en_passant() == Some((3, 2)));
             } else {
                 assert!(game
                     .get(Coords(0, 1, x, y))

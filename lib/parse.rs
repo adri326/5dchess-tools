@@ -213,3 +213,23 @@ pub fn de_piece(raw: usize) -> Tile {
         _ => return Tile::Blank,
     })
 }
+
+/// This module should only be used for testing!
+#[allow(dead_code)]
+pub mod test {
+    use super::*;
+    use std::fs::File;
+    use std::io::Read;
+
+    pub fn read_and_parse(path: &str) -> Game {
+        let file = File::open(path).ok();
+        assert!(file.is_some(), "Couldn't open `{}`!", path);
+        let mut contents = String::new();
+
+        assert!(file.unwrap().read_to_string(&mut contents).is_ok(), "Couldn't read `{}`!", path);
+
+        let res = parse(&contents);
+        assert!(res.is_some(), "Couldn't parse `{}`!", path);
+        res.unwrap()
+    }
+}
