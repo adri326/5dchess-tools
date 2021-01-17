@@ -4,8 +4,9 @@ use super::*;
     You should consider using this if you wish to re-use a `GenMoves`-iterator.
 **/
 pub struct CacheMoves<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> {
-    pub iterator: G::Iter,
-    pub cache: Vec<Move>,
+    iterator: std::iter::Fuse<G::Iter>,
+    done: bool,
+    cache: Vec<Move>,
 }
 
 impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> CacheMoves<'a, B, G> {
@@ -14,8 +15,9 @@ impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> CacheMoves<'a, B, G> 
     **/
     pub fn new(generator: G, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<Self> {
         Some(Self {
-            iterator: generator.generate_moves(game, partial_game)?,
+            iterator: generator.generate_moves(game, partial_game)?.fuse(),
             cache: vec![],
+            done: false,
         })
     }
 
@@ -88,6 +90,30 @@ impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> CacheMoves<'a, B, G> 
             None
         }
     }
+
+    /**
+        Returns true if the underlying iterator got fully consumed.
+    **/
+    pub fn done(&self) -> bool {
+        self.done
+    }
+
+    /**
+        Returns the length of the cache; this is only equal to the number of moves if
+        the underlying iterator got fully consumed.
+    **/
+    pub fn cache_len(&self) -> usize {
+        self.cache.len()
+    }
+
+    /**
+        Consumes the entirety of the underlying iterator, putting all of the moves in the cache.
+    **/
+    pub fn consume(&mut self) {
+        while let Some(_m) = self.next() {
+            // Noop
+        }
+    }
 }
 
 impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> Iterator for CacheMoves<'a, B, G> {
@@ -102,7 +128,10 @@ impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> Iterator for CacheMov
                 self.cache.push(m);
                 Some(m)
             }
-            None => None,
+            None => {
+                self.done = true;
+                None
+            },
         }
     }
 }
