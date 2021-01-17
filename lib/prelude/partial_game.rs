@@ -82,10 +82,10 @@ impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
         &'b self,
         game: &'b Game,
         coords: (Layer, Time),
-    ) -> Option<&'b Board> {
+    ) -> Option<BoardOr<'b, B>> {
         match game.get_board(coords) {
-            Some(b) => Some(b),
-            None => self.get_board(coords).map(|b| b.as_ref()),
+            Some(b) => Some(BoardOr::Board(b)),
+            None => self.get_board(coords).map(|b| BoardOr::B(b)),
         }
     }
 
@@ -95,23 +95,21 @@ impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
             .into()
     }
 
-    pub fn own_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = &'b Board> {
+    pub fn own_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = BoardOr<'b, B>> {
         self.info
             .timelines_white
             .iter()
             .chain(self.info.timelines_black.iter())
-            .map(move |tl| self.get_board_with_game(game, (tl.index, tl.last_board)))
-            .filter_map(std::convert::identity)
+            .filter_map(move |tl| self.get_board_with_game(game, (tl.index, tl.last_board)))
             .filter(move |b| b.white() == self.info.active_player)
     }
 
-    pub fn opponent_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = &'b Board> {
+    pub fn opponent_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = BoardOr<'b, B>> {
         self.info
             .timelines_white
             .iter()
             .chain(self.info.timelines_black.iter())
-            .map(move |tl| self.get_board_with_game(game, (tl.index, tl.last_board)))
-            .filter_map(std::convert::identity)
+            .filter_map(move |tl| self.get_board_with_game(game, (tl.index, tl.last_board)))
             .filter(move |b| b.white() != self.info.active_player)
     }
 }

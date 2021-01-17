@@ -59,7 +59,7 @@ impl From<(isize, isize, isize, isize)> for Coords {
 
 impl From<(Board, (Physical, Physical))> for Coords {
     fn from((board, (x, y)): (Board, (Physical, Physical))) -> Self {
-        Self(board.l, board.t, x, y)
+        Self(board.l(), board.t(), x, y)
     }
 }
 

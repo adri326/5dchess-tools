@@ -118,7 +118,7 @@ impl PawnIter {
         if piece.0.can_enpassant() {
             if let Some((x, y)) = partial_game
                 .get_board_with_game(game, piece.1.non_physical())?
-                .en_passant
+                .en_passant()
             {
                 if (x, y) == forward(piece.1, Coords(0, 0, 1, 1), piece.0.white).physical()
                     || (x, y) == forward(piece.1, Coords(0, 0, -1, 1), piece.0.white).physical()
@@ -346,7 +346,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
                 .get_board_with_game(self.game, self.coords.non_physical())?;
             if x > 1 && board.get((x + 1, y)).is_empty() && board.get((x + 2, y)).is_empty() {
                 x += 2;
-                while x < board.width && board.get((x, y)).is_blank() {
+                while x < board.width() && board.get((x, y)).is_blank() {
                     x += 1;
                 }
                 if board

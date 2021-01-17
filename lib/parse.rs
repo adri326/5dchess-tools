@@ -144,11 +144,11 @@ pub fn parse(raw: &str) -> Option<Game> {
                                 if piece.can_kickstart() {
                                     if piece.white {
                                         if previous_board.get((x, y - 1)).is_empty() {
-                                            board.en_passant = Some((x, y - 1))
+                                            board.set_en_passant(Some((x, y - 1)))
                                         }
                                     } else {
                                         if previous_board.get((x, y + 1)).is_empty() {
-                                            board.en_passant = Some((x, y + 1))
+                                            board.set_en_passant(Some((x, y + 1)))
                                         }
                                     }
                                 }

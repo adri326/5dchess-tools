@@ -12,7 +12,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
-        if self.index >= self.board.width * self.board.height {
+        if self.index >= self.board.width() * self.board.height() {
             return None;
         }
 
@@ -20,14 +20,14 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
 
         match &mut self.current_piece {
             None => {
-                while self.index < self.board.width * self.board.height
+                while self.index < self.board.width() * self.board.height()
                     && self.board.pieces[self.index as usize]
                         .map(|p| p.white != self.board.white())
                         .unwrap_or(true)
                 {
                     self.index += 1;
                 }
-                if self.index < self.board.width * self.board.height {
+                if self.index < self.board.width() * self.board.height() {
                     new_iter = true;
                 }
             }
@@ -35,14 +35,14 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
                 Some(m) => return Some(m),
                 None => {
                     self.index += 1;
-                    while self.index < self.board.width * self.board.height
+                    while self.index < self.board.width() * self.board.height()
                         && self.board.pieces[self.index as usize]
                             .map(|p| p.white != self.board.white())
                             .unwrap_or(true)
                     {
                         self.index += 1;
                     }
-                    if self.index < self.board.width * self.board.height {
+                    if self.index < self.board.width() * self.board.height() {
                         new_iter = true;
                     }
                 }
@@ -54,10 +54,10 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
             self.current_piece = PiecePosition::new(
                 self.board.pieces[self.index as usize].piece().unwrap(),
                 Coords::new(
-                    self.board.l,
-                    self.board.t,
-                    self.index % self.board.width,
-                    self.index / self.board.width,
+                    self.board.l(),
+                    self.board.t(),
+                    self.index % self.board.width(),
+                    self.index / self.board.width(),
                 ),
             )
             .generate_moves(self.game, self.partial_game);
@@ -89,7 +89,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for &'a Board {
     }
 
     fn validate_move(self, game: &Game, partial_game: &PartialGame<B>, mv: &Move) -> bool {
-        if self.l != mv.from.1.l() || self.t != mv.from.1.t() {
+        if self.l() != mv.from.1.l() || self.t() != mv.from.1.t() {
             return false;
         } else if self.get(mv.from.1.physical()).is_empty() {
             return false;
