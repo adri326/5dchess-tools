@@ -1,4 +1,5 @@
 use super::*;
+use itertools::Itertools;
 use std::convert::TryFrom;
 
 pub struct GenMovesetIter<'a, B>
@@ -64,20 +65,25 @@ where
     B: Clone + AsRef<Board> + 'a,
     &'a B: GenMoves<'a, B>,
 {
-    type Item = Result<Moveset, MovesetValidityErr>;
+    type Item = PermMovesetIter<'a>;
 
-    fn next(&mut self) -> Option<Result<Moveset, MovesetValidityErr>> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.done {
             return None;
         }
 
-        let mut res_vec: Vec<Move> = Vec::with_capacity(self.boards.len());
+        let mut physical_moves: Vec<Move> = Vec::with_capacity(self.boards.len());
+        let mut non_physical_moves: Vec<Move> = Vec::with_capacity(self.boards.len());
 
         for (index, state) in self.states.iter().enumerate() {
             match state {
                 Some(n) => {
                     if let Some(m) = self.boards[index].get(*n) {
-                        res_vec.push(m);
+                        if m.is_jump() {
+                            non_physical_moves.push(m);
+                        } else {
+                            physical_moves.push(m);
+                        }
                     } else {
                         debug_assert!(false, "Expected self.boards[index].get(n) to return true; this is likely an erronerous state.");
                     }
@@ -88,7 +94,11 @@ where
 
         self.inc();
 
-        Some(Moveset::try_from((res_vec, &self.partial_game.info)))
+        Some(PermMovesetIter::new(
+            physical_moves,
+            non_physical_moves,
+            self.partial_game,
+        ))
     }
 }
 
@@ -96,5 +106,51 @@ fn inc_option_usize(x: Option<usize>) -> usize {
     match x {
         None => 0,
         Some(y) => y + 1,
+    }
+}
+
+pub struct PermMovesetIter<'a> {
+    pub physical: Vec<Move>,
+    pub non_physical_iter: itertools::structs::Permutations<std::vec::IntoIter<Move>>,
+    pub info: &'a Info,
+}
+
+impl<'a> PermMovesetIter<'a> {
+    pub fn new<B>(
+        mut physical: Vec<Move>,
+        non_physical: Vec<Move>,
+        partial_game: &'a PartialGame<'a, B>,
+    ) -> Self
+    where
+        B: Clone + AsRef<Board> + 'a,
+    {
+        physical.shrink_to_fit();
+
+        let length = non_physical.len();
+
+        Self {
+            physical,
+            non_physical_iter: non_physical.into_iter().permutations(length),
+            info: &partial_game.info,
+        }
+    }
+}
+
+impl<'a> Iterator for PermMovesetIter<'a> {
+    type Item = Result<Moveset, MovesetValidityErr>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.non_physical_iter.next() {
+            Some(mut non_physical) => {
+                let mut res = self.physical.clone();
+                res.append(&mut non_physical);
+                Some(Moveset::try_from((res, self.info)))
+            }
+            None => None,
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.non_physical_iter.size_hint()
     }
 }

@@ -61,6 +61,11 @@ impl Move {
     pub fn captures(&self) -> bool {
         self.to.0.is_some()
     }
+
+    #[inline]
+    pub fn is_jump(&self) -> bool {
+        (self.from.1).0 != (self.to.1).0 || (self.from.1).1 != (self.to.1).1
+    }
 }
 
 impl std::fmt::Debug for Move {

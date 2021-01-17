@@ -31,6 +31,7 @@ pub mod cache;
 pub use cache::CacheMoves;
 
 pub mod moveset;
+pub use moveset::GenMovesetIter;
 
 pub trait GenMoves<'a, B: Clone + AsRef<Board> + 'a>: Sized {
     type Iter: Iterator<Item = Move>;
