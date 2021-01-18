@@ -77,14 +77,17 @@ impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> CacheMoves<'a, B, G> 
 
         Returns `None` if the move is neither in the cache, nor could the iterator yield enough moves.
     **/
-    pub fn get(&mut self, n: usize) -> Option<Move> {
+    pub fn get(&mut self, mut n: usize) -> Option<Move> {
         if n < self.cache.len() {
             Some(self.cache[n])
         } else {
+            n -= self.cache.len();
+
             while let Some(m) = self.next() {
-                if self.cache.len() == n + 1 {
+                if n == 0 {
                     return Some(m);
                 }
+                n -= 1;
             }
 
             None
@@ -123,15 +126,19 @@ impl<'a, B: Clone + AsRef<Board> + 'a, G: GenMoves<'a, B>> Iterator for CacheMov
         Yields the next move, if present, and caches it.
     **/
     fn next(&mut self) -> Option<Move> {
-        match self.iterator.next() {
-            Some(m) => {
-                self.cache.push(m);
-                Some(m)
+        if self.done {
+            None
+        } else {
+            match self.iterator.next() {
+                Some(m) => {
+                    self.cache.push(m);
+                    Some(m)
+                }
+                None => {
+                    self.done = true;
+                    None
+                },
             }
-            None => {
-                self.done = true;
-                None
-            },
         }
     }
 }

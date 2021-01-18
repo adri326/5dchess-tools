@@ -1,2 +1,6 @@
 target
 /chessin5d/config.ron
+/profiling/db.tar.gz
+/profiling/5d-chess-db
+/profiling/converted-db
+*.coz

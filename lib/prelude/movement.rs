@@ -145,8 +145,8 @@ impl TryFrom<(Vec<Move>, &Info)> for Moveset {
             HashMap::with_capacity(info.len_timelines());
 
         for mv in moves.iter() {
-            if mv.from.1.t() % 2 != (if info.active_player { 0 } else { 1 })
-                || mv.to.1.t() % 2 != (if info.active_player { 0 } else { 1 })
+            if mv.from.1.t() & 1 == info.active_player as Time
+                || mv.to.1.t() & 1 == info.active_player as Time
             {
                 // Opponent's board
                 return Err(MovesetValidityErr::OpponentBoard(*mv));
