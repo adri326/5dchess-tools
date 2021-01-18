@@ -91,4 +91,21 @@ fn test_new_partial_game_castling() {
             partial_game.info,
         );
     }
+
+    let movesets_no_castling: Vec<Moveset> = GenMovesetIter::with_strategy::<NoCastling>(
+        partial_game.own_boards(&game).collect(),
+        &game,
+        &partial_game,
+    )
+    .flatten()
+    .filter_map(|ms| ms.ok())
+    .collect();
+
+    assert!(
+        movesets_no_castling
+            .iter()
+            .find(|ms| ms.moves()[0].kind == MoveKind::Castle)
+            .is_none(),
+        "∄ a castling move when castling is filtered out"
+    );
 }
