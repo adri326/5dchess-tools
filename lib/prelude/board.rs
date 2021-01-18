@@ -22,6 +22,13 @@ impl fmt::Debug for Board {
                     _ => write!(f, "{}", ".".white())?,
                 }
             }
+            if y == 0 {
+                write!(f, " {}", format!("@({}:{})", self.l, self.t).white())?;
+                match self.en_passant {
+                    Some((x, y)) => write!(f, "{}", format!("/ep.({}:{})", x, y).white())?,
+                    None => write!(f, "{}", format!("/no ep").white())?,
+                }
+            }
             write!(f, "\n")?;
         }
         Ok(())

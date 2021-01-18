@@ -31,5 +31,5 @@ fn test_new_partial_game() {
     let new_partial_game = ms.generate_partial_game(&game_empty, &partial_game_empty).unwrap();
 
     assert_eq!(new_partial_game.info, game_d4.info);
-    assert_eq!(new_partial_game.own_boards().collect::<Vec<_>>(), partial_game_d4.own_boards().collect::<Vec<_>>());
+    assert_eq!(new_partial_game.own_boards(&game_empty).collect::<Vec<&Board>>(), partial_game_d4.own_boards(&game_d4).collect::<Vec<&Board>>());
 }

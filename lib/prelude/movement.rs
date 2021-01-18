@@ -131,12 +131,13 @@ impl Move {
                             Piece::new(PieceKind::Queen, white, false)
                         );
                     } else {
-                        new_target_board.pieces[to_index] = new_source_board.pieces[from_index];
+                        new_target_board.pieces[to_index] = set_moved(new_source_board.pieces[from_index], true);
                     }
 
                     new_source_board.pieces[from_index] = Tile::Blank;
 
                     let new_source_coords = (new_source_board.l, new_source_board.t);
+                    new_source_board.en_passant = None;
                     let new_source_board = B::from((new_source_board, game, partial_game));
 
                     new_partial_game.boards.insert(
@@ -146,6 +147,7 @@ impl Move {
                     new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
 
                     let new_target_coords = (new_target_board.l, new_target_board.t);
+                    new_target_board.en_passant = None;
                     let new_target_board = B::from((new_target_board, game, partial_game));
 
                     new_partial_game.boards.insert(
@@ -163,7 +165,7 @@ impl Move {
                     let to_index = (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
 
                     if self.kind == MoveKind::Promotion {
-                        let white = new_board.pieces[from_index].is_piece_of_color(true);
+                        let white = new_board.t & 1 == 1;
                         // NOTE: a promoted piece is considered to be unmoved;
                         // this doesn't affect the base game, but could affect
                         // customized pieces. If this is a problem to you, then
@@ -172,10 +174,18 @@ impl Move {
                             Piece::new(PieceKind::Queen, white, false)
                         );
                     } else {
-                        new_board.pieces[to_index] = new_board.pieces[from_index];
+                        new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
                     }
 
                     new_board.pieces[from_index] = Tile::Blank;
+
+                    if self.from.0.can_kickstart() && ((self.from.1).3 as i8 - (self.to.1).3 as i8).abs() >= 2 {
+                        if new_board.t & 1 == 1 {
+                            new_board.en_passant = Some(((self.from.1).2, (self.from.1).3 + 1));
+                        } else {
+                            new_board.en_passant = Some(((self.from.1).2, (self.from.1).3 - 1));
+                        }
+                    }
 
                     let new_coords = (new_board.l, new_board.t);
                     let new_board = B::from((new_board, game, partial_game));
@@ -187,8 +197,45 @@ impl Move {
                     new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
                 }
             }
+            MoveKind::EnPassant => {
+                let mut new_board: Board = partial_game
+                    .get_board_with_game(game, self.from.1.non_physical())?
+                    .as_ref()
+                    .clone();
+                let (ex, ey) = new_board.en_passant?;
+                new_board.en_passant = None;
+                new_board.t += 1;
+                let from_index = (self.from.1).2 as usize + (self.from.1).3 as usize * new_board.width() as usize;
+                let to_index = (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
+                let capture_index = ex as usize + ey as usize * new_board.width() as usize;
+
+                if self.kind == MoveKind::Promotion {
+                    let white = new_board.pieces[from_index].is_piece_of_color(true);
+                    // NOTE: a promoted piece is considered to be unmoved;
+                    // this doesn't affect the base game, but could affect
+                    // customized pieces. If this is a problem to you, then
+                    // replace the `false` with a `true`.
+                    new_board.pieces[to_index] = Tile::Piece(
+                        Piece::new(PieceKind::Queen, white, false)
+                    );
+                } else {
+                    new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
+                }
+
+                new_board.pieces[from_index] = Tile::Blank;
+                new_board.pieces[capture_index] = Tile::Blank;
+
+                let new_coords = (new_board.l, new_board.t);
+                let new_board = B::from((new_board, game, partial_game));
+
+                new_partial_game.boards.insert(
+                    new_coords,
+                    new_board
+                );
+                new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
+            }
             _ => {
-                // unimplemented!();
+                unimplemented!();
             }
         }
         Some(())
@@ -339,4 +386,15 @@ pub fn write_file(x: Physical) -> char {
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
         's', 't', 'u', 'v', 'w',
     ][x as usize]
+}
+
+#[inline]
+fn set_moved(tile: Tile, moved: bool) -> Tile {
+    match tile {
+        Tile::Piece(mut p) => {
+            p.moved = moved;
+            Tile::Piece(p)
+        }
+        x => x,
+    }
 }
