@@ -2,19 +2,20 @@ use super::*;
 use itertools::Itertools;
 use std::convert::TryFrom;
 
-pub struct GenMovesetIter<'a, B>
+pub struct GenMovesetIter<'a, B, I>
 where
+    I: Iterator<Item=Move>,
     B: Clone + AsRef<Board> + 'a,
     &'a B: GenMoves<'a, B>,
 {
     _game: &'a Game,
     partial_game: &'a PartialGame<'a, B>,
-    boards: Vec<CacheMoves<'a, B, BoardOr<'a, B>>>,
+    boards: Vec<CacheMoves<I>>,
     states: Vec<Option<usize>>,
     done: bool,
 }
 
-impl<'a, B> GenMovesetIter<'a, B>
+impl<'a, B> GenMovesetIter<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter>
 where
     B: Clone + AsRef<Board> + 'a,
     &'a B: GenMoves<'a, B>,
@@ -31,7 +32,36 @@ where
             states: vec![None; boards.len()],
             boards: boards
                 .into_iter()
-                .filter_map(|borb| CacheMoves::new(borb, game, partial_game))
+                .filter_map(|borb| CacheMoves::try_from((borb, game, partial_game)).ok())
+                .collect(),
+            done: false,
+        }
+    }
+}
+
+impl<'a, B, I> GenMovesetIter<'a, B, I>
+where
+    I: Iterator<Item=Move>,
+    B: Clone + AsRef<Board> + 'a,
+    &'a B: GenMoves<'a, B>,
+{
+    /** Creates a new GenMovesetIter from a set of boards and a `Board` → `Iterator<Item=Move>` strategy. **/
+    pub fn with_strategy<S>(
+        boards: Vec<BoardOr<'a, B>>,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+    ) -> Self
+    where
+        S: Strategy<'a, B, From=BoardOr<'a, B>, To=I>
+    {
+        Self {
+            _game: game,
+            partial_game,
+            states: vec![None; boards.len()],
+            boards: boards
+                .into_iter()
+                .filter_map(|borb| S::apply(borb, game, partial_game))
+                .map(|iter| CacheMoves::new(iter))
                 .collect(),
             done: false,
         }
@@ -60,8 +90,9 @@ where
     }
 }
 
-impl<'a, B> Iterator for GenMovesetIter<'a, B>
+impl<'a, B, I> Iterator for GenMovesetIter<'a, B, I>
 where
+    I: Iterator<Item=Move>,
     B: Clone + AsRef<Board> + 'a,
     &'a B: GenMoves<'a, B>,
 {

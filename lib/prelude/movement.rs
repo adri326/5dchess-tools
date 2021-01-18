@@ -233,6 +233,7 @@ impl Move {
                 let capture_index = ex as usize + ey as usize * new_board.width() as usize;
 
                 // Replace pieces
+                new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
                 new_board.pieces[from_index] = Tile::Blank;
                 new_board.pieces[capture_index] = Tile::Blank;
 
