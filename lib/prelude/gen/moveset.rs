@@ -39,34 +39,77 @@ where
     }
 }
 
+pub struct FilterByStrategy<'a, B, I, S>
+where
+    B: Clone + AsRef<Board> + 'a,
+    &'a B: GenMoves<'a, B>,
+    I: Iterator<Item=Move>,
+    S: Strategy<'a, B, From=Move, To=bool>,
+{
+    iter: I,
+    game: &'a Game,
+    partial_game: &'a PartialGame<'a, B>,
+    _strategy: std::marker::PhantomData<S>,
+}
+
+impl<'a, B, I, S> Iterator for FilterByStrategy<'a, B, I, S>
+where
+    B: Clone + AsRef<Board> + 'a,
+    &'a B: GenMoves<'a, B>,
+    I: Iterator<Item=Move>,
+    S: Strategy<'a, B, From=Move, To=bool>,
+{
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.iter.next() {
+            Some(mv) => {
+                if S::apply(mv, self.game, self.partial_game)? {
+                    Some(mv)
+                } else {
+                    None
+                }
+            },
+            None => None
+        }
+    }
+}
+
+/** Creates a new GenMovesetIter from a set of boards and a `Move` → `bool` strategy. **/
+pub fn generate_movesets_with_strategy<'a, B, S>(
+    boards: Vec<BoardOr<'a, B>>,
+    game: &'a Game,
+    partial_game: &'a PartialGame<'a, B>,
+) -> GenMovesetIter<'a, B, FilterByStrategy<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter, S>>
+where
+    B: Clone + AsRef<Board> + 'a,
+    &'a B: GenMoves<'a, B>,
+    S: Strategy<'a, B, From=Move, To=bool>,
+{
+    GenMovesetIter {
+        _game: game,
+        partial_game,
+        states: vec![None; boards.len()],
+        boards: boards
+            .into_iter()
+            .filter_map(|borb| Some(FilterByStrategy {
+                iter: borb.generate_moves(game, partial_game)?,
+                game,
+                partial_game,
+                _strategy: std::marker::PhantomData,
+            }))
+            .map(|iter| CacheMoves::new(iter))
+            .collect(),
+        done: false,
+    }
+}
+
 impl<'a, B, I> GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item=Move>,
     B: Clone + AsRef<Board> + 'a,
     &'a B: GenMoves<'a, B>,
 {
-    /** Creates a new GenMovesetIter from a set of boards and a `Board` → `Iterator<Item=Move>` strategy. **/
-    pub fn with_strategy<S>(
-        boards: Vec<BoardOr<'a, B>>,
-        game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
-    ) -> Self
-    where
-        S: Strategy<'a, B, From=BoardOr<'a, B>, To=I>
-    {
-        Self {
-            _game: game,
-            partial_game,
-            states: vec![None; boards.len()],
-            boards: boards
-                .into_iter()
-                .filter_map(|borb| S::apply(borb, game, partial_game))
-                .map(|iter| CacheMoves::new(iter))
-                .collect(),
-            done: false,
-        }
-    }
-
     /** Increments the `states` **/
     fn inc(&mut self) {
         if self.done {

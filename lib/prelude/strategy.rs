@@ -23,20 +23,15 @@ impl<'a, B: Clone + AsRef<Board> + 'a, T> Strategy<'a, B> for DefaultStrategy<T>
 // This is a sample strategy
 pub struct NoCastling;
 
-fn no_castling(mv: &Move) -> bool {
-    mv.kind != MoveKind::Castle
-}
-
 impl<'a, B> Strategy<'a, B> for NoCastling
 where
     B: Clone + AsRef<Board> + 'a,
     &'a B: GenMoves<'a, B>
 {
-    type From = BoardOr<'a, B>;
-    type To = std::iter::Filter<<BoardOr<'a, B> as GenMoves<'a, B>>::Iter, fn(&Move) -> bool>;
+    type From = Move;
+    type To = bool;
 
-    fn apply(from: Self::From, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<Self::To> {
-        let iter = from.generate_moves(game, partial_game)?;
-        Some(iter.filter(no_castling))
+    fn apply(mv: Move, _game: &'a Game, _partial_game: &'a PartialGame<'a, B>) -> Option<Self::To> {
+        Some(mv.kind != MoveKind::Castle)
     }
 }
