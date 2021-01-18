@@ -66,6 +66,133 @@ impl Move {
     pub fn is_jump(&self) -> bool {
         (self.from.1).0 != (self.to.1).0 || (self.from.1).1 != (self.to.1).1
     }
+
+    pub fn generate_partial_game<'a, 'b, B>(
+        &self,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+        new_partial_game: &'b mut PartialGame<'a, B>
+    ) -> Option<()>
+    where
+        'a: 'b,
+        B: Clone + AsRef<Board> + From<(Board, &'a Game, &'a PartialGame<'a, B>)> + 'a
+    {
+        match self.kind {
+            MoveKind::Normal | MoveKind::Promotion => {
+                if self.is_jump() {
+                    let mut new_source_board: Board = partial_game
+                        .get_board_with_game(game, self.from.1.non_physical())?
+                        .as_ref()
+                        .clone();
+                    let mut new_target_board: Board = partial_game
+                        .get_board_with_game(game, self.to.1.non_physical())?
+                        .as_ref()
+                        .clone();
+                    if new_partial_game.info.get_timeline((self.to.1).0)?.last_board > (self.to.1).1 {
+                        // Branching move!
+                        let new_layer = if (self.to.1).1 & 1 == 0 {
+                            partial_game.info.max_timeline() + 1
+                        } else {
+                            partial_game.info.min_timeline() - 1
+                        };
+                        let new_timeline = TimelineInfo::new(
+                            new_layer,
+                            Some(self.to.1.non_physical()),
+                            (self.to.1).1 + 1,
+                            (self.to.1).1 + 1,
+                        );
+
+                        // Push the new timeline
+                        if (self.to.1).1 & 1 == 0 {
+                            new_partial_game.info.timelines_white.push(new_timeline);
+                        } else {
+                            new_partial_game.info.timelines_black.push(new_timeline);
+                        }
+
+                        new_target_board.t += 1;
+                        new_target_board.l = new_layer;
+                        new_source_board.t += 1;
+                    } else {
+                        // Non-branching move
+                        new_target_board.t += 1;
+                        new_source_board.t += 1;
+                    }
+
+                    let from_index = (self.from.1).2 as usize + (self.from.1).3 as usize * new_source_board.width() as usize;
+                    let to_index = (self.to.1).2 as usize + (self.to.1).3 as usize * new_source_board.width() as usize;
+
+                    if self.kind == MoveKind::Promotion {
+                        let white = new_source_board.pieces[from_index].is_piece_of_color(true);
+                        // NOTE: a promoted piece is considered to be unmoved;
+                        // this doesn't affect the base game, but could affect
+                        // customized pieces. If this is a problem to you, then
+                        // replace the `false` with a `true`.
+                        new_target_board.pieces[to_index] = Tile::Piece(
+                            Piece::new(PieceKind::Queen, white, false)
+                        );
+                    } else {
+                        new_target_board.pieces[to_index] = new_source_board.pieces[from_index];
+                    }
+
+                    new_source_board.pieces[from_index] = Tile::Blank;
+
+                    let new_source_coords = (new_source_board.l, new_source_board.t);
+                    let new_source_board = B::from((new_source_board, game, partial_game));
+
+                    new_partial_game.boards.insert(
+                        new_source_coords,
+                        new_source_board
+                    );
+                    new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
+
+                    let new_target_coords = (new_target_board.l, new_target_board.t);
+                    let new_target_board = B::from((new_target_board, game, partial_game));
+
+                    new_partial_game.boards.insert(
+                        new_target_coords,
+                        new_target_board
+                    );
+                    new_partial_game.info.get_timeline_mut((self.to.1).0)?.last_board += 1;
+                } else {
+                    let mut new_board: Board = partial_game
+                        .get_board_with_game(game, self.from.1.non_physical())?
+                        .as_ref()
+                        .clone();
+                    new_board.t += 1;
+                    let from_index = (self.from.1).2 as usize + (self.from.1).3 as usize * new_board.width() as usize;
+                    let to_index = (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
+
+                    if self.kind == MoveKind::Promotion {
+                        let white = new_board.pieces[from_index].is_piece_of_color(true);
+                        // NOTE: a promoted piece is considered to be unmoved;
+                        // this doesn't affect the base game, but could affect
+                        // customized pieces. If this is a problem to you, then
+                        // replace the `false` with a `true`.
+                        new_board.pieces[to_index] = Tile::Piece(
+                            Piece::new(PieceKind::Queen, white, false)
+                        );
+                    } else {
+                        new_board.pieces[to_index] = new_board.pieces[from_index];
+                    }
+
+                    new_board.pieces[from_index] = Tile::Blank;
+
+                    let new_coords = (new_board.l, new_board.t);
+                    let new_board = B::from((new_board, game, partial_game));
+
+                    new_partial_game.boards.insert(
+                        new_coords,
+                        new_board
+                    );
+                    new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
+                }
+            }
+            _ => {
+                // unimplemented!();
+            }
+        }
+        Some(())
+    }
 }
 
 impl std::fmt::Debug for Move {
@@ -125,6 +252,26 @@ impl Moveset {
     pub fn moves(&self) -> &Vec<Move> {
         &self.moves
     }
+
+    pub fn generate_partial_game<'a, B>(
+        &self,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>
+    ) -> Option<PartialGame<'a, B>>
+    where
+        B: Clone + AsRef<Board> + From<(Board, &'a Game, &'a PartialGame<'a, B>)> + 'a
+    {
+        let mut new_partial_game = PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
+
+        for mv in self.moves.iter() {
+            mv.generate_partial_game(game, partial_game, &mut new_partial_game)?;
+        }
+
+        new_partial_game.info.recalculate_present();
+        new_partial_game.parent = Some(partial_game);
+
+        Some(new_partial_game)
+    }
 }
 
 impl TryFrom<(Vec<Move>, &Info)> for Moveset {
@@ -162,12 +309,12 @@ impl TryFrom<(Vec<Move>, &Info)> for Moveset {
                 return Err(MovesetValidityErr::MoveFromVoid(*mv));
             }
 
-            if let Some(tl) = info.get_timeline(mv.to.1.l()) {
-                if *timelines_moved.get(&mv.from.1.l()).unwrap_or(&false) {
-                    // Already played
-                    return Err(MovesetValidityErr::AlreadyPlayed(*mv));
-                }
+            if *timelines_moved.get(&mv.from.1.l()).unwrap_or(&false) {
+                // Already played
+                return Err(MovesetValidityErr::AlreadyPlayed(*mv));
+            }
 
+            if let Some(tl) = info.get_timeline(mv.to.1.l()) {
                 if mv.to.1.t() == tl.last_board {
                     // (Possibly) non-branching jump
                     timelines_moved.insert(mv.to.1.l(), true);

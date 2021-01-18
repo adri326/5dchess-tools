@@ -1,5 +1,6 @@
 use chess5dlib::parse::test::read_and_parse;
 use chess5dlib::prelude::*;
+use std::convert::TryFrom;
 
 #[test]
 fn test_own_boards() {
@@ -14,4 +15,21 @@ fn test_own_boards() {
     let own_boards: Vec<&Board> = partial_game.own_boards(&game).collect();
 
     assert_eq!(own_boards, vec![game.get_board((0, 1)).unwrap()]);
+}
+
+#[test]
+fn test_new_partial_game() {
+    let game_empty = read_and_parse("tests/games/standard-empty.json");
+    let partial_game_empty = no_partial_game(&game_empty);
+    let game_d4 = read_and_parse("tests/games/standard-d4.json");
+    let partial_game_d4 = no_partial_game(&game_d4);
+
+    // d2-d4
+    let mv = Move::new(&game_empty, &partial_game_empty, Coords(0, 0, 3, 1), Coords(0, 0, 3, 3)).unwrap();
+    let ms = Moveset::try_from((vec![mv], &game_empty.info)).unwrap();
+
+    let new_partial_game = ms.generate_partial_game(&game_empty, &partial_game_empty).unwrap();
+
+    assert_eq!(new_partial_game.info, game_d4.info);
+    assert_eq!(new_partial_game.own_boards().collect::<Vec<_>>(), partial_game_d4.own_boards().collect::<Vec<_>>());
 }

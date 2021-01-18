@@ -1,7 +1,7 @@
 use chess5dlib::parse::test::read_and_parse;
 use chess5dlib::prelude::*;
 use criterion::measurement::Measurement;
-use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion, BatchSize};
 use rand::prelude::*;
 use std::time::{Duration, Instant};
 
@@ -123,19 +123,27 @@ fn bench_moveset_sub<M: Measurement>(
 ) {
     let partial_game = no_partial_game(&game);
 
+    let own_boards: Vec<BoardOr<Board>> = partial_game.own_boards(game).collect();
+    let mut sigma = 0;
+    let mut delta = Duration::new(0, 0);
+
     group.bench_with_input(BenchmarkId::new("GenMovesetIter", name), game, |b, game| {
         let lambda = |ms: Result<Moveset, MovesetValidityErr>| ms.ok();
         let mut iter = GenMovesetIter::new(
-            vec![game.get_board((0, 1)).unwrap().into()],
+            own_boards.clone(),
             &game,
             &partial_game,
         ).flatten().filter_map(lambda);
         b.iter(|| {
+            let start = Instant::now();
             match iter.next() {
-                Some(_) => {},
+                Some(_) => {
+                    sigma += 1;
+                    delta += start.elapsed();
+                },
                 None => {
                     iter = GenMovesetIter::new(
-                        vec![game.get_board((0, 1)).unwrap().into()],
+                        own_boards.clone(),
                         &game,
                         &partial_game,
                     ).flatten().filter_map(lambda);
@@ -143,16 +151,76 @@ fn bench_moveset_sub<M: Measurement>(
             }
         })
     });
+
+    println!("Timelines: {}", game.info.len_timelines());
+    println!("Boards to play on: {}", own_boards.len());
+    println!("Time (s): {}", delta.as_millis() as f64 / 1000.0);
+    println!("Movesets: {}", sigma);
+    println!("Moveset / ms: {}", sigma as f64 / delta.as_millis() as f64);
+}
+
+fn bench_moveset_partial_game<M: Measurement>(
+    group: &mut BenchmarkGroup<M>,
+    game: &Game,
+    name: &str,
+) {
+    let partial_game = no_partial_game(&game);
+
+    let own_boards: Vec<BoardOr<Board>> = partial_game.own_boards(game).collect();
+
+    group.bench_with_input(BenchmarkId::new("Moveset::new_partial_game", name), game, |b, game| {
+        let lambda = |ms: Result<Moveset, MovesetValidityErr>| ms.ok();
+        let mut iter = GenMovesetIter::new(
+            own_boards.clone(),
+            &game,
+            &partial_game,
+        ).flatten().filter_map(lambda);
+
+        b.iter_batched(|| {
+            let mut res: Option<Moveset> = None;
+
+            match iter.next() {
+                Some(ms) => res = Some(ms),
+                None => {
+                    iter = GenMovesetIter::new(
+                        own_boards.clone(),
+                        &game,
+                        &partial_game,
+                    ).flatten().filter_map(lambda);
+                }
+            }
+
+            res
+        },
+        |movesets| {
+            for ms in movesets {
+                ms.generate_partial_game(game, &partial_game).unwrap();
+            }
+        },
+        BatchSize::SmallInput)
+    });
 }
 
 pub fn bench_moveset<M: Measurement>(c: &mut Criterion<M>) {
-    let mut moveset_group = c.benchmark_group("Moveset");
-    let game = read_and_parse("tests/games/standard-d4d5.json");
-    bench_moveset_sub(&mut moveset_group, &game, "Simple");
-    let game = read_and_parse("tests/games/standard-complex.json");
-    bench_moveset_sub(&mut moveset_group, &game, "Complex");
-    let game = read_and_parse("tests/games/standard-complex-2.json");
-    bench_moveset_sub(&mut moveset_group, &game, "Complex 2");
+    {
+        let mut moveset_group = c.benchmark_group("Moveset");
+        let game = read_and_parse("tests/games/standard-d4d5.json");
+        bench_moveset_sub(&mut moveset_group, &game, "Simple");
+        let game = read_and_parse("tests/games/standard-complex.json");
+        bench_moveset_sub(&mut moveset_group, &game, "Complex");
+        let game = read_and_parse("tests/games/standard-complex-2.json");
+        bench_moveset_sub(&mut moveset_group, &game, "Complex 2");
+    }
+
+    {
+        let mut moveset_group = c.benchmark_group("generate_partial_game");
+        let game = read_and_parse("tests/games/standard-d4d5.json");
+        bench_moveset_partial_game(&mut moveset_group, &game, "Simple");
+        let game = read_and_parse("tests/games/standard-complex.json");
+        bench_moveset_partial_game(&mut moveset_group, &game, "Complex");
+        let game = read_and_parse("tests/games/standard-complex-2.json");
+        bench_moveset_partial_game(&mut moveset_group, &game, "Complex 2");
+    }
 }
 
 criterion_group!(

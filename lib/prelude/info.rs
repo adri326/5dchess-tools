@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TimelineInfo {
     pub index: Layer,
     pub starts_from: Option<(Layer, Time)>,
@@ -8,7 +8,7 @@ pub struct TimelineInfo {
     pub first_board: Time,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Info {
     pub present: Time,
     pub active_player: bool,
@@ -90,6 +90,14 @@ impl Info {
         }
     }
 
+    pub fn get_timeline_mut(&mut self, l: Layer) -> Option<&mut TimelineInfo> {
+        if l < 0 {
+            self.timelines_black.get_mut(-l as usize - 1)
+        } else {
+            self.timelines_white.get_mut(l as usize)
+        }
+    }
+
     pub fn is_active(&self, l: Layer) -> bool {
         let timeline_width = self
             .max_timeline
@@ -109,6 +117,42 @@ impl Info {
     #[inline]
     pub fn len_timelines(&self) -> usize {
         self.timelines_black.len() + self.timelines_white.len()
+    }
+
+    #[inline]
+    pub fn min_timeline(&self) -> Layer {
+        -(self.timelines_black.len() as Layer)
+    }
+
+    #[inline]
+    pub fn max_timeline(&self) -> Layer {
+        self.timelines_white.len() as Layer - 1
+    }
+
+    pub fn recalculate_present(&mut self) -> Time {
+        let timeline_width =
+            self.max_timeline().min(-self.min_timeline() - (self.even_timelines as Layer)) as usize + 1;
+        let mut present = self.timelines_white[0].last_board;
+
+        for tl in self.timelines_white.iter().take(timeline_width) {
+            if tl.last_board < present {
+                present = tl.last_board;
+            }
+        }
+
+        for tl in self.timelines_black
+            .iter()
+            .take(timeline_width - (!self.even_timelines) as usize)
+        {
+            if tl.last_board < present {
+                present = tl.last_board;
+            }
+        }
+
+        self.present = present;
+        self.active_player = present % 2 == 0;
+
+        present
     }
 
     /// Returns the number of active timelines that the player `white` can make

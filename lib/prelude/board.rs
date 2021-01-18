@@ -4,12 +4,12 @@ use std::fmt;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Board {
-    l: Layer,
-    t: Time,
+    pub l: Layer,
+    pub t: Time,
     width: Physical,
     height: Physical,
     pub pieces: Vec<Tile>,
-    en_passant: Option<(Physical, Physical)>,
+    pub en_passant: Option<(Physical, Physical)>,
 }
 
 impl fmt::Debug for Board {
@@ -109,6 +109,13 @@ impl Board {
     }
 }
 
+impl<'a> From<(Board, &'a Game, &'a PartialGame<'a, Board>)> for Board {
+    fn from((board, _game, _partial_game): (Board, &'a Game, &'a PartialGame<'a, Board>)) -> Self {
+        board
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BoardOr<'a, B: Clone + AsRef<Board> + 'a> {
     Board(&'a Board),
     B(&'a B),
