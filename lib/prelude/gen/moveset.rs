@@ -6,7 +6,7 @@ pub struct GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item=Move>,
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
 {
     _game: &'a Game,
     partial_game: &'a PartialGame<'a, B>,
@@ -18,7 +18,7 @@ where
 impl<'a, B> GenMovesetIter<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter>
 where
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
 {
     /** Creates a new GenMovesetIter from a set of boards. **/
     pub fn new(
@@ -42,7 +42,7 @@ where
 pub struct FilterByStrategy<'a, B, I, S>
 where
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
     I: Iterator<Item=Move>,
     S: Strategy<'a, B, From=Move, To=bool>,
 {
@@ -55,7 +55,7 @@ where
 impl<'a, B, I, S> Iterator for FilterByStrategy<'a, B, I, S>
 where
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
     I: Iterator<Item=Move>,
     S: Strategy<'a, B, From=Move, To=bool>,
 {
@@ -83,7 +83,7 @@ pub fn generate_movesets_with_strategy<'a, B, S>(
 ) -> GenMovesetIter<'a, B, FilterByStrategy<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter, S>>
 where
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
     S: Strategy<'a, B, From=Move, To=bool>,
 {
     GenMovesetIter {
@@ -108,7 +108,7 @@ impl<'a, B, I> GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item=Move>,
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
 {
     /** Increments the `states` **/
     fn inc(&mut self) {
@@ -137,7 +137,7 @@ impl<'a, B, I> Iterator for GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item=Move>,
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
 {
     type Item = PermMovesetIter<'a>;
 

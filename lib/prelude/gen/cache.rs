@@ -13,7 +13,7 @@ pub struct CacheMoves<I: Iterator<Item=Move>> {
 impl<'a, B, G: GenMoves<'a, B>> TryFrom<(G, &'a Game, &'a PartialGame<'a, B>)> for CacheMoves<G::Iter>
 where
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
 {
     type Error = ();
     /**

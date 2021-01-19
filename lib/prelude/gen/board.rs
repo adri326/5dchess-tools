@@ -103,7 +103,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for &'a Board {
 pub enum BoardIterOr<'a, B>
 where
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
 {
     Board(BoardIter<'a, B>),
     B(<&'a B as GenMoves<'a, B>>::Iter),
@@ -112,7 +112,7 @@ where
 impl<'a, B> Iterator for BoardIterOr<'a, B>
 where
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
 {
     type Item = Move;
 
@@ -127,7 +127,7 @@ where
 impl<'a, B> GenMoves<'a, B> for BoardOr<'a, B>
 where
     B: Clone + AsRef<Board> + 'a,
-    &'a B: GenMoves<'a, B>,
+    for<'b> &'b B: GenMoves<'b, B>,
 {
     type Iter = BoardIterOr<'a, B>;
 

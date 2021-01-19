@@ -86,9 +86,17 @@ fn test(started: Instant, duration: Duration, game: &Game, partial_game: &Partia
             sigma += 1;
             delta += begin.elapsed();
 
-            if let None = next {
-                break 'f
+            match next {
+                Some(ms) => {
+                    coz::begin!("Moveset::generate_partial_game");
+                    let _partial_game = ms.generate_partial_game(game, partial_game);
+                    coz::end!("Moveset::generate_partial_game");
+                }
+                None => {
+                    break 'f
+                }
             }
+
             if started.elapsed() >= duration {
                 return (sigma, delta)
             }
