@@ -134,6 +134,7 @@ where
 // TODO: somehow store the boards in the move itself for speed~
 // (I don't want to waste another 500ns)
 pub struct LegalMove;
+pub struct OptLegalMove;
 
 impl<'a, B> Strategy<'a, B> for LegalMove
 where
@@ -151,6 +152,29 @@ where
 
         let res = is_legal_move(game, &new_partial_game);
         res
+    }
+}
+
+
+impl<'a, B> Strategy<'a, B> for OptLegalMove
+where
+    B: Clone + AsRef<Board> + 'a,
+    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
+    for<'b> &'b B: GenMoves<'b, B>,
+{
+    type From = Move;
+    type To = bool;
+
+    fn apply<'b>(mv: Move, game: &'b Game, partial_game: &'b PartialGame<'b, B>) -> Option<bool> {
+        let n_own_boards = partial_game.own_boards(game).count();
+        if n_own_boards <= 2 {
+            Some(true)
+        } else if n_own_boards == 3 {
+            let n_opponent_boards = partial_game.opponent_boards(game).count();
+            Some(n_opponent_boards <= 8)
+        } else {
+            LegalMove::apply(mv, game, partial_game)
+        }
     }
 }
 
