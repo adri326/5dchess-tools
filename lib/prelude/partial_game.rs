@@ -7,6 +7,7 @@ use std::collections::hash_map::{HashMap, Keys};
 
     The "boards" store a hashmap over an arbitrary data structure B. You may put any extension of `Board` in it!
 **/
+#[derive(Debug)]
 pub struct PartialGame<'a, B: Clone + AsRef<Board> + 'a> {
     pub boards: HashMap<(Layer, Time), B>,
     pub info: Info,
@@ -43,10 +44,11 @@ impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
         }
     }
 
-    /** Toggles the `active_player` variable **/
-    pub fn swap_player(mut self) -> Self {
-        self.info.active_player = !self.info.active_player;
-        self
+    pub fn insert(&mut self, board: B) {
+        self.boards.insert(
+            (board.as_ref().l(), board.as_ref().t()),
+            board
+        );
     }
 
     /** Returns an iterator over all of the boards contained within that partial game state and its parents.

@@ -31,3 +31,6 @@ pub use gen::*;
 
 pub mod strategy;
 pub use strategy::*;
+
+pub mod check;
+pub use check::*;

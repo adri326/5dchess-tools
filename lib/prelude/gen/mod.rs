@@ -33,6 +33,28 @@ pub use cache::CacheMoves;
 pub mod moveset;
 pub use moveset::{GenMovesetIter, generate_movesets_with_strategy};
 
+/**
+    An enum containing the different flags used by `GenMoves::generate_moves_flag.`
+    Each flag allows you to only yield a subset of the moves, except for `Any`.
+    See the documentation for each of them for more details.
+
+    If you wish to add your own flag, consider contacting the repository owner.
+**/
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum GenMovesFlag {
+    /** Tells `GenMoves::generate_moves_flag` to yield all of the moves. **/
+    Any,
+
+    /**
+        Tells `GenMoves::generate_moves_flag` to only yield the moves attacking a royal pieces.
+
+        - Moves that aren't attacking royal pieces *may* be present.
+        - Moves that are attacking royal pieces *must all* be present.
+        Failure to do so will result in undefined behavior.
+    **/
+    Check,
+}
+
 pub trait GenMoves<'a, B: Clone + AsRef<Board> + 'a>: Sized {
     type Iter: Iterator<Item = Move>;
 
@@ -56,5 +78,21 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board> + 'a>: Sized {
             .map(|mut i| i.find(|m| m == mv))
             .flatten()
             .is_some()
+    }
+
+    /**
+        Returns an iterator that may only yield a subset of the moves.
+        See `GenMovesFlag` for more detail on the flags used.
+
+        You should consider implementing your own `generate_moves_flag` if you can.
+        When doing so, you should bundle the different iterators within an `enum`.
+    **/
+    fn generate_moves_flag(
+        self,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+        _flag: GenMovesFlag,
+    ) -> Option<Self::Iter> {
+        self.generate_moves(game, partial_game)
     }
 }

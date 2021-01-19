@@ -41,6 +41,12 @@ impl std::convert::AsRef<Board> for Board {
     }
 }
 
+impl std::convert::AsMut<Board> for Board {
+    fn as_mut(&mut self) -> &mut Self {
+        self
+    }
+}
+
 impl Board {
     pub fn new(
         width: Physical,

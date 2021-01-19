@@ -185,7 +185,7 @@ where
     for<'b> &'b B: GenMoves<'b, B>,
 {
     for board in partial_game.opponent_boards(game) {
-        for mv in board.generate_moves(game, partial_game)? {
+        for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
             match mv.to.0 {
                 Some(piece) => {
                     if piece.is_royal() && piece.white == partial_game.info.active_player {
