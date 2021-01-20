@@ -195,11 +195,16 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for RangingPieceIter<'a, B> {
         self.distance += 1;
 
         let n_coords = self.coords + Coords::from(cardinality) * (self.distance as isize);
+        let mut next_cardinality = false;
 
         let res = match self.partial_game.get_with_game(self.game, n_coords) {
-            Tile::Void => None,
+            Tile::Void => {
+                next_cardinality = true;
+                None
+            },
             Tile::Blank => Move::new(self.game, self.partial_game, self.coords, n_coords),
             Tile::Piece(p) => {
+                next_cardinality = true;
                 if p.white != self.piece.white {
                     Move::new(self.game, self.partial_game, self.coords, n_coords)
                 } else {
@@ -208,12 +213,15 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for RangingPieceIter<'a, B> {
             }
         };
 
+        if next_cardinality {
+            self.distance = 0;
+            self.cardinalities_index += 1;
+        }
+
         // Weird thing to enable TCR
         if res.is_some() {
             return res;
         }
-        self.distance = 0;
-        self.cardinalities_index += 1;
         self.next()
     }
 }

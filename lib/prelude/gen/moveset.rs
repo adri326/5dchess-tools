@@ -62,15 +62,15 @@ where
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            Some(mv) => {
-                if S::apply(mv, self.game, self.partial_game)? {
-                    Some(mv)
-                } else {
-                    None
-                }
-            },
-            None => None
+        loop {
+            match self.iter.next() {
+                Some(mv) => {
+                    if S::apply(mv, self.game, self.partial_game)? {
+                        return Some(mv)
+                    }
+                },
+                None => return None
+            }
         }
     }
 }

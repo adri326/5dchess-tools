@@ -150,8 +150,7 @@ where
         mv.generate_partial_game(game, partial_game, &mut new_partial_game);
         new_partial_game.parent = Some(partial_game);
 
-        let res = is_legal_move(game, &new_partial_game);
-        res
+        is_legal_move(game, &new_partial_game)
     }
 }
 

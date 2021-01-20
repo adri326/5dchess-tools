@@ -36,12 +36,14 @@ fn bench_movement_board<M: Measurement>(
         },
     );
 
-    let mpms = (n_moves as f64) / (time.as_millis() as f64);
-    println!("Timelines: {}", game.info.len_timelines());
-    println!("Boards to play on: {}", own_boards.len());
-    println!("Time (s): {}", time.as_millis() as f64 / 1000.0);
-    println!("Moves: {}", n_moves);
-    println!("Moves / ms: {}", mpms);
+    if n_moves > 0 {
+        let mpms = (n_moves as f64) / (time.as_millis() as f64);
+        println!("Timelines: {}", game.info.len_timelines());
+        println!("Boards to play on: {}", own_boards.len());
+        println!("Time (s): {}", time.as_millis() as f64 / 1000.0);
+        println!("Moves: {}", n_moves);
+        println!("Moves / ms: {}", mpms);
+    }
 }
 
 fn bench_movement_piece<M: Measurement>(
@@ -152,11 +154,13 @@ fn bench_moveset_sub<M: Measurement>(
         })
     });
 
-    println!("Timelines: {}", game.info.len_timelines());
-    println!("Boards to play on: {}", own_boards.len());
-    println!("Time (s): {}", delta.as_millis() as f64 / 1000.0);
-    println!("Movesets: {}", sigma);
-    println!("Moveset / ms: {}", sigma as f64 / delta.as_millis() as f64);
+    if sigma > 0 {
+        println!("Timelines: {}", game.info.len_timelines());
+        println!("Boards to play on: {}", own_boards.len());
+        println!("Time (s): {}", delta.as_millis() as f64 / 1000.0);
+        println!("Movesets: {}", sigma);
+        println!("Moveset / ms: {}", sigma as f64 / delta.as_millis() as f64);
+    }
 }
 
 fn bench_moveset_sub_filter<M: Measurement, S: for<'a> Strategy<'a, Board, From=Move, To=bool>>(
@@ -195,11 +199,13 @@ fn bench_moveset_sub_filter<M: Measurement, S: for<'a> Strategy<'a, Board, From=
         })
     });
 
-    println!("Timelines: {}", game.info.len_timelines());
-    println!("Boards to play on: {}", own_boards.len());
-    println!("Time (s, filtered): {}", delta.as_millis() as f64 / 1000.0);
-    println!("Movesets (filtered): {}", sigma);
-    println!("Moveset / ms (filtered): {}", sigma as f64 / delta.as_millis() as f64);
+    if sigma > 0 {
+        println!("Timelines: {}", game.info.len_timelines());
+        println!("Boards to play on: {}", own_boards.len());
+        println!("Time (s, filtered): {}", delta.as_millis() as f64 / 1000.0);
+        println!("Movesets (filtered): {}", sigma);
+        println!("Moveset / ms (filtered): {}", sigma as f64 / delta.as_millis() as f64);
+    }
 }
 
 fn bench_moveset_partial_game<M: Measurement>(

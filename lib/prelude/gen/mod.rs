@@ -87,6 +87,7 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board> + 'a>: Sized {
         You should consider implementing your own `generate_moves_flag` if you can.
         When doing so, you should bundle the different iterators within an `enum`.
     **/
+    #[inline]
     fn generate_moves_flag(
         self,
         game: &'a Game,

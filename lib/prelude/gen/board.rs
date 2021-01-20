@@ -1,6 +1,11 @@
 use super::*;
 
-pub struct BoardIter<'a, B: Clone + AsRef<Board> + 'a> {
+/**
+    Yields moves for every pieces on a board.
+    The type of the items is `Option<Move>`; `BoardIter` is a wrapper around `BoardIterSub`, which
+    does a specialized `filter_map`.
+**/
+pub struct BoardIterSub<'a, B: Clone + AsRef<Board> + 'a> {
     pub board: &'a Board,
     pub game: &'a Game,
     pub partial_game: &'a PartialGame<'a, B>,
@@ -8,10 +13,10 @@ pub struct BoardIter<'a, B: Clone + AsRef<Board> + 'a> {
     pub current_piece: Option<super::piece::PieceMoveIter<'a, B>>,
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
-    type Item = Move;
+impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIterSub<'a, B> {
+    type Item = Option<Move>;
 
-    fn next(&mut self) -> Option<Move> {
+    fn next(&mut self) -> Option<Option<Move>> {
         if self.index >= self.board.width() * self.board.height() {
             return None;
         }
@@ -32,7 +37,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
                 }
             }
             Some(i) => match i.next() {
-                Some(m) => return Some(m),
+                Some(m) => return Some(Some(m)),
                 None => {
                     self.index += 1;
                     while self.index < self.board.width() * self.board.height()
@@ -61,10 +66,34 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
                 ),
             )
             .generate_moves(self.game, self.partial_game);
+
+            if self.current_piece.is_none() {
+                self.index += 1;
+            }
         }
 
-        // TCR ftw :)
-        self.next()
+        // No more TCR :(
+        Some(None)
+    }
+}
+
+/**
+    Yields all of the moves of the pieces in a board.
+    It is a wrapper around `BoardIterSub`.
+**/
+pub struct BoardIter<'a, B: Clone + AsRef<Board> + 'a>(pub BoardIterSub<'a, B>);
+
+impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.0.next() {
+                Some(Some(mv)) => return Some(mv),
+                None => return None,
+                _ => {}
+            }
+        }
     }
 }
 
@@ -78,14 +107,14 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for &'a Board {
         self,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
-    ) -> Option<BoardIter<'a, B>> {
-        Some(BoardIter {
+    ) -> Option<Self::Iter> {
+        Some(BoardIter(BoardIterSub {
             board: self,
             game,
             partial_game,
             index: 0,
             current_piece: None,
-        })
+        }))
     }
 
     fn validate_move(self, game: &Game, partial_game: &PartialGame<B>, mv: &Move) -> bool {
@@ -105,7 +134,7 @@ where
     B: Clone + AsRef<Board> + 'a,
     for<'b> &'b B: GenMoves<'b, B>,
 {
-    Board(BoardIter<'a, B>),
+    Board(<&'a Board as GenMoves<'a, B>>::Iter),
     B(<&'a B as GenMoves<'a, B>>::Iter),
 }
 
@@ -131,6 +160,9 @@ where
 {
     type Iter = BoardIterOr<'a, B>;
 
+    /**
+        Returns an iterator yielding all of the moves of the current player on a board.
+    **/
     fn generate_moves(
         self,
         game: &'a Game,
@@ -147,5 +179,23 @@ where
             BoardOr::Board(board) => board.validate_move(game, partial_game, mv),
             BoardOr::B(board) => board.validate_move(game, partial_game, mv),
         }
+    }
+
+    /**
+        Returns a specialized iterator over the moves on the board.
+        Although `Board::generate_moves_flag` does not do any kind of specialization, this
+        will still take advantage from the acceleration offered by `B::generate_moves_flag`.
+    **/
+    #[inline]
+    fn generate_moves_flag(
+        self,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+        flag: GenMovesFlag,
+    ) -> Option<Self::Iter> {
+        Some(match self {
+            BoardOr::Board(board) => BoardIterOr::Board(board.generate_moves_flag(game, partial_game, flag)?),
+            BoardOr::B(board) => BoardIterOr::B(board.generate_moves_flag(game, partial_game, flag)?),
+        })
     }
 }

@@ -334,7 +334,7 @@ impl std::fmt::Debug for Move {
             self.from.1.l(),
             self.from.1.t(),
             write_file(self.from.1.x()),
-            self.from.1.y(),
+            self.from.1.y() + 1,
             self.to
                 .0
                 .map(|x| format!("{:?}", x))
@@ -342,7 +342,7 @@ impl std::fmt::Debug for Move {
             self.to.1.l(),
             self.to.1.t(),
             write_file(self.to.1.x()),
-            self.to.1.y(),
+            self.to.1.y() + 1,
         )
     }
 }
@@ -408,7 +408,11 @@ impl Moveset {
         new_partial_game.info.recalculate_present();
         new_partial_game.parent = Some(partial_game);
 
-        Some(new_partial_game)
+        if new_partial_game.info.active_player != partial_game.info.active_player {
+            Some(new_partial_game)
+        } else {
+            None
+        }
     }
 }
 
