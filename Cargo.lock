@@ -78,6 +78,7 @@ dependencies = [
  "itertools 0.10.0",
  "json",
  "lazy_static",
+ "num_cpus",
  "permute",
  "rand",
  "scoped_threadpool",

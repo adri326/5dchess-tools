@@ -232,4 +232,13 @@ pub mod test {
         assert!(res.is_some(), "Couldn't parse `{}`!", path);
         res.unwrap()
     }
+
+    pub fn read_and_parse_opt(path: &str) -> Option<Game> {
+        let mut file = File::open(path).ok()?;
+        let mut contents = String::new();
+
+        file.read_to_string(&mut contents).ok()?;
+
+        parse(&contents)
+    }
 }

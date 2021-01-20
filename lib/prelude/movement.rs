@@ -2,6 +2,7 @@ use super::*;
 use colored::*;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::hash::{Hash, Hasher};
 
 /** Represents a move's kind (regular move, castling move, etc.) **/
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -347,7 +348,7 @@ impl std::fmt::Debug for Move {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MovesetValidityErr {
     NoMoves,
     TooManyMoves,
@@ -415,6 +416,29 @@ impl Moveset {
         }
     }
 }
+
+impl Hash for Moveset {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let mut moves = self.moves.clone();
+        moves.sort_by(|mv_a, mv_b| (mv_a.from.1).0.partial_cmp(&(mv_b.from.1).0).unwrap());
+        for mv in moves {
+            mv.hash(state);
+        }
+    }
+}
+
+// TODO: better implementation of PartialEq
+impl PartialEq for Moveset {
+    fn eq(&self, other: &Self) -> bool {
+        let mut self_moves = self.moves.clone();
+        self_moves.sort_by(|mv_a, mv_b| (mv_a.from.1).0.partial_cmp(&(mv_b.from.1).0).unwrap());
+        let mut other_moves = other.moves.clone();
+        other_moves.sort_by(|mv_a, mv_b| (mv_a.from.1).0.partial_cmp(&(mv_b.from.1).0).unwrap());
+        self_moves == other_moves
+    }
+}
+
+impl Eq for Moveset {}
 
 impl TryFrom<(Vec<Move>, &Info)> for Moveset {
     type Error = MovesetValidityErr;

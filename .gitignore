@@ -3,4 +3,7 @@ target
 /profiling/db.tar.gz
 /profiling/5d-chess-db
 /profiling/converted-db
+/tests/db.tar.gz
+/tests/5d-chess-db
+/tests/converted-db
 *.coz

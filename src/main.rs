@@ -46,7 +46,7 @@ fn main() -> std::io::Result<()> {
     //     }
     // }).count());
 
-    let mut iter = generate_movesets_with_strategy::<Board, OptLegalMove>(
+    let mut iter = generate_movesets_with_strategy::<OptLegalMove, Board>(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game
