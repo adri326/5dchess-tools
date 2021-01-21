@@ -1,4 +1,4 @@
-use chess5dlib::parse::test::read_and_parse_opt;
+use chess5dlib::parse::test::{read_and_parse, read_and_parse_opt};
 use chess5dlib::prelude::*;
 use rand::Rng;
 use scoped_threadpool::Pool;
@@ -164,7 +164,7 @@ fn test_legal_opt_move() {
     };
 
     compare_methods(
-        25,
+        10,
         3,
         |game, partial_game| {
             generate_movesets_with_strategy::<OptLegalMove, Board>(
@@ -187,4 +187,172 @@ fn test_legal_opt_move() {
             .collect()
         },
     );
+}
+
+#[test]
+fn defended_pawn_checkmate() {
+    let game = read_and_parse("tests/games/defended-pawn-checkmate.json");
+    let partial_game = no_partial_game(&game);
+
+    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| {
+        match ms {
+            Ok(ms) => {
+                let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
+                if is_illegal(&game, &new_partial_game)? {
+                    None
+                } else {
+                    Some(ms)
+                }
+            }
+            Err(_) => None,
+        }
+    };
+
+    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+            partial_game.own_boards(&game).collect(),
+            &game,
+            &partial_game,
+        )
+        .flatten()
+        .filter_map(|ms| filter_lambda(ms));
+
+    let mv = iter.next();
+
+    assert!(mv.is_none(), "Expected no legal movesets to be found; found {:?}", mv);
+}
+
+#[test]
+fn standard_checkmate() {
+    let game = read_and_parse("tests/games/standard-checkmate.json");
+    let partial_game = no_partial_game(&game);
+
+    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| {
+        match ms {
+            Ok(ms) => {
+                let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
+                if is_illegal(&game, &new_partial_game)? {
+                    None
+                } else {
+                    Some(ms)
+                }
+            }
+            Err(_) => None,
+        }
+    };
+
+    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+            partial_game.own_boards(&game).collect(),
+            &game,
+            &partial_game,
+        )
+        .flatten()
+        .filter_map(|ms| filter_lambda(ms));
+
+    let mv = iter.next();
+
+    assert!(mv.is_none(), "Expected no legal movesets to be found; found {:?}", mv);
+}
+
+#[test]
+fn standard_checkmate_2() {
+    let game = read_and_parse("tests/games/standard-checkmate-2.json");
+    let partial_game = no_partial_game(&game);
+
+    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| {
+        match ms {
+            Ok(ms) => {
+                let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
+                if is_illegal(&game, &new_partial_game)? {
+                    None
+                } else {
+                    Some(ms)
+                }
+            }
+            Err(_) => None,
+        }
+    };
+
+    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+            partial_game.own_boards(&game).collect(),
+            &game,
+            &partial_game,
+        )
+        .flatten()
+        .filter_map(|ms| filter_lambda(ms));
+
+    let mv = iter.next();
+
+    assert!(mv.is_none(), "Expected no legal movesets to be found; found {:?}", mv);
+}
+
+#[test]
+fn standard_checkmate_3() {
+    let game = read_and_parse("tests/games/standard-checkmate-3.json");
+    let partial_game = no_partial_game(&game);
+
+    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| {
+        match ms {
+            Ok(ms) => {
+                let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
+                if is_illegal(&game, &new_partial_game)? {
+                    None
+                } else {
+                    Some(ms)
+                }
+            }
+            Err(_) => None,
+        }
+    };
+
+    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+            partial_game.own_boards(&game).collect(),
+            &game,
+            &partial_game,
+        )
+        .flatten()
+        .filter_map(|ms| filter_lambda(ms));
+
+    let mv = iter.next();
+
+    assert!(mv.is_none(), "Expected no legal movesets to be found; found {:?}", mv);
+}
+
+#[test]
+fn princess_checkmate() {
+    let game = read_and_parse("tests/games/princess-checkmate.json");
+    let partial_game = no_partial_game(&game);
+
+    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| {
+        match ms {
+            Ok(ms) => {
+                let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
+                if is_illegal(&game, &new_partial_game)? {
+                    None
+                } else {
+                    Some(ms)
+                }
+            }
+            Err(_) => None,
+        }
+    };
+
+    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+            partial_game.own_boards(&game).collect(),
+            &game,
+            &partial_game,
+        )
+        .flatten()
+        .filter_map(|ms| filter_lambda(ms));
+
+    let mv = iter.next();
+
+    if let Some(ms) = mv.clone() {
+        let new_partial_game = ms.generate_partial_game(&game, &partial_game).unwrap();
+        println!("{:#?}", new_partial_game);
+        for board in new_partial_game.own_boards(&game) {
+            println!("{:?}", board);
+        }
+    }
+
+    assert!(mv.is_none(), "Expected no legal movesets to be found; found {:?}", mv);
 }

@@ -2,6 +2,7 @@ use super::*;
 use colored::*;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 
 /** Represents a move's kind (regular move, castling move, etc.) **/
@@ -46,8 +47,8 @@ impl Move {
         if from.0.can_enpassant() && to.0.is_none() && (from.1).2 != (to.1).2 {
             kind = MoveKind::EnPassant;
         } else if from.0.can_promote()
-            && ((to.1).2 == 0 && (from.1).2 != 0
-                || (to.1).2 == game.height - 1 && (from.1).2 != game.height - 1)
+            && ((to.1).3 == 0 && (from.1).3 != 0
+                || (to.1).3 == game.height - 1 && (from.1).3 != game.height - 1)
         {
             kind = MoveKind::Promotion;
         } else if from.0.can_castle() && ((from.1).2 == (to.1).2 + 2 || (from.1).2 + 2 == (to.1).2)
@@ -125,6 +126,7 @@ impl Move {
                         new_target_board.l = new_layer;
                         new_source_board.t += 1;
                     } else {
+                        new_partial_game.info.get_timeline_mut((self.to.1).0)?.last_board += 1;
                         // Non-branching move
                         new_target_board.t += 1;
                         new_source_board.t += 1;
@@ -326,8 +328,8 @@ impl Move {
     }
 }
 
-impl std::fmt::Debug for Move {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Debug for Move {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{:?}(L{}T{}){}{} → {}(L{}T{}){}{}",
@@ -345,6 +347,41 @@ impl std::fmt::Debug for Move {
             write_file(self.to.1.x()),
             self.to.1.y() + 1,
         )
+    }
+}
+
+impl fmt::Display for Move {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(L{}T{})", self.from.1.l(), self.from.1.t() / 2 + 1)?;
+        if self.kind == MoveKind::Castle {
+            if (self.from.1).2 > (self.to.1).2 {
+                write!(f, "O-O-O")
+            } else {
+                write!(f, "O-O")
+            }
+        } else {
+            write!(f, "{:?}{}{}", self.from.0.kind, write_file((self.from.1).2), (self.from.1).3 + 1)?;
+
+            if self.to.1.non_physical() != self.from.1.non_physical() {
+                // I currently have no way to verify that the move is branching or not;
+                // The parser can solve this later anyways
+                write!(f, ">>")?;
+            }
+
+            if self.to.0.is_some() {
+                write!(f, "x")?;
+            }
+
+            if self.to.1.non_physical() != self.from.1.non_physical() {
+                write!(f, "(L{}T{})", self.to.1.l(), self.to.1.t() / 2 + 1)?;
+            }
+
+            if self.kind == MoveKind::Promotion {
+                write!(f, "{}{}=Q", write_file((self.to.1).2), (self.to.1).3 + 1)
+            } else {
+                write!(f, "{}{}", write_file((self.to.1).2), (self.to.1).3 + 1)
+            }
+        }
     }
 }
 
@@ -439,6 +476,15 @@ impl PartialEq for Moveset {
 }
 
 impl Eq for Moveset {}
+
+impl fmt::Display for Moveset {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for mv in self.moves.iter() {
+            write!(f, "{} ", mv)?
+        }
+        Ok(())
+    }
+}
 
 impl TryFrom<(Vec<Move>, &Info)> for Moveset {
     type Error = MovesetValidityErr;

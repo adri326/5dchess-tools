@@ -106,12 +106,20 @@ pub fn parse(raw: &str) -> Option<Game> {
         let mut initial_state: Vec<Tile> = Vec::new();
 
         for index in 0..board_size {
-            initial_state.push(res.get(Coords(
+            let piece = res.get(Coords(
                 coords.0,
                 coords.1,
                 (index % game_raw.width as usize) as Physical,
                 (index / game_raw.width as usize) as Physical,
-            )));
+            ));
+            let piece = match piece {
+                Tile::Piece(mut p) => {
+                    p.moved = false;
+                    Tile::Piece(p)
+                }
+                x => x
+            };
+            initial_state.push(piece);
         }
 
         let initial_board = res.get_board((layer, first_board))?.clone();
@@ -125,11 +133,11 @@ pub fn parse(raw: &str) -> Option<Game> {
                     let x = (index % game_raw.width as usize) as Physical;
                     let y = (index / game_raw.width as usize) as Physical;
 
-                    if board.pieces[index] == state[index] {
+                    if cmp_pieces(board.pieces[index], state[index]) {
                         // If the piece didn't move...
                         board.pieces[index] = match board.pieces[index] {
                             Tile::Piece(mut piece) => {
-                                piece.moved = false; // Set its flag to false
+                                piece.moved = state[index].piece().unwrap().moved; // Set its flag to false
                                 Tile::Piece(piece)
                             }
                             x => x,
@@ -212,6 +220,15 @@ pub fn de_piece(raw: usize) -> Tile {
 
         _ => return Tile::Blank,
     })
+}
+
+// Returns whether or not left.kind == right.kind and left.white == right.white
+pub fn cmp_pieces(left: Tile, right: Tile) -> bool {
+    match (left, right) {
+        (Tile::Piece(l), Tile::Piece(r)) => l.kind == r.kind && l.white == r.white,
+        (Tile::Blank, Tile::Blank) => true,
+        _ => false
+    }
 }
 
 /// This module should only be used for testing!

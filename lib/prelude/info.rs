@@ -51,7 +51,7 @@ impl Info {
         let min_timeline = -(timelines_black.len() as Layer);
         let max_timeline = timelines_white.len() as Layer - 1;
         let timeline_width =
-            max_timeline.min(-min_timeline - (if even_timelines { 1 } else { 0 })) as usize + 1;
+            max_timeline.min(-min_timeline - (if even_timelines { 1 } else { 0 })) as usize + 2;
         let mut present = timelines_white[0].last_board;
 
         for tl in timelines_white.iter().take(timeline_width) {
@@ -131,7 +131,7 @@ impl Info {
 
     pub fn recalculate_present(&mut self) -> Time {
         let timeline_width =
-            self.max_timeline().min(-self.min_timeline() - (self.even_timelines as Layer)) as usize + 1;
+            self.max_timeline().min(-self.min_timeline() - (self.even_timelines as Layer)) as usize + 2;
         let mut present = self.timelines_white[0].last_board;
 
         for tl in self.timelines_white.iter().take(timeline_width) {

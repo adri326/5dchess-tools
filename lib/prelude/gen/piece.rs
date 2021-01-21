@@ -51,7 +51,7 @@ impl PawnIter {
         let mut moves: Vec<Move> = Vec::new();
 
         // Forward move
-        for perm in vec![Coords(0, 0, 0, 1), Coords(1, 0, 0, 0)] {
+        for perm in vec![Coords(0, 0, 0, 1), Coords(-1, 0, 0, 0)] {
             if partial_game
                 .get_with_game(game, forward(piece.1, perm, piece.0.white))
                 .is_blank()
@@ -86,19 +86,19 @@ impl PawnIter {
                 Coords(0, 0, 1, 1),
                 Coords(0, 0, -1, 1),
                 Coords(0, -2, 0, 1),
-                Coords(1, 0, 0, 1),
-                Coords(1, 2, 0, 0),
-                Coords(1, -2, 0, 0),
-                Coords(1, 0, 1, 0),
-                Coords(1, 0, -1, 0),
+                Coords(-1, 0, 0, 1),
+                Coords(-1, 2, 0, 0),
+                Coords(-1, -2, 0, 0),
+                Coords(-1, 0, 1, 0),
+                Coords(-1, 0, -1, 0),
             ]
         } else {
             vec![
                 // Pawn's capture moveset
                 Coords(0, 0, 1, 1),
                 Coords(0, 0, -1, 1),
-                Coords(1, 2, 0, 0),
-                Coords(1, -2, 0, 0),
+                Coords(-1, 2, 0, 0),
+                Coords(-1, -2, 0, 0),
             ]
         } {
             if partial_game
