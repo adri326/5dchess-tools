@@ -2,6 +2,10 @@
 
 Programming set of tools to analyze [5D Chess](https://5dchesswithmultiversetimetravel.com/) games.
 
+***Note**: you are currently seeing an old, unmaintained version of this library.*
+*The library is currently being rewritten in its entirety as part of the `0.2` update.*
+*You can see and contribute to its progress over on the [`v2` branch](https://github.com/adri326/5dchess-tools/tree/v2)!*
+
 ## Installation
 
 Clone this repository:
