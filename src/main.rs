@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use chess5dlib::{parse::*, prelude::*};
+use chess5dlib::{parse::*, prelude::*, strategies::legal::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;

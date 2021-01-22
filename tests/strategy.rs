@@ -1,5 +1,6 @@
 use chess5dlib::parse::test::{read_and_parse, read_and_parse_opt};
 use chess5dlib::prelude::*;
+use chess5dlib::strategies::legal::*;
 use rand::Rng;
 use scoped_threadpool::Pool;
 use std::collections::HashSet;
