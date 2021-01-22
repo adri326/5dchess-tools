@@ -92,7 +92,7 @@ fn test_new_partial_game_castling() {
         );
     }
 
-    let movesets_no_castling: Vec<Moveset> = generate_movesets_with_strategy::<NoCastling, Board>(
+    let movesets_no_castling: Vec<Moveset> = generate_movesets_filter_strategy::<NoCastling, Board>(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,

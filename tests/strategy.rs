@@ -132,7 +132,7 @@ fn test_legal_move() {
                 .collect()
         },
         |game, partial_game| {
-            generate_movesets_with_strategy::<LegalMove, Board>(
+            generate_movesets_filter_strategy::<LegalMove, Board>(
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
@@ -167,7 +167,7 @@ fn test_legal_opt_move() {
         10,
         3,
         |game, partial_game| {
-            generate_movesets_with_strategy::<OptLegalMove, Board>(
+            generate_movesets_filter_strategy::<OptLegalMove, Board>(
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
@@ -177,7 +177,7 @@ fn test_legal_opt_move() {
             .collect()
         },
         |game, partial_game| {
-            generate_movesets_with_strategy::<LegalMove, Board>(
+            generate_movesets_filter_strategy::<LegalMove, Board>(
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
@@ -208,7 +208,7 @@ fn defended_pawn_checkmate() {
         }
     };
 
-    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+    let mut iter = generate_movesets_filter_strategy::<LegalMove, Board>(
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
@@ -240,7 +240,7 @@ fn standard_checkmate() {
         }
     };
 
-    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+    let mut iter = generate_movesets_filter_strategy::<LegalMove, Board>(
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
@@ -272,7 +272,7 @@ fn standard_checkmate_2() {
         }
     };
 
-    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+    let mut iter = generate_movesets_filter_strategy::<LegalMove, Board>(
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
@@ -304,7 +304,7 @@ fn standard_checkmate_3() {
         }
     };
 
-    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+    let mut iter = generate_movesets_filter_strategy::<LegalMove, Board>(
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
@@ -336,7 +336,7 @@ fn princess_checkmate() {
         }
     };
 
-    let mut iter = generate_movesets_with_strategy::<LegalMove, Board>(
+    let mut iter = generate_movesets_filter_strategy::<LegalMove, Board>(
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,

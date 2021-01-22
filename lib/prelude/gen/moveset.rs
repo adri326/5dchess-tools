@@ -76,7 +76,7 @@ where
 }
 
 /** Creates a new GenMovesetIter from a set of boards and a `Move` → `bool` strategy. **/
-pub fn generate_movesets_with_strategy<'a, S, B>(
+pub fn generate_movesets_filter_strategy<'a, S, B>(
     boards: Vec<BoardOr<'a, B>>,
     game: &'a Game,
     partial_game: &'a PartialGame<'a, B>,

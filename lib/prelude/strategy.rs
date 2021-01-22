@@ -47,7 +47,7 @@ where
     ## Example
 
     ```
-    generate_movesets_with_strategy<
+    generate_movesets_filter_strategy<
         AndStrategy<Board, Move, NoCastling, LegalMove>
     >(...); // will only yield the legal movesets with no castling
     ```
@@ -93,7 +93,7 @@ where
     ## Example
 
     ```
-    generate_movesets_with_strategy<
+    generate_movesets_filter_strategy<
         OrStrategy<Board, Move, NoCastling, LegalMove>
     >(...); // will only yield the movesets with moves being either legal, or not castling moves
     ```

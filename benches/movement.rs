@@ -176,7 +176,7 @@ fn bench_moveset_sub_filter<M: Measurement, S: for<'a> Strategy<'a, Board, From=
 
     group.bench_with_input(BenchmarkId::new("GenMovesetIter", name), game, |b, game| {
         let lambda = |ms: Result<Moveset, MovesetValidityErr>| ms.ok();
-        let mut iter = generate_movesets_with_strategy::<S, Board>(
+        let mut iter = generate_movesets_filter_strategy::<S, Board>(
             own_boards.clone(),
             &game,
             &partial_game,
@@ -189,7 +189,7 @@ fn bench_moveset_sub_filter<M: Measurement, S: for<'a> Strategy<'a, Board, From=
                     delta += start.elapsed();
                 },
                 None => {
-                    iter = generate_movesets_with_strategy::<S, Board>(
+                    iter = generate_movesets_filter_strategy::<S, Board>(
                         own_boards.clone(),
                         &game,
                         &partial_game,

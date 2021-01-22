@@ -31,7 +31,7 @@ pub mod cache;
 pub use cache::CacheMoves;
 
 pub mod moveset;
-pub use moveset::{GenMovesetIter, generate_movesets_with_strategy};
+pub use moveset::{GenMovesetIter, generate_movesets_filter_strategy};
 
 /**
     An enum containing the different flags used by `GenMoves::generate_moves_flag.`
