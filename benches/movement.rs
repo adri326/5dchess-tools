@@ -243,7 +243,7 @@ fn bench_moveset_partial_game<M: Measurement>(
         },
         |movesets| {
             for ms in movesets {
-                ms.generate_partial_game(game, &partial_game).unwrap();
+                ms.generate_partial_game(game, &partial_game);
             }
         },
         BatchSize::SmallInput)

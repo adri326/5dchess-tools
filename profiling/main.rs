@@ -25,7 +25,7 @@ fn main() -> std::io::Result<()> {
         }
     };
 
-    let files = read_dir("./profiling/converted-db")?;
+    let files = read_dir("./converted-db/nonmate")?;
     let mut games: Vec<Game> = Vec::new();
 
     for path in files {

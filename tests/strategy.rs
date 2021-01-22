@@ -24,8 +24,8 @@ fn compare_methods<F1, F2, B, M>(
     for<'a> F2: Fn(&'a Game, &'a PartialGame<'a, B>) -> Vec<M> + Copy + Send + Sync,
     M: Eq + Hash + Debug,
 {
-    let dir = read_dir(Path::new("tests/converted-db/"));
-    assert!(dir.is_ok(), "Can't open `tests/converted-db`");
+    let dir = read_dir(Path::new("./converted-db/nonmate"));
+    assert!(dir.is_ok(), "Can't open `./converted-db/nonmate`");
     let dir = dir.unwrap().filter_map(|entry| entry.ok());
 
     let games: Vec<(Game, String)> = dir

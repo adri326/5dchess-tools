@@ -10,6 +10,6 @@ fi
 
 for game in 5d-chess-db/db/white_timeout/*.c5d 5d-chess-db/db/black_timeout/*.c5d; do
     if grep "standard" "$game" > /dev/null; then
-        node 5dchess-notation convert alexbay json "$game" > "converted-db/$(basename ${game%.c5d}.json)" && echo $(basename ${game%.c5d})
+        node ../5dchess-notation convert alexbay json "$game" > "converted-db/$(basename ${game%.c5d}.json)" && echo $(basename ${game%.c5d})
     fi
 done
