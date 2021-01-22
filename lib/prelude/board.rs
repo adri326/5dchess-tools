@@ -129,12 +129,12 @@ impl<'a> From<(Board, &'a Game, &'a PartialGame<'a, Board>)> for Board {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BoardOr<'a, B: Clone + AsRef<Board> + 'a> {
+pub enum BoardOr<'a, B: Clone + AsRef<Board>> {
     Board(&'a Board),
     B(&'a B),
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> BoardOr<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> BoardOr<'a, B> {
     #[inline]
     pub fn l(&self) -> Layer {
         self.as_ref().l()
@@ -181,7 +181,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> BoardOr<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> From<BoardOr<'a, B>> for Board {
+impl<'a, B: Clone + AsRef<Board>> From<BoardOr<'a, B>> for Board {
     fn from(borb: BoardOr<B>) -> Board {
         match borb {
             BoardOr::Board(board) => board.clone(),
@@ -190,7 +190,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> From<BoardOr<'a, B>> for Board {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> std::convert::AsRef<Board> for BoardOr<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> std::convert::AsRef<Board> for BoardOr<'a, B> {
     #[inline]
     fn as_ref(&self) -> &Board {
         match &self {
@@ -200,7 +200,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> std::convert::AsRef<Board> for BoardOr<'a
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> std::convert::From<&'a Board> for BoardOr<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> std::convert::From<&'a Board> for BoardOr<'a, B> {
     fn from(board: &'a Board) -> Self {
         BoardOr::Board(board)
     }

@@ -8,13 +8,13 @@ use std::collections::hash_map::{HashMap, Keys};
     The "boards" store a hashmap over an arbitrary data structure B. You may put any extension of `Board` in it!
 **/
 #[derive(Debug)]
-pub struct PartialGame<'a, B: Clone + AsRef<Board> + 'a> {
+pub struct PartialGame<'a, B: Clone + AsRef<Board>> {
     pub boards: HashMap<(Layer, Time), B>,
     pub info: Info,
     pub parent: Option<&'a PartialGame<'a, B>>,
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> PartialGame<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     /** Creates a new PartialGame instance.
         Use this function if you are making use of the recursive data structure or you are initializing a new partial game state
     **/
@@ -120,7 +120,7 @@ pub fn no_partial_game<'a>(game: &Game) -> PartialGame<'static, Board> {
     PartialGame::new(HashMap::new(), game.info.clone(), None)
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> From<&'_ Game> for PartialGame<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> From<&'_ Game> for PartialGame<'a, B> {
     fn from(game: &'_ Game) -> Self {
         Self {
             boards: HashMap::new(),
@@ -130,12 +130,12 @@ impl<'a, B: Clone + AsRef<Board> + 'a> From<&'_ Game> for PartialGame<'a, B> {
     }
 }
 
-pub struct PartialGameIter<'a, B: Clone + AsRef<Board> + 'a> {
+pub struct PartialGameIter<'a, B: Clone + AsRef<Board>> {
     pub partial_game: &'a PartialGame<'a, B>,
     pub iter: Keys<'a, (Layer, Time), B>,
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for PartialGameIter<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> Iterator for PartialGameIter<'a, B> {
     type Item = &'a B;
 
     fn next(&'_ mut self) -> Option<Self::Item> {

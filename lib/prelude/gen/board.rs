@@ -5,7 +5,7 @@ use super::*;
     The type of the items is `Option<Move>`; `BoardIter` is a wrapper around `BoardIterSub`, which
     does a specialized `filter_map`.
 **/
-pub struct BoardIterSub<'a, B: Clone + AsRef<Board> + 'a> {
+pub struct BoardIterSub<'a, B: Clone + AsRef<Board>> {
     pub board: &'a Board,
     pub game: &'a Game,
     pub partial_game: &'a PartialGame<'a, B>,
@@ -13,7 +13,7 @@ pub struct BoardIterSub<'a, B: Clone + AsRef<Board> + 'a> {
     pub current_piece: Option<super::piece::PieceMoveIter<'a, B>>,
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIterSub<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> Iterator for BoardIterSub<'a, B> {
     type Item = Option<Move>;
 
     fn next(&mut self) -> Option<Option<Move>> {
@@ -81,9 +81,9 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIterSub<'a, B> {
     Yields all of the moves of the pieces in a board.
     It is a wrapper around `BoardIterSub`.
 **/
-pub struct BoardIter<'a, B: Clone + AsRef<Board> + 'a>(pub BoardIterSub<'a, B>);
+pub struct BoardIter<'a, B: Clone + AsRef<Board>>(pub BoardIterSub<'a, B>);
 
-impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for BoardIter<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> Iterator for BoardIter<'a, B> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -131,7 +131,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for &'a Board {
 
 pub enum BoardIterOr<'a, B>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     Board(<&'a Board as GenMoves<'a, B>>::Iter),
@@ -140,7 +140,7 @@ where
 
 impl<'a, B> Iterator for BoardIterOr<'a, B>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     type Item = Move;
@@ -155,7 +155,7 @@ where
 
 impl<'a, B> GenMoves<'a, B> for BoardOr<'a, B>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     type Iter = BoardIterOr<'a, B>;

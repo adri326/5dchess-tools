@@ -60,7 +60,7 @@ pub enum GenMovesFlag {
     Check,
 }
 
-pub trait GenMoves<'a, B: Clone + AsRef<Board> + 'a>: Sized {
+pub trait GenMoves<'a, B: Clone + AsRef<Board>>: Sized {
     type Iter: Iterator<Item = Move>;
 
     /**
@@ -105,7 +105,7 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board> + 'a>: Sized {
 
 pub struct GenMovesStrategy<'a, B, T>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     T: GenMoves<'a, B>,
 {
     _b: PhantomData<&'a B>,
@@ -114,7 +114,7 @@ where
 
 impl<'a, B, T> Strategy<'a, B> for GenMovesStrategy<'a, B, T>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     T: GenMoves<'a, B>,
 {
     type From = T;

@@ -43,7 +43,7 @@ fn forward(a: Coords, b: Coords, color: bool) -> Coords {
 
 impl PawnIter {
     /** Creates a new PawnIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
-    pub fn new<'a, B: Clone + AsRef<Board> + 'a>(
+    pub fn new<'a, B: Clone + AsRef<Board>>(
         piece: PiecePosition,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
@@ -154,7 +154,7 @@ impl Iterator for PawnIter {
     An iterator that yields the move of a ranging piece (ie. Rooks, Bishops, etc.).
     This iterator is created by `PiecePosition::generate_moves`.
 **/
-pub struct RangingPieceIter<'a, B: Clone + AsRef<Board> + 'a> {
+pub struct RangingPieceIter<'a, B: Clone + AsRef<Board>> {
     piece: Piece,
     coords: Coords,
     game: &'a Game,
@@ -164,7 +164,7 @@ pub struct RangingPieceIter<'a, B: Clone + AsRef<Board> + 'a> {
     distance: usize,
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> RangingPieceIter<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> RangingPieceIter<'a, B> {
     /** Creates a new RangingPieceIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
     pub fn new(
         piece: PiecePosition,
@@ -184,7 +184,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> RangingPieceIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for RangingPieceIter<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> Iterator for RangingPieceIter<'a, B> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
@@ -229,7 +229,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for RangingPieceIter<'a, B> {
 /** Iterator that yields the moves of a piece that cannot make ranging moves (ie. knights, royal kings).
     This iterator is created by `PiecePosition::generate_moves`.
 **/
-pub struct OneStepPieceIter<'a, B: Clone + AsRef<Board> + 'a> {
+pub struct OneStepPieceIter<'a, B: Clone + AsRef<Board>> {
     piece: Piece,
     coords: Coords,
     game: &'a Game,
@@ -238,7 +238,7 @@ pub struct OneStepPieceIter<'a, B: Clone + AsRef<Board> + 'a> {
     cardinalities_index: usize,
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> OneStepPieceIter<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> OneStepPieceIter<'a, B> {
     /** Creates a new OneStepPieceIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
     pub fn new(
         piece: PiecePosition,
@@ -257,7 +257,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> OneStepPieceIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for OneStepPieceIter<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> Iterator for OneStepPieceIter<'a, B> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
@@ -291,7 +291,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for OneStepPieceIter<'a, B> {
 }
 
 /** Iterator yielding the special movements of a king, castling. **/
-pub struct KingIter<'a, B: Clone + AsRef<Board> + 'a> {
+pub struct KingIter<'a, B: Clone + AsRef<Board>> {
     pub castling_direction: u8,
     pub piece: Piece,
     pub game: &'a Game,
@@ -299,7 +299,7 @@ pub struct KingIter<'a, B: Clone + AsRef<Board> + 'a> {
     pub coords: Coords,
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> KingIter<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> KingIter<'a, B> {
     pub fn new(piece: PiecePosition, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Self {
         Self {
             castling_direction: 0,
@@ -311,7 +311,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> KingIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> Iterator for KingIter<'a, B> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
@@ -379,7 +379,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for KingIter<'a, B> {
 }
 
 /** Iterator combining the different move kinds of all of the pieces. **/
-pub enum PieceMoveIter<'a, B: Clone + AsRef<Board> + 'a> {
+pub enum PieceMoveIter<'a, B: Clone + AsRef<Board>> {
     Pawn(PawnIter),
     Chain(std::iter::Chain<Box<PieceMoveIter<'a, B>>, Box<PieceMoveIter<'a, B>>>),
     King(KingIter<'a, B>),
@@ -387,7 +387,7 @@ pub enum PieceMoveIter<'a, B: Clone + AsRef<Board> + 'a> {
     OneStep(OneStepPieceIter<'a, B>),
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> Iterator for PieceMoveIter<'a, B> {
+impl<'a, B: Clone + AsRef<Board>> Iterator for PieceMoveIter<'a, B> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {

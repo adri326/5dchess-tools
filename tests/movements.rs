@@ -106,7 +106,7 @@ pub fn test_standard_king_moves() {
     );
 }
 
-pub fn test_piece_movement<'a, B: Clone + AsRef<Board> + 'a>(
+pub fn test_piece_movement<'a, B: Clone + AsRef<Board>>(
     game: &Game,
     partial_game: &PartialGame<'a, B>,
     src: Coords,

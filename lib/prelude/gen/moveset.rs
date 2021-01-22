@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 pub struct GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item=Move>,
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     _game: &'a Game,
@@ -19,7 +19,7 @@ where
 impl<'a, B, I> GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item=Move>,
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     /** Creates a new GenMovesetIter from a set of move iterators **/
@@ -45,7 +45,7 @@ where
 impl<'a, B, I> GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item=Move>,
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     /** Creates a new GenMovesetIter from a set of cached move iterators **/
@@ -67,7 +67,7 @@ where
 // From BoardOr as GenMoves
 impl<'a, B> GenMovesetIter<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     /** Creates a new GenMovesetIter from a set of boards. **/
@@ -94,7 +94,7 @@ where
 **/
 pub struct FilterByStrategy<'a, B, I, S>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
     I: Iterator<Item=Move>,
     S: Strategy<'a, B, From=Move, To=bool>,
@@ -107,7 +107,7 @@ where
 
 impl<'a, B, I, S> Iterator for FilterByStrategy<'a, B, I, S>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
     I: Iterator<Item=Move>,
     S: Strategy<'a, B, From=Move, To=bool>,
@@ -136,7 +136,7 @@ pub fn generate_movesets_filter_strategy<'a, S, B>(
     partial_game: &'a PartialGame<'a, B>,
 ) -> GenMovesetIter<'a, B, FilterByStrategy<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter, S>>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
     S: Strategy<'a, B, From=Move, To=bool>,
 {
@@ -166,7 +166,7 @@ pub fn generate_movesets_iterator_strategy<'a, S, B>(
     partial_game: &'a PartialGame<'a, B>,
 ) -> GenMovesetIter<'a, B, S::To>
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
     S: Strategy<'a, B, From=BoardOr<'a, B>>,
     <S as Strategy<'a, B>>::To: Iterator<Item=Move>,
@@ -187,7 +187,7 @@ where
 impl<'a, B, I> GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item=Move>,
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     /** Increments the `states` **/
@@ -216,7 +216,7 @@ where
 impl<'a, B, I> Iterator for GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item=Move>,
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     type Item = PermMovesetIter<'a>;
@@ -276,7 +276,7 @@ impl<'a> PermMovesetIter<'a> {
         partial_game: &'a PartialGame<'a, B>,
     ) -> Self
     where
-        B: Clone + AsRef<Board> + 'a,
+        B: Clone + AsRef<Board>,
     {
         physical.shrink_to_fit();
 

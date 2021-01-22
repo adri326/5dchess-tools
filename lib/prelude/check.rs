@@ -11,7 +11,7 @@ pub fn generate_idle_boards<'a, B>(
     partial_game: &'a PartialGame<'a, B>
 ) -> Option<PartialGame<'a, B>>
 where
-    B: Clone + AsRef<Board> + AsMut<Board> + 'a,
+    B: Clone + AsRef<Board> + AsMut<Board>,
     for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
 {
     let mut new_partial_game = PartialGame::new(
@@ -59,7 +59,7 @@ pub fn is_in_check<'a, B>(
     partial_game: &'a PartialGame<'a, B>
 ) -> Option<bool>
 where
-    B: Clone + AsRef<Board> + AsMut<Board> + 'a,
+    B: Clone + AsRef<Board> + AsMut<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
     for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
 {
@@ -90,7 +90,7 @@ pub fn is_illegal<'a, B>(
     partial_game: &'a PartialGame<'a, B>
 ) -> Option<bool>
 where
-    B: Clone + AsRef<Board> + AsMut<Board> + 'a,
+    B: Clone + AsRef<Board> + AsMut<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
     for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
 {

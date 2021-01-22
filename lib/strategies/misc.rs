@@ -6,7 +6,7 @@ pub struct NoCastling;
 
 impl<'a, B> Strategy<'a, B> for NoCastling
 where
-    B: Clone + AsRef<Board> + 'a,
+    B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     type From = Move;

@@ -81,7 +81,7 @@ impl Move {
     ) -> Option<()>
     where
         'a: 'b,
-        B: Clone + AsRef<Board> + 'a,
+        B: Clone + AsRef<Board>,
         for<'c> B: From<(Board, &'c Game, &'c PartialGame<'c, B>)>,
     {
         let white = (self.from.1).1 & 1 == 0;
@@ -434,7 +434,7 @@ impl Moveset {
         partial_game: &'a PartialGame<'a, B>
     ) -> Option<PartialGame<'a, B>>
     where
-        B: Clone + AsRef<Board> + 'a,
+        B: Clone + AsRef<Board>,
         for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
     {
         let mut new_partial_game = PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
