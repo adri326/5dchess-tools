@@ -21,6 +21,7 @@
     ```
 */
 use super::*;
+use std::marker::PhantomData;
 
 pub mod piece;
 pub use piece::PiecePosition;
@@ -99,5 +100,27 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board> + 'a>: Sized {
         _flag: GenMovesFlag,
     ) -> Option<Self::Iter> {
         self.generate_moves(game, partial_game)
+    }
+}
+
+pub struct GenMovesStrategy<'a, B, T>
+where
+    B: Clone + AsRef<Board> + 'a,
+    T: GenMoves<'a, B>,
+{
+    _b: PhantomData<&'a B>,
+    _t: PhantomData<*const T>,
+}
+
+impl<'a, B, T> Strategy<'a, B> for GenMovesStrategy<'a, B, T>
+where
+    B: Clone + AsRef<Board> + 'a,
+    T: GenMoves<'a, B>,
+{
+    type From = T;
+    type To = <T as GenMoves<'a, B>>::Iter;
+
+    fn apply(generator: T, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<Self::To> {
+        generator.generate_moves(game, partial_game)
     }
 }

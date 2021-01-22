@@ -12,7 +12,7 @@ where
     type From = Move;
     type To = bool;
 
-    fn apply<'b>(mv: Move, _game: &'b Game, _partial_game: &'b PartialGame<'b, B>) -> Option<bool> {
+    fn apply(mv: Move, _game: &'a Game, _partial_game: &'a PartialGame<'a, B>) -> Option<bool> {
         Some(mv.kind != MoveKind::Castle)
     }
 }
