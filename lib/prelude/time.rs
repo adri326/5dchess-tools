@@ -147,6 +147,15 @@ where
             None => None,
         }
     }
+
+    pub fn timed_out(&self) -> bool {
+        match self.start {
+            Some(instant) => {
+                instant.elapsed() > self.duration
+            }
+            None => false
+        }
+    }
 }
 
 impl<J, F> Iterator for TimedFilter<J, F>
@@ -276,6 +285,15 @@ where
             None => None,
         }
     }
+
+    pub fn timed_out(&self) -> bool {
+        match self.start {
+            Some(instant) => {
+                instant.elapsed() > self.duration
+            }
+            None => false
+        }
+    }
 }
 
 impl<'a, J, S, B> Iterator for TimedFilterStrategy<'a, J, S, B>
@@ -376,6 +394,10 @@ where
         } else {
             self.duration - self.sigma
         }
+    }
+
+    pub fn timed_out(&self) -> bool {
+        self.sigma > self.duration
     }
 }
 
@@ -492,6 +514,10 @@ where
         } else {
             self.duration - self.sigma
         }
+    }
+
+    pub fn timed_out(&self) -> bool {
+        self.sigma > self.duration
     }
 }
 
