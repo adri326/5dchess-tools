@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use chess5dlib::{parse::*, prelude::*};
+use chess5dlib::{parse::*, prelude::*, utils::*};
 use std::fs::File;
 use std::fs::read_dir;
 use std::io::prelude::*;
@@ -70,36 +70,27 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn test(started: Instant, duration: Duration, game: &Game, partial_game: &PartialGame<Board>, iterations: usize) -> (usize, Duration) {
+fn test(started: Instant, duration: Duration, game: &Game, partial_game: &PartialGame<Board>, _iterations: usize) -> (usize, Duration) {
     let mut sigma = 0;
     let mut delta = Duration::new(0, 0);
-    'f: for _ in 0..iterations {
-        coz::begin!("GenMovesetIter::new");
-        let mut ms_iter = GenMovesetIter::new(partial_game.own_boards(game).collect(), game, partial_game).flatten().filter_map(|ms| ms.ok());
-        coz::end!("GenMovesetIter::new");
 
-        loop {
-            let begin = Instant::now();
-            coz::begin!("GenMovesetIter::next");
-            let next = ms_iter.next();
-            coz::end!("GenMovesetIter::next");
-            sigma += 1;
-            delta += begin.elapsed();
+    coz::begin!("list_legal_movesets");
+    let mut iter = list_legal_movesets(game, partial_game, Some(Duration::new(30, 0)));
+    coz::end!("list_legal_movesets");
 
-            match next {
-                Some(ms) => {
-                    coz::begin!("Moveset::generate_partial_game");
-                    let _partial_game = ms.generate_partial_game(game, partial_game);
-                    coz::end!("Moveset::generate_partial_game");
-                }
-                None => {
-                    break 'f
-                }
-            }
+    loop {
+        let begin = Instant::now();
+        coz::begin!("list_legal_movesets::next");
+        let next = iter.next();
+        coz::end!("list_legal_movesets::next");
+        sigma += 1;
+        delta += begin.elapsed();
 
-            if started.elapsed() >= duration {
-                return (sigma, delta)
-            }
+        if next.is_none() {
+            break
+        }
+        if started.elapsed() > duration {
+            break
         }
     }
 

@@ -1,6 +1,7 @@
 use chess5dlib::parse::test::{read_and_parse, read_and_parse_opt};
 use chess5dlib::prelude::*;
 use chess5dlib::strategies::legal::*;
+use chess5dlib::utils::*;
 use rand::Rng;
 use scoped_threadpool::Pool;
 use std::collections::HashSet;
@@ -356,4 +357,43 @@ fn princess_checkmate() {
     }
 
     assert!(mv.is_none(), "Expected no legal movesets to be found; found {:?}", mv);
+}
+
+#[test]
+fn test_list_legal_movesets() {
+    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>,
+                         game: &Game,
+                         partial_game: &PartialGame<Board>| {
+        match ms {
+            Ok(ms) => {
+                let new_partial_game = ms.generate_partial_game(game, partial_game)?;
+                if is_illegal(game, &new_partial_game)? {
+                    None
+                } else {
+                    Some(ms)
+                }
+            }
+            Err(_) => None,
+        }
+    };
+
+    compare_methods(
+        10,
+        3,
+        |game, partial_game| {
+            generate_movesets_filter_strategy::<OptLegalMove, Board>(
+                partial_game.own_boards(game).collect(),
+                game,
+                partial_game,
+            )
+            .flatten()
+            .filter_map(|ms| filter_lambda(ms, game, partial_game))
+            .collect()
+        },
+        |game, partial_game| {
+            list_legal_movesets(game, partial_game, None)
+            .map(|(mv, _ms)| mv)
+            .collect()
+        },
+    );
 }
