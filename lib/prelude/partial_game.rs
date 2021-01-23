@@ -18,6 +18,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     /** Creates a new PartialGame instance.
         Use this function if you are making use of the recursive data structure or you are initializing a new partial game state
     **/
+    #[inline]
     pub fn new(
         boards: HashMap<(Layer, Time), B>,
         info: Info,
@@ -44,6 +45,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
         }
     }
 
+    #[inline]
     pub fn insert(&mut self, board: B) {
         self.boards.insert(
             (board.as_ref().l(), board.as_ref().t()),
@@ -55,6 +57,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
         That iterator yields objects of type `&B`.
         If you only wish to yield an iterator over the boards in this layer of partial game state, use `iter_shallow` instead.
     **/
+    #[inline]
     pub fn iter(&'a self) -> PartialGameIter<'a, B> {
         PartialGameIter {
             partial_game: self,
@@ -66,6 +69,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
         That iterator yields objects of type `&B`.
         If you also with to yield the boards of this partial game state's parent, use `iter` instead.
     **/
+    #[inline]
     pub fn iter_shallow(&'a self) -> impl Iterator<Item = &'a B> {
         self.boards.values()
     }
@@ -80,6 +84,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
         }
     }
 
+    #[inline]
     pub fn get_board_with_game<'b>(
         &'b self,
         game: &'b Game,
@@ -97,6 +102,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
             .into()
     }
 
+    #[inline]
     pub fn own_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = BoardOr<'b, B>> + 'b {
         self.info
             .timelines_white
@@ -106,6 +112,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
             .filter(move |b| b.white() == self.info.active_player)
     }
 
+    #[inline]
     pub fn opponent_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = BoardOr<'b, B>> + 'b {
         self.info
             .timelines_white
@@ -116,6 +123,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     }
 }
 
+#[inline]
 pub fn no_partial_game<'a>(game: &Game) -> PartialGame<'static, Board> {
     PartialGame::new(HashMap::new(), game.info.clone(), None)
 }

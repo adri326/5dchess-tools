@@ -33,6 +33,27 @@ pub struct PawnIter {
     state: usize,
 }
 
+/// Brawn's capture movements
+const BRAWN_CAPTURES: [Coords; 8] = [
+    Coords(0, 0, 1, 1),
+    Coords(0, 0, -1, 1),
+    Coords(0, -2, 0, 1),
+    Coords(-1, 0, 0, 1),
+    Coords(-1, 2, 0, 0),
+    Coords(-1, -2, 0, 0),
+    Coords(-1, 0, 1, 0),
+    Coords(-1, 0, -1, 0),
+];
+
+/// Pawn's capture movements
+const PAWN_CAPTURES: [Coords; 4] = [
+    Coords(0, 0, 1, 1),
+    Coords(0, 0, -1, 1),
+    Coords(-1, 2, 0, 0),
+    Coords(-1, -2, 0, 0),
+];
+
+#[inline]
 fn forward(a: Coords, b: Coords, color: bool) -> Coords {
     if color {
         a + b
@@ -52,28 +73,31 @@ impl PawnIter {
 
         // Forward move
         for perm in vec![Coords(0, 0, 0, 1), Coords(-1, 0, 0, 0)] {
+            let dest = forward(piece.1, perm, piece.0.white);
             if partial_game
-                .get_with_game(game, forward(piece.1, perm, piece.0.white))
+                .get_with_game(game, dest)
                 .is_blank()
             {
                 moves.push(Move::new(
                     game,
                     partial_game,
                     piece.1,
-                    forward(piece.1, perm, piece.0.white),
+                    dest,
                 )?);
+
+                let dest2 = forward(piece.1, perm + perm, piece.0.white);
 
                 // Kickstart move
                 if !piece.0.moved
                     && partial_game
-                        .get_with_game(game, forward(piece.1, perm * 2, piece.0.white))
+                        .get_with_game(game, dest2)
                         .is_blank()
                 {
                     moves.push(Move::new(
                         game,
                         partial_game,
                         piece.1,
-                        forward(piece.1, perm * 2, piece.0.white),
+                        dest2,
                     )?);
                 }
             }
@@ -81,35 +105,20 @@ impl PawnIter {
 
         // Captures
         for perm in if piece.0.kind == PieceKind::Brawn {
-            vec![
-                // Brawn's capture moveset
-                Coords(0, 0, 1, 1),
-                Coords(0, 0, -1, 1),
-                Coords(0, -2, 0, 1),
-                Coords(-1, 0, 0, 1),
-                Coords(-1, 2, 0, 0),
-                Coords(-1, -2, 0, 0),
-                Coords(-1, 0, 1, 0),
-                Coords(-1, 0, -1, 0),
-            ]
+            &BRAWN_CAPTURES[0..]
         } else {
-            vec![
-                // Pawn's capture moveset
-                Coords(0, 0, 1, 1),
-                Coords(0, 0, -1, 1),
-                Coords(-1, 2, 0, 0),
-                Coords(-1, -2, 0, 0),
-            ]
+            &PAWN_CAPTURES[0..]
         } {
+            let dest = forward(piece.1, *perm, piece.0.white);
             if partial_game
-                .get_with_game(game, forward(piece.1, perm, piece.0.white))
+                .get_with_game(game, dest)
                 .is_piece_of_color(!piece.0.white)
             {
                 moves.push(Move::new(
                     game,
                     partial_game,
                     piece.1,
-                    forward(piece.1, perm, piece.0.white),
+                    dest,
                 )?);
             }
         }
@@ -140,6 +149,7 @@ impl PawnIter {
 impl Iterator for PawnIter {
     type Item = Move;
 
+    #[inline]
     fn next(&mut self) -> Option<Move> {
         if self.state >= self.moves.len() {
             None
@@ -166,6 +176,7 @@ pub struct RangingPieceIter<'a, B: Clone + AsRef<Board>> {
 
 impl<'a, B: Clone + AsRef<Board>> RangingPieceIter<'a, B> {
     /** Creates a new RangingPieceIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
+    #[inline]
     pub fn new(
         piece: PiecePosition,
         game: &'a Game,
@@ -240,6 +251,7 @@ pub struct OneStepPieceIter<'a, B: Clone + AsRef<Board>> {
 
 impl<'a, B: Clone + AsRef<Board>> OneStepPieceIter<'a, B> {
     /** Creates a new OneStepPieceIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
+    #[inline]
     pub fn new(
         piece: PiecePosition,
         game: &'a Game,
@@ -300,6 +312,7 @@ pub struct KingIter<'a, B: Clone + AsRef<Board>> {
 }
 
 impl<'a, B: Clone + AsRef<Board>> KingIter<'a, B> {
+    #[inline]
     pub fn new(piece: PiecePosition, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Self {
         Self {
             castling_direction: 0,

@@ -413,10 +413,12 @@ pub struct Moveset {
 
 impl Moveset {
     /** Creates a new moveset from a set of moves and an info, verifying the requirements of the type. **/
+    #[inline]
     pub fn new(moves: Vec<Move>, info: &Info) -> Result<Moveset, MovesetValidityErr> {
         Self::try_from((moves, info))
     }
 
+    #[inline]
     pub fn moves(&self) -> &Vec<Move> {
         &self.moves
     }
@@ -455,6 +457,7 @@ impl Moveset {
 }
 
 impl Hash for Moveset {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         let mut moves = self.moves.clone();
         moves.sort_by(|mv_a, mv_b| (mv_a.from.1).0.partial_cmp(&(mv_b.from.1).0).unwrap());
@@ -466,6 +469,7 @@ impl Hash for Moveset {
 
 // TODO: better implementation of PartialEq
 impl PartialEq for Moveset {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         let mut self_moves = self.moves.clone();
         self_moves.sort_by(|mv_a, mv_b| (mv_a.from.1).0.partial_cmp(&(mv_b.from.1).0).unwrap());

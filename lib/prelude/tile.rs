@@ -16,6 +16,7 @@ pub enum Tile {
 
 impl Tile {
     /** Creates a new `Tile` from an `Option<Piece>`; if `None`, then it will be substituted with `Tile::Blank` **/
+    #[inline]
     pub fn new_blank(piece_raw: Option<Piece>) -> Tile {
         match piece_raw {
             Some(piece) => Tile::Piece(piece),
@@ -24,6 +25,7 @@ impl Tile {
     }
 
     /** Creates a new `Tile` from an `Option<Piece>`; if `None`, then it will be substituted with `Tile::Void` **/
+    #[inline]
     pub fn new_void(piece_raw: Option<Piece>) -> Tile {
         match piece_raw {
             Some(piece) => Tile::Piece(piece),
@@ -84,6 +86,7 @@ impl Tile {
 }
 
 impl From<Piece> for Tile {
+    #[inline]
     fn from(piece: Piece) -> Tile {
         Tile::Piece(piece)
     }
@@ -94,6 +97,7 @@ impl From<Option<Tile>> for Tile {
         Since that conversion is mainly used when doing `game.get_board(...).map(|board| board.get(...)).into()`,
         the `None` option is substituted with `Tile::Void`.
     **/
+    #[inline]
     fn from(tile: Option<Tile>) -> Tile {
         match tile {
             Some(t) => t,
@@ -103,6 +107,7 @@ impl From<Option<Tile>> for Tile {
 }
 
 impl From<Tile> for Option<Piece> {
+    #[inline]
     fn from(tile: Tile) -> Option<Piece> {
         match tile {
             Tile::Piece(piece) => Some(piece),

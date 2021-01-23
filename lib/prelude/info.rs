@@ -82,6 +82,7 @@ impl Info {
         }
     }
 
+    #[inline]
     pub fn get_timeline(&self, l: Layer) -> Option<&TimelineInfo> {
         if l < 0 {
             self.timelines_black.get(-l as usize - 1)
@@ -90,6 +91,7 @@ impl Info {
         }
     }
 
+    #[inline]
     pub fn get_timeline_mut(&mut self, l: Layer) -> Option<&mut TimelineInfo> {
         if l < 0 {
             self.timelines_black.get_mut(-l as usize - 1)
@@ -98,6 +100,7 @@ impl Info {
         }
     }
 
+    #[inline]
     pub fn is_active(&self, l: Layer) -> bool {
         let timeline_width = self
             .max_timeline

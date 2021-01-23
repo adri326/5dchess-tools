@@ -86,6 +86,7 @@ pub struct BoardIter<'a, B: Clone + AsRef<Board>>(pub BoardIterSub<'a, B>);
 impl<'a, B: Clone + AsRef<Board>> Iterator for BoardIter<'a, B> {
     type Item = Move;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.0.next() {

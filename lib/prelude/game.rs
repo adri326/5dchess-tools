@@ -29,18 +29,22 @@ impl Game {
         }
     }
 
+    #[inline]
     pub fn get_board(&self, (l, t): (Layer, Time)) -> Option<&Board> {
         self.boards.get(&(l, t))
     }
 
+    #[inline]
     pub fn get_board_unchecked(&self, (l, t): (Layer, Time)) -> &Board {
         &self.boards[&(l, t)]
     }
 
+    #[inline]
     pub fn get(&self, Coords(l, t, x, y): Coords) -> Tile {
         self.boards.get(&(l, t)).map(|b| b.get((x, y))).into()
     }
 
+    #[inline]
     pub fn get_unchecked(&self, Coords(l, t, x, y): Coords) -> Tile {
         self.boards[&(l, t)].get_unchecked((x, y))
     }

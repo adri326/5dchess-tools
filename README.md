@@ -92,7 +92,7 @@ Once it's installed, run `cargo build --release --example profiling` to build th
 You can then profile the library by running:
 
 ```sh
-coz run --source-scope $(pwd) --- ./target/release/examples/profiling <duration (seconds)> <thread count>
+coz run --source-scope $(pwd)/% --- ./target/release/examples/profiling <duration (seconds)> <thread count>
 ```
 
 The resulting profile will be put in a file called `profile.coz`, which you can import and analyze [here](https://plasma-umass.org/coz/).

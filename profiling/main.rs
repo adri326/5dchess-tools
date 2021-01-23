@@ -61,7 +61,7 @@ fn main() -> std::io::Result<()> {
                         delta += ddelta;
                     }
                     println!("Thread {}: {:?} moveset/ms", n, sigma as f64 / delta.as_millis() as f64);
-                    println!("Thread {}: {:?} position/s", n, epsilon as f64 / delta.as_millis() as f64 * 1000.0);
+                    // println!("Thread {}: {:?} position/s", n, epsilon as f64 / delta.as_millis() as f64 * 1000.0);
                 });
             }
         });
@@ -74,15 +74,15 @@ fn test(started: Instant, duration: Duration, game: &Game, partial_game: &Partia
     let mut sigma = 0;
     let mut delta = Duration::new(0, 0);
 
-    coz::begin!("list_legal_movesets");
+    coz::begin!("new");
     let mut iter = list_legal_movesets(game, partial_game, Some(Duration::new(30, 0)));
-    coz::end!("list_legal_movesets");
+    coz::end!("new");
 
     loop {
         let begin = Instant::now();
-        coz::begin!("list_legal_movesets::next");
+        coz::begin!("next");
         let next = iter.next();
-        coz::end!("list_legal_movesets::next");
+        coz::end!("next");
         sigma += 1;
         delta += begin.elapsed();
 

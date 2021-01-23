@@ -96,17 +96,19 @@ impl Board {
         self.en_passant = en_passant
     }
 
+    #[inline]
     pub fn get(&self, (x, y): (Physical, Physical)) -> Tile {
         if x < 0 || x >= self.width || y < 0 || y >= self.height {
             Tile::Void
         } else {
-            self.pieces
-                .get((x + self.width * y) as usize)
-                .map(|x| *x)
-                .into()
+            self.pieces[(x + self.width * y) as usize].into()
+                // .get((x + self.width * y) as usize)
+                // .map(|x| *x)
+                // .into()
         }
     }
 
+    #[inline]
     pub fn get_unchecked(&self, (x, y): (Physical, Physical)) -> Tile {
         self.pieces[(x + self.width * y) as usize]
     }
@@ -123,6 +125,7 @@ impl Board {
 }
 
 impl<'a> From<(Board, &'a Game, &'a PartialGame<'a, Board>)> for Board {
+    #[inline]
     fn from((board, _game, _partial_game): (Board, &'a Game, &'a PartialGame<'a, Board>)) -> Self {
         board
     }
@@ -182,6 +185,7 @@ impl<'a, B: Clone + AsRef<Board>> BoardOr<'a, B> {
 }
 
 impl<'a, B: Clone + AsRef<Board>> From<BoardOr<'a, B>> for Board {
+    #[inline]
     fn from(borb: BoardOr<B>) -> Board {
         match borb {
             BoardOr::Board(board) => board.clone(),
@@ -201,6 +205,7 @@ impl<'a, B: Clone + AsRef<Board>> std::convert::AsRef<Board> for BoardOr<'a, B> 
 }
 
 impl<'a, B: Clone + AsRef<Board>> std::convert::From<&'a Board> for BoardOr<'a, B> {
+    #[inline]
     fn from(board: &'a Board) -> Self {
         BoardOr::Board(board)
     }
