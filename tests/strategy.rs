@@ -359,6 +359,39 @@ fn princess_checkmate() {
     assert!(mv.is_none(), "Expected no legal movesets to be found; found {:?}", mv);
 }
 
+
+#[test]
+fn reflected_checkmate() {
+    let game = read_and_parse("tests/games/reflected-checkmate.json");
+    let partial_game = no_partial_game(&game);
+
+    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| {
+        match ms {
+            Ok(ms) => {
+                let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
+                if is_illegal(&game, &new_partial_game)? {
+                    None
+                } else {
+                    Some(ms)
+                }
+            }
+            Err(_) => None,
+        }
+    };
+
+    let mut iter = generate_movesets_filter_strategy::<LegalMove, Board>(
+            partial_game.own_boards(&game).collect(),
+            &game,
+            &partial_game,
+        )
+        .flatten()
+        .filter_map(|ms| filter_lambda(ms));
+
+    let mv = iter.next();
+
+    assert!(mv.is_none(), "Expected no legal movesets to be found; found {:?}", mv);
+}
+
 #[test]
 fn test_list_legal_movesets() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>,
