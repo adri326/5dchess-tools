@@ -121,6 +121,14 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
             .filter_map(move |tl| self.get_board_with_game(game, (tl.index, tl.last_board)))
             .filter(move |b| b.white() != self.info.active_player)
     }
+
+    #[inline]
+    pub fn is_last_board(&self, coords: (Layer, Time)) -> Option<bool> {
+        match self.info.get_timeline(coords.0) {
+            Some(tl) => Some(tl.last_board == coords.1),
+            None => None
+        }
+    }
 }
 
 #[inline]

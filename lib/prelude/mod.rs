@@ -32,6 +32,9 @@ pub use partial_game::*;
 pub mod strategy;
 pub use strategy::*;
 
+pub mod goal;
+pub use goal::*;
+
 pub mod tile;
 pub use tile::*;
 

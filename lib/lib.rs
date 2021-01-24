@@ -13,4 +13,5 @@ pub use prelude::*;
 pub mod parse;
 pub mod traversal;
 pub mod strategies;
+pub mod goals;
 pub mod utils;
