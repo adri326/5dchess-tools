@@ -18,6 +18,13 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
+    - name: Fetch submodule(s)
+      run: git submodule update --init --recursive
+    - name: Install 5dchess-notation dependencies
+      run: |
+        cd 5dchess-notation
+        npm i
+        cd ..
     - name: Prepare tests
       run: ./prepare-tests.sh
     - name: Run tests
