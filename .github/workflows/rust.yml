@@ -16,16 +16,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - uses: mstachniuk/ci-skip@v1
     - name: Build
       run: cargo build --verbose
+      if: ${{ env.CI_SKIP == 'false' }}
     - name: Fetch submodule(s)
       run: git submodule update --init --recursive
+      if: ${{ env.CI_SKIP == 'false' }}
     - name: Install 5dchess-notation dependencies
       run: |
         cd 5dchess-notation
         npm i
         cd ..
+      if: ${{ env.CI_SKIP == 'false' }}
     - name: Prepare tests
       run: ./prepare-tests.sh
+      if: ${{ env.CI_SKIP == 'false' }}
     - name: Run tests
       run: cargo test --verbose --release
+      if: ${{ env.CI_SKIP == 'false' }}
