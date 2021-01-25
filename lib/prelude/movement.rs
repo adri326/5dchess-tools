@@ -14,6 +14,17 @@ pub enum MoveKind {
     Promotion,
 }
 
+/** Used by Move::generate_partial_game(...). This has no effect if the move is a physical move. **/
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PartialGameGenKind {
+    /** Whether to generate both the new target and source boards **/
+    Both,
+    /** Whether to only generate the new source board **/
+    Source,
+    /** Whether to only generate the new target board **/
+    Target,
+}
+
 /** Represents a piece's movement. **/
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Move {
@@ -71,13 +82,21 @@ impl Move {
 
     /**
         Generates boards and updates a mutable PartialGame, given a single move.
-        You should use `Moveset::generate_partial_game` instead!
+        You should use `Moveset::generate_partial_game` if you're using Movesets!
+
+        Should you need to use this function instead of `Moveset::generate_partial_game`, then know that:
+        - if `kind == PartialGameGenKind::Both`, this function will run normally
+        - if `kind == PartialGameGenKind::Source`, this function will not generate the new target board when a non-physical move is encountered
+        - if `kind == PartialGameGenKind::Target`, this function will not generate the new source board when a non-physical move is encountered
+        - the present in `new_partial_game` will not be changed; moreover, this function does not check if the new source or target board are already
+            in `new_partial_game` and will overwrite them.
     **/
     pub fn generate_partial_game<'a, 'b, B>(
         &self,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
-        new_partial_game: &'b mut PartialGame<'a, B>
+        new_partial_game: &'b mut PartialGame<'a, B>,
+        kind: PartialGameGenKind,
     ) -> Option<()>
     where
         'a: 'b,
@@ -99,38 +118,40 @@ impl Move {
                         .clone();
 
                     // Handle branching
-                    if new_partial_game.info.get_timeline((self.to.1).0)?.last_board > (self.to.1).1 {
-                        // Branching move!
-                        let new_layer = if white {
-                            new_partial_game.info.max_timeline() + 1
-                        } else {
-                            new_partial_game.info.min_timeline() - 1
-                        };
+                    if kind != PartialGameGenKind::Source {
+                        if new_partial_game.info.get_timeline((self.to.1).0)?.last_board > (self.to.1).1 {
+                            // Branching move!
+                            let new_layer = if white {
+                                new_partial_game.info.max_timeline() + 1
+                            } else {
+                                new_partial_game.info.min_timeline() - 1
+                            };
 
-                        // Generate a new timeline info
-                        let new_timeline = TimelineInfo::new(
-                            new_layer,
-                            Some(self.to.1.non_physical()),
-                            (self.to.1).1 + 1,
-                            (self.to.1).1 + 1,
-                        );
+                            // Generate a new timeline info
+                            let new_timeline = TimelineInfo::new(
+                                new_layer,
+                                Some(self.to.1.non_physical()),
+                                (self.to.1).1 + 1,
+                                (self.to.1).1 + 1,
+                            );
 
-                        // Push the new timeline info
-                        if white {
-                            new_partial_game.info.timelines_white.push(new_timeline);
+                            // Push the new timeline info
+                            if white {
+                                new_partial_game.info.timelines_white.push(new_timeline);
+                            } else {
+                                new_partial_game.info.timelines_black.push(new_timeline);
+                            }
+
+                            new_target_board.t += 1;
+                            new_target_board.l = new_layer;
                         } else {
-                            new_partial_game.info.timelines_black.push(new_timeline);
+                            // Non-branching move
+                            new_partial_game.info.get_timeline_mut((self.to.1).0)?.last_board += 1;
+                            new_target_board.t += 1;
                         }
-
-                        new_target_board.t += 1;
-                        new_target_board.l = new_layer;
-                        new_source_board.t += 1;
-                    } else {
-                        new_partial_game.info.get_timeline_mut((self.to.1).0)?.last_board += 1;
-                        // Non-branching move
-                        new_target_board.t += 1;
-                        new_source_board.t += 1;
                     }
+
+                    new_source_board.t += 1;
 
                     // Calculate indices
                     let from_index = (self.from.1).2 as usize + (self.from.1).3 as usize * new_source_board.width() as usize;
@@ -152,25 +173,29 @@ impl Move {
                     new_source_board.pieces[from_index] = Tile::Blank;
 
                     // Insert source board
-                    let new_source_coords = (new_source_board.l, new_source_board.t);
-                    new_source_board.en_passant = None;
-                    let new_source_board = B::from((new_source_board, game, partial_game));
+                    if kind != PartialGameGenKind::Target {
+                        let new_source_coords = (new_source_board.l, new_source_board.t);
+                        new_source_board.en_passant = None;
+                        let new_source_board = B::from((new_source_board, game, partial_game));
 
-                    new_partial_game.boards.insert(
-                        new_source_coords,
-                        new_source_board
-                    );
-                    new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
+                        new_partial_game.boards.insert(
+                            new_source_coords,
+                            new_source_board
+                        );
+                        new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
+                    }
 
                     // Insert target board
-                    let new_target_coords = (new_target_board.l, new_target_board.t);
-                    new_target_board.en_passant = None;
-                    let new_target_board = B::from((new_target_board, game, partial_game));
+                    if kind != PartialGameGenKind::Source {
+                        let new_target_coords = (new_target_board.l, new_target_board.t);
+                        new_target_board.en_passant = None;
+                        let new_target_board = B::from((new_target_board, game, partial_game));
 
-                    new_partial_game.boards.insert(
-                        new_target_coords,
-                        new_target_board
-                    );
+                        new_partial_game.boards.insert(
+                            new_target_coords,
+                            new_target_board
+                        );
+                    }
                 } else { // If the move isn't a jump...
                     // Clone the board and update its metadata
                     let mut new_board: Board = partial_game
@@ -442,7 +467,7 @@ impl Moveset {
         let mut new_partial_game = PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
 
         for mv in self.moves.iter() {
-            mv.generate_partial_game(game, partial_game, &mut new_partial_game)?;
+            mv.generate_partial_game(game, partial_game, &mut new_partial_game, PartialGameGenKind::Both)?;
         }
 
         new_partial_game.info.recalculate_present();
