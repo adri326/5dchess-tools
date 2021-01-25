@@ -102,9 +102,9 @@ impl Move {
                     if new_partial_game.info.get_timeline((self.to.1).0)?.last_board > (self.to.1).1 {
                         // Branching move!
                         let new_layer = if white {
-                            partial_game.info.max_timeline() + 1
+                            new_partial_game.info.max_timeline() + 1
                         } else {
-                            partial_game.info.min_timeline() - 1
+                            new_partial_game.info.min_timeline() - 1
                         };
 
                         // Generate a new timeline info

@@ -33,6 +33,7 @@ jobs:
       run: |
         curl -sfo converted-db.zip https://shadamethyst.xyz/static/github/converted-db.zip
         unzip -q converted-db.zip
+      if: ${{ env.CI_SKIP == 'false' }}
     # - name: Prepare tests
     #   run: ./prepare-tests.sh
     #   if: ${{ env.CI_SKIP == 'false' }}
