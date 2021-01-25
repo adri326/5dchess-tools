@@ -1,5 +1,7 @@
 # 5dchess-tools
 
+![V2 tests](https://github.com/adri326/5dchess-tools/workflows/V2%20Tests/badge.svg?branch=v2)
+
 Programming set of tools to analyze [5D Chess](https://5dchesswithmultiversetimetravel.com/) games.
 
 ***Note:** You are currently seeing the WIP, future `0.2` release. The information below is partially outdated!*
