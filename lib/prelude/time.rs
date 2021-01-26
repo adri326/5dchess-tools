@@ -29,13 +29,14 @@ pub trait TimedFilterTrait: Iterator {
         duration: Duration,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
+        strategy: S,
     ) -> TimedFilterStrategy<'a, Self, S, B>
     where
         B: Clone + AsRef<Board>,
         for<'b> S: Strategy<'b, B, From = &'b Self::Item, To = bool>,
         Self: Sized,
     {
-        TimedFilterStrategy::new(self, duration, game, partial_game)
+        TimedFilterStrategy::new(self, duration, game, partial_game, strategy)
     }
 
     /**
@@ -65,13 +66,14 @@ pub trait TimedFilterTrait: Iterator {
         duration: Duration,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
+        strategy: S,
     ) -> SigmaFilterStrategy<'a, Self, S, B>
     where
         B: Clone + AsRef<Board>,
         for<'b> S: Strategy<'b, B, From = &'b Self::Item, To = bool>,
         Self: Sized,
     {
-        SigmaFilterStrategy::new(self, duration, game, partial_game)
+        SigmaFilterStrategy::new(self, duration, game, partial_game, strategy)
     }
 }
 
@@ -218,7 +220,7 @@ where
     Self: Sized,
 {
     pub iterator: J,
-    _strategy: std::marker::PhantomData<&'a S>,
+    pub strategy: S,
     pub start: Option<Instant>,
     pub duration: Duration,
     pub game: &'a Game,
@@ -237,6 +239,7 @@ where
         duration: Duration,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
+        strategy: S,
     ) -> Self {
         Self {
             iterator,
@@ -244,7 +247,7 @@ where
             duration,
             game,
             partial_game,
-            _strategy: std::marker::PhantomData,
+            strategy,
         }
     }
 
@@ -254,6 +257,7 @@ where
         duration: Duration,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
+        strategy: S,
     ) -> Self {
         Self {
             iterator,
@@ -261,7 +265,7 @@ where
             duration,
             game,
             partial_game,
-            _strategy: std::marker::PhantomData,
+            strategy,
         }
     }
 
@@ -316,7 +320,7 @@ where
             }
             match self.iterator.next() {
                 Some(item) => {
-                    if S::apply(&item, self.game, self.partial_game)? {
+                    if self.strategy.apply(&item, self.game, self.partial_game)? {
                         return Some(item);
                     }
                 }
@@ -457,7 +461,7 @@ where
     Self: Sized,
 {
     pub iterator: J,
-    _strategy: std::marker::PhantomData<&'a S>,
+    pub strategy: S,
     pub sigma: Duration,
     pub duration: Duration,
     pub game: &'a Game,
@@ -476,6 +480,7 @@ where
         duration: Duration,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
+        strategy: S,
     ) -> Self {
         Self {
             iterator,
@@ -483,7 +488,7 @@ where
             duration,
             game,
             partial_game,
-            _strategy: std::marker::PhantomData,
+            strategy,
         }
     }
 
@@ -493,6 +498,7 @@ where
         duration: Duration,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
+        strategy: S,
     ) -> Self {
         Self {
             iterator,
@@ -500,7 +506,7 @@ where
             duration,
             game,
             partial_game,
-            _strategy: std::marker::PhantomData,
+            strategy,
         }
     }
 
@@ -539,7 +545,7 @@ where
             }
             match self.iterator.next() {
                 Some(item) => {
-                    if S::apply(&item, self.game, self.partial_game)? {
+                    if self.strategy.apply(&item, self.game, self.partial_game)? {
                         break Some(item);
                     }
                 }

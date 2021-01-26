@@ -4,8 +4,22 @@ use std::collections::HashMap;
 
 // TODO: somehow store the boards in the move itself for speed~
 // (I don't want to waste another 500ns)
+#[derive(Clone, Copy)]
 pub struct LegalMove;
+#[derive(Clone, Copy)]
 pub struct OptLegalMove;
+
+impl LegalMove {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl OptLegalMove {
+    pub fn new() -> Self {
+        Self
+    }
+}
 
 impl<'a, B> Strategy<'a, B> for LegalMove
 where
@@ -16,7 +30,7 @@ where
     type From = Move;
     type To = bool;
 
-    fn apply(mv: Move, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool> {
+    fn apply(&self, mv: Move, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool> {
         let mut new_partial_game = PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
 
         if mv.from.1.non_physical() == mv.to.1.non_physical() {
@@ -50,7 +64,7 @@ where
     type From = Move;
     type To = bool;
 
-    fn apply(mv: Move, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool> {
+    fn apply(&self, mv: Move, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool> {
         let n_own_boards = partial_game.own_boards(game).count();
         if n_own_boards <= 2 {
             Some(true)
@@ -58,7 +72,7 @@ where
             let n_opponent_boards = partial_game.opponent_boards(game).count();
             Some(n_opponent_boards <= 8)
         } else {
-            LegalMove::apply(mv, game, partial_game)
+            LegalMove::apply(&LegalMove, mv, game, partial_game)
         }
     }
 }

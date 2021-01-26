@@ -109,24 +109,38 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board>>: Sized {
     }
 }
 
+#[derive(Clone)]
 pub struct GenMovesStrategy<'a, B, T>
 where
     B: Clone + AsRef<Board>,
-    T: GenMoves<'a, B>,
+    T: GenMoves<'a, B> + Clone,
 {
     _b: PhantomData<&'a B>,
     _t: PhantomData<*const T>,
 }
 
+impl<'a, B, T> GenMovesStrategy<'a, B, T>
+where
+    B: Clone + AsRef<Board>,
+    T: GenMoves<'a, B> + Clone,
+{
+    pub fn new() -> Self {
+        Self {
+            _b: PhantomData,
+            _t: PhantomData,
+        }
+    }
+}
+
 impl<'a, B, T> Strategy<'a, B> for GenMovesStrategy<'a, B, T>
 where
     B: Clone + AsRef<Board>,
-    T: GenMoves<'a, B>,
+    T: GenMoves<'a, B> + Clone,
 {
     type From = T;
     type To = <T as GenMoves<'a, B>>::Iter;
 
-    fn apply(generator: T, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<Self::To> {
+    fn apply(&self, generator: T, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<Self::To> {
         generator.generate_moves(game, partial_game)
     }
 }

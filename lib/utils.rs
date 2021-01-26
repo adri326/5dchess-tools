@@ -27,12 +27,12 @@ where
     >>,
     pub duration: Option<Duration>,
     pub sigma: Duration,
-    _phantom: std::marker::PhantomData<*const S>,
 }
 
 pub fn list_legal_movesets_filter_strategy<'a, S, B>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a, B>,
+    strategy: S,
     duration: Option<Duration>,
 ) -> LegalMovesetsIter<'a, S, B>
 where
@@ -48,10 +48,10 @@ where
             partial_game.own_boards(game).collect(),
             game,
             partial_game,
+            strategy,
         ).flatten(),
         duration,
         sigma: Duration::new(0, 0),
-        _phantom: std::marker::PhantomData,
     }
 }
 
@@ -68,7 +68,8 @@ where
     list_legal_movesets_filter_strategy::<OptLegalMove, B>(
         game,
         partial_game,
-        duration
+        OptLegalMove::new(),
+        duration,
     )
 }
 
@@ -169,6 +170,7 @@ pub fn list_legal_movesets_filter_strategy_goal<'a, 'b, S, G, B>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a, B>,
     goal: &'b G,
+    strategy: S,
     duration: Option<Duration>,
     depth: usize,
 ) -> ApplyGoals<'a, 'b, B, G, LegalMovesetsIter<'a, S, B>>
@@ -181,7 +183,7 @@ where
     for<'c> B: From<(Board, &'c Game, &'c PartialGame<'c, B>)>,
 {
     ApplyGoals::new(
-        list_legal_movesets_filter_strategy(game, partial_game, duration),
+        list_legal_movesets_filter_strategy(game, partial_game, strategy, duration),
         goal,
         game,
         duration,

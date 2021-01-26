@@ -138,6 +138,7 @@ fn test_legal_move() {
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
+                LegalMove::new(),
             )
             .flatten()
             .filter_map(|ms| filter_lambda(ms, game, partial_game))
@@ -173,6 +174,7 @@ fn test_legal_opt_move() {
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
+                OptLegalMove::new(),
             )
             .flatten()
             .filter_map(|ms| filter_lambda(ms, game, partial_game))
@@ -183,6 +185,7 @@ fn test_legal_opt_move() {
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
+                LegalMove::new(),
             )
             .flatten()
             .filter_map(|ms| filter_lambda(ms, game, partial_game))
@@ -214,6 +217,7 @@ fn defended_pawn_checkmate() {
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
+            LegalMove::new(),
         )
         .flatten()
         .filter_map(|ms| filter_lambda(ms));
@@ -246,6 +250,7 @@ fn standard_checkmate() {
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
+            LegalMove::new(),
         )
         .flatten()
         .filter_map(|ms| filter_lambda(ms));
@@ -278,6 +283,7 @@ fn standard_checkmate_2() {
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
+            LegalMove::new(),
         )
         .flatten()
         .filter_map(|ms| filter_lambda(ms));
@@ -310,6 +316,7 @@ fn standard_checkmate_3() {
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
+            LegalMove::new(),
         )
         .flatten()
         .filter_map(|ms| filter_lambda(ms));
@@ -342,6 +349,7 @@ fn princess_checkmate() {
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
+            LegalMove::new(),
         )
         .flatten()
         .filter_map(|ms| filter_lambda(ms));
@@ -383,6 +391,7 @@ fn tricky_nonmate() {
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
+            TrueStrategy::new(),
         )
         .flatten()
         .filter_map(|ms| filter_lambda(ms));
@@ -395,6 +404,7 @@ fn tricky_nonmate() {
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
+            LegalMove::new(),
         )
         .flatten()
         .filter_map(|ms| filter_lambda(ms));
@@ -428,6 +438,7 @@ fn reflected_checkmate() {
             partial_game.own_boards(&game).collect(),
             &game,
             &partial_game,
+            LegalMove::new(),
         )
         .flatten()
         .filter_map(|ms| filter_lambda(ms));
@@ -463,6 +474,7 @@ fn test_list_legal_movesets() {
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
+                OptLegalMove::new(),
             )
             .flatten()
             .filter_map(|ms| filter_lambda(ms, game, partial_game))

@@ -102,7 +102,7 @@ where
     iter: I,
     game: &'a Game,
     partial_game: &'a PartialGame<'a, B>,
-    _strategy: std::marker::PhantomData<S>,
+    strategy: S,
 }
 
 impl<'a, B, I, S> Iterator for FilterByStrategy<'a, B, I, S>
@@ -118,7 +118,7 @@ where
         loop {
             match self.iter.next() {
                 Some(mv) => {
-                    if S::apply(mv, self.game, self.partial_game)? {
+                    if self.strategy.apply(mv, self.game, self.partial_game)? {
                         return Some(mv)
                     }
                 },
@@ -134,6 +134,7 @@ pub fn generate_movesets_filter_strategy<'a, S, B>(
     boards: Vec<BoardOr<'a, B>>,
     game: &'a Game,
     partial_game: &'a PartialGame<'a, B>,
+    strategy: S,
 ) -> GenMovesetIter<'a, B, FilterByStrategy<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter, S>>
 where
     B: Clone + AsRef<Board>,
@@ -146,11 +147,11 @@ where
         states: vec![None; boards.len()],
         boards: boards
             .into_iter()
-            .filter_map(|borb| Some(FilterByStrategy {
+            .filter_map(move |borb| Some(FilterByStrategy {
                 iter: borb.generate_moves(game, partial_game)?,
                 game,
                 partial_game,
-                _strategy: std::marker::PhantomData,
+                strategy: strategy.clone(),
             }))
             .map(|iter| CacheMoves::new(iter))
             .collect(),
@@ -164,6 +165,7 @@ pub fn generate_movesets_iterator_strategy<'a, S, B>(
     boards: Vec<BoardOr<'a, B>>,
     game: &'a Game,
     partial_game: &'a PartialGame<'a, B>,
+    strategy: S,
 ) -> GenMovesetIter<'a, B, S::To>
 where
     B: Clone + AsRef<Board>,
@@ -177,7 +179,7 @@ where
         states: vec![None; boards.len()],
         boards: boards
             .into_iter()
-            .filter_map(|borb| S::apply(borb, game, partial_game))
+            .filter_map(|borb| strategy.apply(borb, game, partial_game))
             .map(|iter| CacheMoves::new(iter))
             .collect(),
         done: false,

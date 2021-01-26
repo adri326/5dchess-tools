@@ -97,6 +97,7 @@ fn test_new_partial_game_castling() {
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
+        NoCastling::new(),
     )
     .flatten()
     .filter_map(|ms| ms.ok())
