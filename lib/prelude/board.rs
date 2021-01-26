@@ -102,9 +102,9 @@ impl Board {
             Tile::Void
         } else {
             self.pieces[(x + self.width * y) as usize].into()
-                // .get((x + self.width * y) as usize)
-                // .map(|x| *x)
-                // .into()
+            // .get((x + self.width * y) as usize)
+            // .map(|x| *x)
+            // .into()
         }
     }
 

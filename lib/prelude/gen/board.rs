@@ -199,8 +199,12 @@ where
         flag: GenMovesFlag,
     ) -> Option<Self::Iter> {
         Some(match self {
-            BoardOr::Board(board) => BoardIterOr::Board(board.generate_moves_flag(game, partial_game, flag)?),
-            BoardOr::B(board) => BoardIterOr::B(board.generate_moves_flag(game, partial_game, flag)?),
+            BoardOr::Board(board) => {
+                BoardIterOr::Board(board.generate_moves_flag(game, partial_game, flag)?)
+            }
+            BoardOr::B(board) => {
+                BoardIterOr::B(board.generate_moves_flag(game, partial_game, flag)?)
+            }
         })
     }
 }

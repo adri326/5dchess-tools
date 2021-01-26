@@ -1,11 +1,11 @@
 #[allow(unused_imports)]
 use chess5dlib::{parse::*, prelude::*, utils::*};
-use std::fs::File;
-use std::fs::read_dir;
-use std::io::prelude::*;
-use std::time::{Instant, Duration};
 use rand::Rng;
 use scoped_threadpool::Pool;
+use std::fs::read_dir;
+use std::fs::File;
+use std::io::prelude::*;
+use std::time::{Duration, Instant};
 
 extern crate coz;
 
@@ -14,13 +14,13 @@ fn main() -> std::io::Result<()> {
 
     let (duration, threads) = if args.len() != 3 {
         println!("No duration or thread count specified, exitting!");
-        return Ok(())
+        return Ok(());
     } else {
         match (args[1].parse(), args[2].parse()) {
             (Ok(x), Ok(y)) => (Duration::new(x, 0), y),
             _ => {
                 println!("Invalid duration or thread count, exitting!");
-                return Ok(())
+                return Ok(());
             }
         }
     };
@@ -60,7 +60,11 @@ fn main() -> std::io::Result<()> {
                         sigma += dsigma;
                         delta += ddelta;
                     }
-                    println!("Thread {}: {:?} moveset/ms", n, sigma as f64 / delta.as_millis() as f64);
+                    println!(
+                        "Thread {}: {:?} moveset/ms",
+                        n,
+                        sigma as f64 / delta.as_millis() as f64
+                    );
                     // println!("Thread {}: {:?} position/s", n, epsilon as f64 / delta.as_millis() as f64 * 1000.0);
                 });
             }
@@ -70,7 +74,13 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn test(started: Instant, duration: Duration, game: &Game, partial_game: &PartialGame<Board>, _iterations: usize) -> (usize, Duration) {
+fn test(
+    started: Instant,
+    duration: Duration,
+    game: &Game,
+    partial_game: &PartialGame<Board>,
+    _iterations: usize,
+) -> (usize, Duration) {
     let mut sigma = 0;
     let mut delta = Duration::new(0, 0);
 
@@ -87,10 +97,10 @@ fn test(started: Instant, duration: Duration, game: &Game, partial_game: &Partia
         delta += begin.elapsed();
 
         if next.is_none() {
-            break
+            break;
         }
         if started.elapsed() > duration {
-            break
+            break;
         }
     }
 

@@ -47,10 +47,8 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
 
     #[inline]
     pub fn insert(&mut self, board: B) {
-        self.boards.insert(
-            (board.as_ref().l(), board.as_ref().t()),
-            board
-        );
+        self.boards
+            .insert((board.as_ref().l(), board.as_ref().t()), board);
     }
 
     /** Returns an iterator over all of the boards contained within that partial game state and its parents.
@@ -113,7 +111,10 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     }
 
     #[inline]
-    pub fn opponent_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = BoardOr<'b, B>> + 'b {
+    pub fn opponent_boards<'b>(
+        &'b self,
+        game: &'b Game,
+    ) -> impl Iterator<Item = BoardOr<'b, B>> + 'b {
         self.info
             .timelines_white
             .iter()
@@ -126,7 +127,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     pub fn is_last_board(&self, coords: (Layer, Time)) -> Option<bool> {
         match self.info.get_timeline(coords.0) {
             Some(tl) => Some(tl.last_board == coords.1),
-            None => None
+            None => None,
         }
     }
 }

@@ -48,32 +48,38 @@ where
     /**
         Required method. Return `Some(true)` if the given moveset is valid, `Some(false)` if it is invalid and `None` if an error occured.
     **/
-    fn verify<'b>(&self, moveset: &'b Moveset, game: &'b Game, partial_game: &'b PartialGame<'b, B>, depth: usize) -> Option<bool>;
+    fn verify<'b>(
+        &self,
+        moveset: &'b Moveset,
+        game: &'b Game,
+        partial_game: &'b PartialGame<'b, B>,
+        depth: usize,
+    ) -> Option<bool>;
 
     fn or<G: Goal<B>>(self, goal: G) -> OrGoal<B, Self, G>
     where
-        Self: Sized
+        Self: Sized,
     {
         OrGoal::new(self, goal)
     }
 
     fn and<G: Goal<B>>(self, goal: G) -> AndGoal<B, Self, G>
     where
-        Self: Sized
+        Self: Sized,
     {
         AndGoal::new(self, goal)
     }
 
     fn not(self) -> NotGoal<B, Self>
     where
-        Self: Sized
+        Self: Sized,
     {
         NotGoal::new(self)
     }
 
     fn until(self, max_depth: usize) -> UntilGoal<B, Self>
     where
-        Self: Sized
+        Self: Sized,
     {
         UntilGoal::new(self, max_depth)
     }
@@ -87,7 +93,13 @@ where
     B: Clone + AsRef<Board>,
 {
     #[inline]
-    fn verify<'b>(&self, _moveset: &'b Moveset, _game: &'b Game, _partial_game: &'b PartialGame<'b, B>, _depth: usize) -> Option<bool> {
+    fn verify<'b>(
+        &self,
+        _moveset: &'b Moveset,
+        _game: &'b Game,
+        _partial_game: &'b PartialGame<'b, B>,
+        _depth: usize,
+    ) -> Option<bool> {
         Some(true)
     }
 }
@@ -100,7 +112,13 @@ where
     B: Clone + AsRef<Board>,
 {
     #[inline]
-    fn verify<'b>(&self, _moveset: &'b Moveset, _game: &'b Game, _partial_game: &'b PartialGame<'b, B>, _depth: usize) -> Option<bool> {
+    fn verify<'b>(
+        &self,
+        _moveset: &'b Moveset,
+        _game: &'b Game,
+        _partial_game: &'b PartialGame<'b, B>,
+        _depth: usize,
+    ) -> Option<bool> {
         Some(false)
     }
 }
@@ -126,7 +144,7 @@ where
     pub fn new(goal: G) -> Self {
         Self {
             goal,
-            _phantom: std::marker::PhantomData
+            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -137,10 +155,16 @@ where
     G: Goal<B>,
 {
     #[inline]
-    fn verify<'b>(&self, moveset: &'b Moveset, game: &'b Game, partial_game: &'b PartialGame<'b, B>, depth: usize) -> Option<bool> {
+    fn verify<'b>(
+        &self,
+        moveset: &'b Moveset,
+        game: &'b Game,
+        partial_game: &'b PartialGame<'b, B>,
+        depth: usize,
+    ) -> Option<bool> {
         match self.goal.verify(moveset, game, partial_game, depth) {
             Some(x) => Some(!x),
-            None => None
+            None => None,
         }
     }
 }
@@ -169,7 +193,7 @@ where
         Self {
             left,
             right,
-            _phantom: std::marker::PhantomData
+            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -181,10 +205,16 @@ where
     Right: Goal<B>,
 {
     #[inline]
-    fn verify<'b>(&self, moveset: &'b Moveset, game: &'b Game, partial_game: &'b PartialGame<'b, B>, depth: usize) -> Option<bool> {
+    fn verify<'b>(
+        &self,
+        moveset: &'b Moveset,
+        game: &'b Game,
+        partial_game: &'b PartialGame<'b, B>,
+        depth: usize,
+    ) -> Option<bool> {
         match self.left.verify(moveset, game, partial_game, depth) {
             Some(false) => self.right.verify(moveset, game, partial_game, depth),
-            x => x
+            x => x,
         }
     }
 }
@@ -213,7 +243,7 @@ where
         Self {
             left,
             right,
-            _phantom: std::marker::PhantomData
+            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -225,10 +255,16 @@ where
     Right: Goal<B>,
 {
     #[inline]
-    fn verify<'b>(&self, moveset: &'b Moveset, game: &'b Game, partial_game: &'b PartialGame<'b, B>, depth: usize) -> Option<bool> {
+    fn verify<'b>(
+        &self,
+        moveset: &'b Moveset,
+        game: &'b Game,
+        partial_game: &'b PartialGame<'b, B>,
+        depth: usize,
+    ) -> Option<bool> {
         match self.left.verify(moveset, game, partial_game, depth) {
             Some(true) => self.right.verify(moveset, game, partial_game, depth),
-            x => x
+            x => x,
         }
     }
 }
@@ -251,7 +287,13 @@ impl<B: Clone + AsRef<Board>, G: Goal<B>> UntilGoal<B, G> {
 
 impl<B: Clone + AsRef<Board>, G: Goal<B>> Goal<B> for UntilGoal<B, G> {
     #[inline]
-    fn verify<'b>(&self, moveset: &'b Moveset, game: &'b Game, partial_game: &'b PartialGame<'b, B>, depth: usize) -> Option<bool> {
+    fn verify<'b>(
+        &self,
+        moveset: &'b Moveset,
+        game: &'b Game,
+        partial_game: &'b PartialGame<'b, B>,
+        depth: usize,
+    ) -> Option<bool> {
         if depth > self.max_depth {
             Some(false)
         } else {

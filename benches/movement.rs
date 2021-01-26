@@ -3,15 +3,13 @@ use chess5dlib::prelude::*;
 use chess5dlib::strategies::legal::*;
 use chess5dlib::utils::*;
 use criterion::measurement::Measurement;
-use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion, BatchSize};
+use criterion::{
+    criterion_group, criterion_main, BatchSize, BenchmarkGroup, BenchmarkId, Criterion,
+};
 use rand::prelude::*;
 use std::time::{Duration, Instant};
 
-fn bench_movement_board<M: Measurement>(
-    group: &mut BenchmarkGroup<M>,
-    game: &Game,
-    name: &str,
-) {
+fn bench_movement_board<M: Measurement>(group: &mut BenchmarkGroup<M>, game: &Game, name: &str) {
     let partial_game = no_partial_game(&game);
     let mut rng = rand::thread_rng();
 
@@ -24,13 +22,17 @@ fn bench_movement_board<M: Measurement>(
         BenchmarkId::new("Board::generate_moves", name),
         game,
         |b, game| {
-            let mut iter = own_boards[rng.gen_range(0..own_boards.len())].generate_moves(&game, &partial_game).unwrap();
+            let mut iter = own_boards[rng.gen_range(0..own_boards.len())]
+                .generate_moves(&game, &partial_game)
+                .unwrap();
             b.iter(|| {
                 let start = Instant::now();
                 match iter.next() {
                     Some(_) => n_moves += 1,
                     None => {
-                        iter = own_boards[rng.gen_range(0..own_boards.len())].generate_moves(&game, &partial_game).unwrap();
+                        iter = own_boards[rng.gen_range(0..own_boards.len())]
+                            .generate_moves(&game, &partial_game)
+                            .unwrap();
                     }
                 }
                 time += start.elapsed();
@@ -48,11 +50,7 @@ fn bench_movement_board<M: Measurement>(
     }
 }
 
-fn bench_movement_piece<M: Measurement>(
-    group: &mut BenchmarkGroup<M>,
-    game: &Game,
-    name: &str,
-) {
+fn bench_movement_piece<M: Measurement>(group: &mut BenchmarkGroup<M>, game: &Game, name: &str) {
     let partial_game = no_partial_game(&game);
     let mut rng = rand::thread_rng();
 
@@ -76,13 +74,15 @@ fn bench_movement_piece<M: Measurement>(
         BenchmarkId::new("Piece::generate_moves", name),
         game,
         |b, game| {
-            let mut iter = own_pieces[rng.gen_range(0..own_pieces.len())].generate_moves(&game, &partial_game).unwrap();
-            b.iter(|| {
-                match iter.next() {
-                    Some(_) => {},
-                    None => {
-                        iter = own_pieces[rng.gen_range(0..own_pieces.len())].generate_moves(&game, &partial_game).unwrap();
-                    }
+            let mut iter = own_pieces[rng.gen_range(0..own_pieces.len())]
+                .generate_moves(&game, &partial_game)
+                .unwrap();
+            b.iter(|| match iter.next() {
+                Some(_) => {}
+                None => {
+                    iter = own_pieces[rng.gen_range(0..own_pieces.len())]
+                        .generate_moves(&game, &partial_game)
+                        .unwrap();
                 }
             })
         },
@@ -120,11 +120,7 @@ pub fn bench_movement<M: Measurement>(c: &mut Criterion<M>) {
     }
 }
 
-fn bench_moveset_sub<M: Measurement>(
-    group: &mut BenchmarkGroup<M>,
-    game: &Game,
-    name: &str,
-) {
+fn bench_moveset_sub<M: Measurement>(group: &mut BenchmarkGroup<M>, game: &Game, name: &str) {
     let partial_game = no_partial_game(&game);
 
     let own_boards: Vec<BoardOr<Board>> = partial_game.own_boards(game).collect();
@@ -133,24 +129,20 @@ fn bench_moveset_sub<M: Measurement>(
 
     group.bench_with_input(BenchmarkId::new("GenMovesetIter", name), game, |b, game| {
         let lambda = |ms: Result<Moveset, MovesetValidityErr>| ms.ok();
-        let mut iter = GenMovesetIter::new(
-            own_boards.clone(),
-            &game,
-            &partial_game,
-        ).flatten().filter_map(lambda);
+        let mut iter = GenMovesetIter::new(own_boards.clone(), &game, &partial_game)
+            .flatten()
+            .filter_map(lambda);
         b.iter(|| {
             let start = Instant::now();
             match iter.next() {
                 Some(_) => {
                     sigma += 1;
                     delta += start.elapsed();
-                },
+                }
                 None => {
-                    iter = GenMovesetIter::new(
-                        own_boards.clone(),
-                        &game,
-                        &partial_game,
-                    ).flatten().filter_map(lambda);
+                    iter = GenMovesetIter::new(own_boards.clone(), &game, &partial_game)
+                        .flatten()
+                        .filter_map(lambda);
                 }
             }
         })
@@ -165,7 +157,10 @@ fn bench_moveset_sub<M: Measurement>(
     }
 }
 
-fn bench_moveset_sub_filter<M: Measurement, S: for<'a> Strategy<'a, Board, From=Move, To=bool>>(
+fn bench_moveset_sub_filter<
+    M: Measurement,
+    S: for<'a> Strategy<'a, Board, From = Move, To = bool>,
+>(
     group: &mut BenchmarkGroup<M>,
     game: &Game,
     name: &str,
@@ -184,21 +179,25 @@ fn bench_moveset_sub_filter<M: Measurement, S: for<'a> Strategy<'a, Board, From=
             &game,
             &partial_game,
             strategy.clone(),
-        ).flatten().filter_map(lambda);
+        )
+        .flatten()
+        .filter_map(lambda);
         b.iter(|| {
             let start = Instant::now();
             match iter.next() {
                 Some(_) => {
                     sigma += 1;
                     delta += start.elapsed();
-                },
+                }
                 None => {
                     iter = generate_movesets_filter_strategy::<S, Board>(
                         own_boards.clone(),
                         &game,
                         &partial_game,
-                        strategy.clone()
-                    ).flatten().filter_map(lambda);
+                        strategy.clone(),
+                    )
+                    .flatten()
+                    .filter_map(lambda);
                 }
             }
         })
@@ -209,7 +208,10 @@ fn bench_moveset_sub_filter<M: Measurement, S: for<'a> Strategy<'a, Board, From=
         println!("Boards to play on: {}", own_boards.len());
         println!("Time (s, filtered): {}", delta.as_millis() as f64 / 1000.0);
         println!("Movesets (filtered): {}", sigma);
-        println!("Moveset / ms (filtered): {}", sigma as f64 / delta.as_millis() as f64);
+        println!(
+            "Moveset / ms (filtered): {}",
+            sigma as f64 / delta.as_millis() as f64
+        );
     }
 }
 
@@ -222,39 +224,40 @@ fn bench_moveset_partial_game<M: Measurement>(
 
     let own_boards: Vec<BoardOr<Board>> = partial_game.own_boards(game).collect();
 
-    group.bench_with_input(BenchmarkId::new("Moveset::new_partial_game", name), game, |b, game| {
-        let lambda = |ms: Result<Moveset, MovesetValidityErr>| ms.ok();
-        let mut iter = GenMovesetIter::new(
-            own_boards.clone(),
-            &game,
-            &partial_game,
-        ).flatten().filter_map(lambda);
+    group.bench_with_input(
+        BenchmarkId::new("Moveset::new_partial_game", name),
+        game,
+        |b, game| {
+            let lambda = |ms: Result<Moveset, MovesetValidityErr>| ms.ok();
+            let mut iter = GenMovesetIter::new(own_boards.clone(), &game, &partial_game)
+                .flatten()
+                .filter_map(lambda);
 
-        b.iter_batched(|| {
-            let mut res: Option<Moveset> = None;
+            b.iter_batched(
+                || {
+                    let mut res: Option<Moveset> = None;
 
-            match iter.next() {
-                Some(ms) => res = Some(ms),
-                None => {
-                    iter = GenMovesetIter::new(
-                        own_boards.clone(),
-                        &game,
-                        &partial_game,
-                    ).flatten().filter_map(lambda);
-                }
-            }
+                    match iter.next() {
+                        Some(ms) => res = Some(ms),
+                        None => {
+                            iter = GenMovesetIter::new(own_boards.clone(), &game, &partial_game)
+                                .flatten()
+                                .filter_map(lambda);
+                        }
+                    }
 
-            res
+                    res
+                },
+                |movesets| {
+                    for ms in movesets {
+                        ms.generate_partial_game(game, &partial_game);
+                    }
+                },
+                BatchSize::SmallInput,
+            )
         },
-        |movesets| {
-            for ms in movesets {
-                ms.generate_partial_game(game, &partial_game);
-            }
-        },
-        BatchSize::SmallInput)
-    });
+    );
 }
-
 
 fn bench_moveset_is_illegal<M: Measurement>(
     group: &mut BenchmarkGroup<M>,
@@ -267,34 +270,32 @@ fn bench_moveset_is_illegal<M: Measurement>(
 
     group.bench_with_input(BenchmarkId::new("is_illegal", name), game, |b, game| {
         let lambda = |ms: Result<Moveset, MovesetValidityErr>| ms.ok();
-        let mut iter = GenMovesetIter::new(
-            own_boards.clone(),
-            &game,
-            &partial_game,
-        ).flatten().filter_map(lambda);
+        let mut iter = GenMovesetIter::new(own_boards.clone(), &game, &partial_game)
+            .flatten()
+            .filter_map(lambda);
 
-        b.iter_batched(|| {
-            let mut res: Option<PartialGame<Board>> = None;
+        b.iter_batched(
+            || {
+                let mut res: Option<PartialGame<Board>> = None;
 
-            match iter.next() {
-                Some(ms) => res = ms.generate_partial_game(game, &partial_game),
-                None => {
-                    iter = GenMovesetIter::new(
-                        own_boards.clone(),
-                        &game,
-                        &partial_game,
-                    ).flatten().filter_map(lambda);
+                match iter.next() {
+                    Some(ms) => res = ms.generate_partial_game(game, &partial_game),
+                    None => {
+                        iter = GenMovesetIter::new(own_boards.clone(), &game, &partial_game)
+                            .flatten()
+                            .filter_map(lambda);
+                    }
                 }
-            }
 
-            res
-        },
-        |positions| {
-            for pos in positions {
-                is_illegal(game, &pos);
-            }
-        },
-        BatchSize::SmallInput)
+                res
+            },
+            |positions| {
+                for pos in positions {
+                    is_illegal(game, &pos);
+                }
+            },
+            BatchSize::SmallInput,
+        )
     });
 }
 
@@ -309,36 +310,35 @@ fn bench_list_legal_movesets<M: Measurement>(
     let mut sigma = 0;
     let mut delta = Duration::new(0, 0);
 
-    group.bench_with_input(BenchmarkId::new("list_legal_movesets", name), game, |b, game| {
-        let mut iter = list_legal_movesets(
-            &game,
-            &partial_game,
-            None,
-        );
-        b.iter(|| {
-            let start = Instant::now();
-            match iter.next() {
-                Some(_) => {
-                    sigma += 1;
-                    delta += start.elapsed();
-                },
-                None => {
-                    iter = list_legal_movesets(
-                        &game,
-                        &partial_game,
-                        None
-                    );
+    group.bench_with_input(
+        BenchmarkId::new("list_legal_movesets", name),
+        game,
+        |b, game| {
+            let mut iter = list_legal_movesets(&game, &partial_game, None);
+            b.iter(|| {
+                let start = Instant::now();
+                match iter.next() {
+                    Some(_) => {
+                        sigma += 1;
+                        delta += start.elapsed();
+                    }
+                    None => {
+                        iter = list_legal_movesets(&game, &partial_game, None);
+                    }
                 }
-            }
-        })
-    });
+            })
+        },
+    );
 
     if sigma > 0 {
         println!("Timelines: {}", game.info.len_timelines());
         println!("Boards to play on: {}", own_boards.len());
         println!("Time (s, filtered): {}", delta.as_millis() as f64 / 1000.0);
         println!("Movesets (filtered): {}", sigma);
-        println!("Moveset / ms (filtered): {}", sigma as f64 / delta.as_millis() as f64);
+        println!(
+            "Moveset / ms (filtered): {}",
+            sigma as f64 / delta.as_millis() as f64
+        );
     }
 }
 
@@ -356,34 +356,74 @@ pub fn bench_moveset<M: Measurement>(c: &mut Criterion<M>) {
     {
         let mut moveset_group = c.benchmark_group("Moveset and LegalMove");
         let game = read_and_parse("tests/games/standard-d4d5.json");
-        bench_moveset_sub_filter::<M, LegalMove>(&mut moveset_group, &game, "Simple", LegalMove::new());
+        bench_moveset_sub_filter::<M, LegalMove>(
+            &mut moveset_group,
+            &game,
+            "Simple",
+            LegalMove::new(),
+        );
         let game = read_and_parse("tests/games/standard-complex.json");
-        bench_moveset_sub_filter::<M, LegalMove>(&mut moveset_group, &game, "Complex", LegalMove::new());
+        bench_moveset_sub_filter::<M, LegalMove>(
+            &mut moveset_group,
+            &game,
+            "Complex",
+            LegalMove::new(),
+        );
         let game = read_and_parse("tests/games/standard-complex-2.json");
-        bench_moveset_sub_filter::<M, LegalMove>(&mut moveset_group, &game, "Complex 2", LegalMove::new());
+        bench_moveset_sub_filter::<M, LegalMove>(
+            &mut moveset_group,
+            &game,
+            "Complex 2",
+            LegalMove::new(),
+        );
 
         for x in vec![1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 13].into_iter() {
             let path = format!("tests/games/inc_timelines/{}.json", x);
             let name = format!("{} Timelines", x);
             let game = read_and_parse(&path);
-            bench_moveset_sub_filter::<M, LegalMove>(&mut moveset_group, &game, &name, LegalMove::new());
+            bench_moveset_sub_filter::<M, LegalMove>(
+                &mut moveset_group,
+                &game,
+                &name,
+                LegalMove::new(),
+            );
         }
     }
 
     {
         let mut moveset_group = c.benchmark_group("Moveset and OptLegalMove");
         let game = read_and_parse("tests/games/standard-d4d5.json");
-        bench_moveset_sub_filter::<M, OptLegalMove>(&mut moveset_group, &game, "Simple", OptLegalMove::new());
+        bench_moveset_sub_filter::<M, OptLegalMove>(
+            &mut moveset_group,
+            &game,
+            "Simple",
+            OptLegalMove::new(),
+        );
         let game = read_and_parse("tests/games/standard-complex.json");
-        bench_moveset_sub_filter::<M, OptLegalMove>(&mut moveset_group, &game, "Complex", OptLegalMove::new());
+        bench_moveset_sub_filter::<M, OptLegalMove>(
+            &mut moveset_group,
+            &game,
+            "Complex",
+            OptLegalMove::new(),
+        );
         let game = read_and_parse("tests/games/standard-complex-2.json");
-        bench_moveset_sub_filter::<M, OptLegalMove>(&mut moveset_group, &game, "Complex 2", OptLegalMove::new());
+        bench_moveset_sub_filter::<M, OptLegalMove>(
+            &mut moveset_group,
+            &game,
+            "Complex 2",
+            OptLegalMove::new(),
+        );
 
         for x in vec![1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 13].into_iter() {
             let path = format!("tests/games/inc_timelines/{}.json", x);
             let name = format!("{} Timelines", x);
             let game = read_and_parse(&path);
-            bench_moveset_sub_filter::<M, OptLegalMove>(&mut moveset_group, &game, &name, OptLegalMove::new());
+            bench_moveset_sub_filter::<M, OptLegalMove>(
+                &mut moveset_group,
+                &game,
+                &name,
+                OptLegalMove::new(),
+            );
         }
     }
 

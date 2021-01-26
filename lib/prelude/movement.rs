@@ -106,7 +106,8 @@ impl Move {
         let white = (self.from.1).1 & 1 == 0;
         match self.kind {
             MoveKind::Normal | MoveKind::Promotion => {
-                if self.is_jump() { // If the move is a jump...
+                if self.is_jump() {
+                    // If the move is a jump...
                     // Clone the boards
                     let mut new_source_board: Board = partial_game
                         .get_board_with_game(game, self.from.1.non_physical())?
@@ -119,7 +120,12 @@ impl Move {
 
                     // Handle branching
                     if kind != PartialGameGenKind::Source {
-                        if new_partial_game.info.get_timeline((self.to.1).0)?.last_board > (self.to.1).1 {
+                        if new_partial_game
+                            .info
+                            .get_timeline((self.to.1).0)?
+                            .last_board
+                            > (self.to.1).1
+                        {
                             // Branching move!
                             let new_layer = if white {
                                 new_partial_game.info.max_timeline() + 1
@@ -146,7 +152,10 @@ impl Move {
                             new_target_board.l = new_layer;
                         } else {
                             // Non-branching move
-                            new_partial_game.info.get_timeline_mut((self.to.1).0)?.last_board += 1;
+                            new_partial_game
+                                .info
+                                .get_timeline_mut((self.to.1).0)?
+                                .last_board += 1;
                             new_target_board.t += 1;
                         }
                     }
@@ -154,8 +163,10 @@ impl Move {
                     new_source_board.t += 1;
 
                     // Calculate indices
-                    let from_index = (self.from.1).2 as usize + (self.from.1).3 as usize * new_source_board.width() as usize;
-                    let to_index = (self.to.1).2 as usize + (self.to.1).3 as usize * new_source_board.width() as usize;
+                    let from_index = (self.from.1).2 as usize
+                        + (self.from.1).3 as usize * new_source_board.width() as usize;
+                    let to_index = (self.to.1).2 as usize
+                        + (self.to.1).3 as usize * new_source_board.width() as usize;
 
                     // Update target board pieces and handle promotion
                     if self.kind == MoveKind::Promotion {
@@ -163,11 +174,11 @@ impl Move {
                         // this doesn't affect the base game, but could affect
                         // customized pieces. If this is a problem to you, then
                         // replace the `false` with a `true`.
-                        new_target_board.pieces[to_index] = Tile::Piece(
-                            Piece::new(PieceKind::Queen, white, false)
-                        );
+                        new_target_board.pieces[to_index] =
+                            Tile::Piece(Piece::new(PieceKind::Queen, white, false));
                     } else {
-                        new_target_board.pieces[to_index] = set_moved(new_source_board.pieces[from_index], true);
+                        new_target_board.pieces[to_index] =
+                            set_moved(new_source_board.pieces[from_index], true);
                     }
 
                     new_source_board.pieces[from_index] = Tile::Blank;
@@ -178,11 +189,13 @@ impl Move {
                         new_source_board.en_passant = None;
                         let new_source_board = B::from((new_source_board, game, partial_game));
 
-                        new_partial_game.boards.insert(
-                            new_source_coords,
-                            new_source_board
-                        );
-                        new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
+                        new_partial_game
+                            .boards
+                            .insert(new_source_coords, new_source_board);
+                        new_partial_game
+                            .info
+                            .get_timeline_mut((self.from.1).0)?
+                            .last_board += 1;
                     }
 
                     // Insert target board
@@ -191,12 +204,12 @@ impl Move {
                         new_target_board.en_passant = None;
                         let new_target_board = B::from((new_target_board, game, partial_game));
 
-                        new_partial_game.boards.insert(
-                            new_target_coords,
-                            new_target_board
-                        );
+                        new_partial_game
+                            .boards
+                            .insert(new_target_coords, new_target_board);
                     }
-                } else { // If the move isn't a jump...
+                } else {
+                    // If the move isn't a jump...
                     // Clone the board and update its metadata
                     let mut new_board: Board = partial_game
                         .get_board_with_game(game, self.from.1.non_physical())?
@@ -205,8 +218,10 @@ impl Move {
                     new_board.t += 1;
 
                     // Calculate the indices
-                    let from_index = (self.from.1).2 as usize + (self.from.1).3 as usize * new_board.width() as usize;
-                    let to_index = (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
+                    let from_index = (self.from.1).2 as usize
+                        + (self.from.1).3 as usize * new_board.width() as usize;
+                    let to_index = (self.to.1).2 as usize
+                        + (self.to.1).3 as usize * new_board.width() as usize;
 
                     // Piece promotion
                     if self.kind == MoveKind::Promotion {
@@ -214,9 +229,8 @@ impl Move {
                         // this doesn't affect the base game, but could affect
                         // customized pieces. If this is a problem to you, then
                         // replace the `false` with a `true`.
-                        new_board.pieces[to_index] = Tile::Piece(
-                            Piece::new(PieceKind::Queen, white, false)
-                        );
+                        new_board.pieces[to_index] =
+                            Tile::Piece(Piece::new(PieceKind::Queen, white, false));
                     } else {
                         new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
                     }
@@ -225,7 +239,9 @@ impl Move {
                     new_board.pieces[from_index] = Tile::Blank;
 
                     // Set en passant information
-                    if self.from.0.can_kickstart() && ((self.from.1).3 as i8 - (self.to.1).3 as i8).abs() >= 2 {
+                    if self.from.0.can_kickstart()
+                        && ((self.from.1).3 as i8 - (self.to.1).3 as i8).abs() >= 2
+                    {
                         if new_board.t & 1 == 1 {
                             new_board.en_passant = Some(((self.from.1).2, (self.from.1).3 + 1));
                         } else {
@@ -239,11 +255,11 @@ impl Move {
                     let new_coords = (new_board.l, new_board.t);
                     let new_board = B::from((new_board, game, partial_game));
 
-                    new_partial_game.boards.insert(
-                        new_coords,
-                        new_board
-                    );
-                    new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
+                    new_partial_game.boards.insert(new_coords, new_board);
+                    new_partial_game
+                        .info
+                        .get_timeline_mut((self.from.1).0)?
+                        .last_board += 1;
                 }
             }
             MoveKind::EnPassant => {
@@ -257,8 +273,10 @@ impl Move {
                 new_board.t += 1;
 
                 // Generate the indices
-                let from_index = (self.from.1).2 as usize + (self.from.1).3 as usize * new_board.width() as usize;
-                let to_index = (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
+                let from_index = (self.from.1).2 as usize
+                    + (self.from.1).3 as usize * new_board.width() as usize;
+                let to_index =
+                    (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
                 let capture_index = ex as usize + ey as usize * new_board.width() as usize;
 
                 // Replace pieces
@@ -270,11 +288,11 @@ impl Move {
                 let new_coords = (new_board.l, new_board.t);
                 let new_board = B::from((new_board, game, partial_game));
 
-                new_partial_game.boards.insert(
-                    new_coords,
-                    new_board
-                );
-                new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
+                new_partial_game.boards.insert(new_coords, new_board);
+                new_partial_game
+                    .info
+                    .get_timeline_mut((self.from.1).0)?
+                    .last_board += 1;
             }
             MoveKind::Castle => {
                 // Clone the board and update its metadata
@@ -295,13 +313,13 @@ impl Move {
                         x -= 1;
                         if let Tile::Piece(p) = new_board.get((x, y)) {
                             if p.white == white && p.can_castle_to() && !p.moved {
-                                break Some((x, y))
+                                break Some((x, y));
                             } else {
-                                break None
+                                break None;
                             }
                         }
                         if x <= 0 {
-                            break None
+                            break None;
                         }
                     }
                 } else {
@@ -311,30 +329,35 @@ impl Move {
                         x += 1;
                         if let Tile::Piece(p) = new_board.get((x, y)) {
                             if p.white == white && p.can_castle_to() && !p.moved {
-                                break Some((x, y))
+                                break Some((x, y));
                             } else {
-                                break None
+                                break None;
                             }
                         }
                         if x >= new_board.width() - 1 {
-                            break None
+                            break None;
                         }
                     }
                 };
                 let rook_position = rook_position?;
 
                 // Calculate the indices
-                let rook_index = rook_position.0 as usize + rook_position.1 as usize * new_board.width() as usize;
-                let from_index = (self.from.1).2 as usize + (self.from.1).3 as usize * new_board.width() as usize;
-                let to_index = (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
+                let rook_index = rook_position.0 as usize
+                    + rook_position.1 as usize * new_board.width() as usize;
+                let from_index = (self.from.1).2 as usize
+                    + (self.from.1).3 as usize * new_board.width() as usize;
+                let to_index =
+                    (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
 
                 // Update pieces
                 new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
                 new_board.pieces[from_index] = Tile::Blank;
                 if direction {
-                    new_board.pieces[from_index - 1] = set_moved(new_board.pieces[rook_index], true);
+                    new_board.pieces[from_index - 1] =
+                        set_moved(new_board.pieces[rook_index], true);
                 } else {
-                    new_board.pieces[from_index + 1] = set_moved(new_board.pieces[rook_index], true);
+                    new_board.pieces[from_index + 1] =
+                        set_moved(new_board.pieces[rook_index], true);
                 }
                 new_board.pieces[rook_index] = Tile::Blank;
 
@@ -342,11 +365,11 @@ impl Move {
                 let new_coords = (new_board.l, new_board.t);
                 let new_board = B::from((new_board, game, partial_game));
 
-                new_partial_game.boards.insert(
-                    new_coords,
-                    new_board
-                );
-                new_partial_game.info.get_timeline_mut((self.from.1).0)?.last_board += 1;
+                new_partial_game.boards.insert(new_coords, new_board);
+                new_partial_game
+                    .info
+                    .get_timeline_mut((self.from.1).0)?
+                    .last_board += 1;
             }
         }
         Some(())
@@ -385,7 +408,13 @@ impl fmt::Display for Move {
                 write!(f, "O-O")
             }
         } else {
-            write!(f, "{:?}{}{}", self.from.0.kind, write_file((self.from.1).2), (self.from.1).3 + 1)?;
+            write!(
+                f,
+                "{:?}{}{}",
+                self.from.0.kind,
+                write_file((self.from.1).2),
+                (self.from.1).3 + 1
+            )?;
 
             if self.to.1.non_physical() != self.from.1.non_physical() {
                 // I currently have no way to verify that the move is branching or not;
@@ -458,16 +487,22 @@ impl Moveset {
     pub fn generate_partial_game<'a, B>(
         &self,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>
+        partial_game: &'a PartialGame<'a, B>,
     ) -> Option<PartialGame<'a, B>>
     where
         B: Clone + AsRef<Board>,
         for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
     {
-        let mut new_partial_game = PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
+        let mut new_partial_game =
+            PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
 
         for mv in self.moves.iter() {
-            mv.generate_partial_game(game, partial_game, &mut new_partial_game, PartialGameGenKind::Both)?;
+            mv.generate_partial_game(
+                game,
+                partial_game,
+                &mut new_partial_game,
+                PartialGameGenKind::Both,
+            )?;
         }
 
         new_partial_game.info.recalculate_present();

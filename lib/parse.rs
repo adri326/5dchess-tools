@@ -117,7 +117,7 @@ pub fn parse(raw: &str) -> Option<Game> {
                     p.moved = false;
                     Tile::Piece(p)
                 }
-                x => x
+                x => x,
             };
             initial_state.push(piece);
         }
@@ -227,7 +227,7 @@ pub fn cmp_pieces(left: Tile, right: Tile) -> bool {
     match (left, right) {
         (Tile::Piece(l), Tile::Piece(r)) => l.kind == r.kind && l.white == r.white,
         (Tile::Blank, Tile::Blank) => true,
-        _ => false
+        _ => false,
     }
 }
 
@@ -243,7 +243,11 @@ pub mod test {
         assert!(file.is_some(), "Couldn't open `{}`!", path);
         let mut contents = String::new();
 
-        assert!(file.unwrap().read_to_string(&mut contents).is_ok(), "Couldn't read `{}`!", path);
+        assert!(
+            file.unwrap().read_to_string(&mut contents).is_ok(),
+            "Couldn't read `{}`!",
+            path
+        );
 
         let res = parse(&contents);
         assert!(res.is_some(), "Couldn't parse `{}`!", path);

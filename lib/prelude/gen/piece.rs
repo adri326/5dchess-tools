@@ -76,31 +76,14 @@ impl PawnIter {
         if flag != GenMovesFlag::Check {
             for perm in vec![Coords(0, 0, 0, 1), Coords(-1, 0, 0, 0)] {
                 let dest = forward(piece.1, perm, piece.0.white);
-                if partial_game
-                    .get_with_game(game, dest)
-                    .is_blank()
-                {
-                    moves.push(Move::new(
-                        game,
-                        partial_game,
-                        piece.1,
-                        dest,
-                    )?);
+                if partial_game.get_with_game(game, dest).is_blank() {
+                    moves.push(Move::new(game, partial_game, piece.1, dest)?);
 
                     let dest2 = forward(piece.1, perm + perm, piece.0.white);
 
                     // Kickstart move
-                    if !piece.0.moved
-                        && partial_game
-                            .get_with_game(game, dest2)
-                            .is_blank()
-                    {
-                        moves.push(Move::new(
-                            game,
-                            partial_game,
-                            piece.1,
-                            dest2,
-                        )?);
+                    if !piece.0.moved && partial_game.get_with_game(game, dest2).is_blank() {
+                        moves.push(Move::new(game, partial_game, piece.1, dest2)?);
                     }
                 }
             }
@@ -117,12 +100,7 @@ impl PawnIter {
                 .get_with_game(game, dest)
                 .is_piece_of_color(!piece.0.white)
             {
-                moves.push(Move::new(
-                    game,
-                    partial_game,
-                    piece.1,
-                    dest,
-                )?);
+                moves.push(Move::new(game, partial_game, piece.1, dest)?);
             }
         }
 
@@ -221,15 +199,15 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for RangingPieceIter<'a, B> {
                 match self.partial_game.get_with_game(self.game, n_coords) {
                     Tile::Void => {
                         next_cardinality = true;
-                        break None
-                    },
-                    Tile::Blank => {},
+                        break None;
+                    }
+                    Tile::Blank => {}
                     Tile::Piece(p) => {
                         next_cardinality = true;
                         if p.white != self.piece.white {
-                            break Move::new(self.game, self.partial_game, self.coords, n_coords)
+                            break Move::new(self.game, self.partial_game, self.coords, n_coords);
                         } else {
-                            break None
+                            break None;
                         }
                     }
                 }
@@ -242,7 +220,7 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for RangingPieceIter<'a, B> {
                 Tile::Void => {
                     next_cardinality = true;
                     None
-                },
+                }
                 Tile::Blank => Move::new(self.game, self.partial_game, self.coords, n_coords),
                 Tile::Piece(p) => {
                     next_cardinality = true;
@@ -346,7 +324,12 @@ pub struct KingIter<'a, B: Clone + AsRef<Board>> {
 
 impl<'a, B: Clone + AsRef<Board>> KingIter<'a, B> {
     #[inline]
-    pub fn new(piece: PiecePosition, game: &'a Game, partial_game: &'a PartialGame<'a, B>, flag: GenMovesFlag) -> Self {
+    pub fn new(
+        piece: PiecePosition,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+        flag: GenMovesFlag,
+    ) -> Self {
         Self {
             castling_direction: 0,
             piece: piece.0,
@@ -476,28 +459,28 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
                 game,
                 partial_game,
                 PERMUTATIONS[1].clone(),
-                flag
+                flag,
             )),
             PieceKind::Bishop => PieceMoveIter::Ranging(RangingPieceIter::new(
                 self,
                 game,
                 partial_game,
                 PERMUTATIONS[2].clone(),
-                flag
+                flag,
             )),
             PieceKind::Unicorn => PieceMoveIter::Ranging(RangingPieceIter::new(
                 self,
                 game,
                 partial_game,
                 PERMUTATIONS[3].clone(),
-                flag
+                flag,
             )),
             PieceKind::Dragon => PieceMoveIter::Ranging(RangingPieceIter::new(
                 self,
                 game,
                 partial_game,
                 PERMUTATIONS[4].clone(),
-                flag
+                flag,
             )),
             PieceKind::Princess => PieceMoveIter::Ranging(RangingPieceIter::new(
                 self,
@@ -526,20 +509,24 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
                 ))
             }
             PieceKind::King => PieceMoveIter::Chain(
-                Box::new(PieceMoveIter::King(KingIter::new(self, game, partial_game, flag))).chain(
-                    Box::new(PieceMoveIter::OneStep(OneStepPieceIter::new(
-                        self,
-                        game,
-                        partial_game,
-                        PERMUTATIONS[1]
-                            .iter()
-                            .chain(PERMUTATIONS[2].iter())
-                            .chain(PERMUTATIONS[3].iter())
-                            .chain(PERMUTATIONS[4].iter())
-                            .cloned()
-                            .collect(),
-                    ))),
-                ),
+                Box::new(PieceMoveIter::King(KingIter::new(
+                    self,
+                    game,
+                    partial_game,
+                    flag,
+                )))
+                .chain(Box::new(PieceMoveIter::OneStep(OneStepPieceIter::new(
+                    self,
+                    game,
+                    partial_game,
+                    PERMUTATIONS[1]
+                        .iter()
+                        .chain(PERMUTATIONS[2].iter())
+                        .chain(PERMUTATIONS[3].iter())
+                        .chain(PERMUTATIONS[4].iter())
+                        .cloned()
+                        .collect(),
+                )))),
             ),
             PieceKind::CommonKing => PieceMoveIter::OneStep(OneStepPieceIter::new(
                 self,

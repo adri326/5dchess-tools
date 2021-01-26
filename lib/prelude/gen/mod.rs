@@ -33,9 +33,7 @@ pub use cache::CacheMoves;
 
 pub mod moveset;
 pub use moveset::{
-    GenMovesetIter,
-    generate_movesets_filter_strategy,
-    generate_movesets_iterator_strategy
+    generate_movesets_filter_strategy, generate_movesets_iterator_strategy, GenMovesetIter,
 };
 
 /**
@@ -140,7 +138,12 @@ where
     type From = T;
     type To = <T as GenMoves<'a, B>>::Iter;
 
-    fn apply(&self, generator: T, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<Self::To> {
+    fn apply(
+        &self,
+        generator: T,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+    ) -> Option<Self::To> {
         generator.generate_moves(game, partial_game)
     }
 }

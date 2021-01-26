@@ -20,11 +20,13 @@ where
 {
     pub game: &'a Game,
     pub partial_game: &'a PartialGame<'a, B>,
-    pub moveset_iter: std::iter::Flatten<GenMovesetIter<
-        'a,
-        B,
-        FilterByStrategy<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter, S>,
-    >>,
+    pub moveset_iter: std::iter::Flatten<
+        GenMovesetIter<
+            'a,
+            B,
+            FilterByStrategy<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter, S>,
+        >,
+    >,
     pub duration: Option<Duration>,
     pub sigma: Duration,
 }
@@ -49,7 +51,8 @@ where
             game,
             partial_game,
             strategy,
-        ).flatten(),
+        )
+        .flatten(),
         duration,
         sigma: Duration::new(0, 0),
     }
@@ -93,7 +96,7 @@ where
                     Some(duration - self.sigma)
                 }
             }
-            None => None
+            None => None,
         }
     }
 
@@ -128,17 +131,15 @@ where
             }
 
             match self.moveset_iter.next() {
-                Some(Ok(ms)) => {
-                    match ms.generate_partial_game(self.game, self.partial_game) {
-                        Some(new_partial_game) => {
-                            if !is_illegal(self.game, &new_partial_game)? {
-                                break Some((ms, new_partial_game))
-                            }
-                        },
-                        None => {}
+                Some(Ok(ms)) => match ms.generate_partial_game(self.game, self.partial_game) {
+                    Some(new_partial_game) => {
+                        if !is_illegal(self.game, &new_partial_game)? {
+                            break Some((ms, new_partial_game));
+                        }
                     }
-                }
-                Some(Err(_)) => {},
+                    None => {}
+                },
+                Some(Err(_)) => {}
                 None => break None,
             }
         };
@@ -148,7 +149,6 @@ where
     }
 }
 
-
 // Goals
 
 pub struct ApplyGoals<'a, 'b, B, G, I>
@@ -156,7 +156,7 @@ where
     'a: 'b,
     B: Clone + AsRef<Board> + 'a,
     G: Goal<B>,
-    I: Iterator<Item=(Moveset, PartialGame<'a, B>)>,
+    I: Iterator<Item = (Moveset, PartialGame<'a, B>)>,
 {
     pub iterator: I,
     pub goal: &'b G,
@@ -187,7 +187,7 @@ where
         goal,
         game,
         duration,
-        depth
+        depth,
     )
 }
 
@@ -196,9 +196,15 @@ where
     'a: 'b,
     B: Clone + AsRef<Board> + 'a,
     G: Goal<B>,
-    I: Iterator<Item=(Moveset, PartialGame<'a, B>)>,
+    I: Iterator<Item = (Moveset, PartialGame<'a, B>)>,
 {
-    pub fn new(iterator: I, goal: &'b G, game: &'a Game, duration: Option<Duration>, depth: usize) -> Self {
+    pub fn new(
+        iterator: I,
+        goal: &'b G,
+        game: &'a Game,
+        duration: Option<Duration>,
+        depth: usize,
+    ) -> Self {
         Self {
             iterator,
             goal,
@@ -222,7 +228,7 @@ where
                     Some(duration - self.sigma)
                 }
             }
-            None => None
+            None => None,
         }
     }
 
@@ -239,7 +245,7 @@ where
     'a: 'b,
     B: Clone + AsRef<Board>,
     G: Goal<B>,
-    I: Iterator<Item=(Moveset, PartialGame<'a, B>)>,
+    I: Iterator<Item = (Moveset, PartialGame<'a, B>)>,
 {
     type Item = (Moveset, PartialGame<'a, B>);
 
@@ -260,7 +266,7 @@ where
                 Some((ms, partial_game)) => {
                     match self.goal.verify(&ms, self.game, &partial_game, self.depth) {
                         Some(true) => break Some((ms, partial_game)),
-                        Some(false) => {},
+                        Some(false) => {}
                         None => break None,
                     }
                 }

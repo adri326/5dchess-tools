@@ -152,10 +152,8 @@ where
 
     pub fn timed_out(&self) -> bool {
         match self.start {
-            Some(instant) => {
-                instant.elapsed() > self.duration
-            }
-            None => false
+            Some(instant) => instant.elapsed() > self.duration,
+            None => false,
         }
     }
 }
@@ -292,10 +290,8 @@ where
 
     pub fn timed_out(&self) -> bool {
         match self.start {
-            Some(instant) => {
-                instant.elapsed() > self.duration
-            }
-            None => false
+            Some(instant) => instant.elapsed() > self.duration,
+            None => false,
         }
     }
 }

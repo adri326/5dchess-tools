@@ -23,11 +23,11 @@ impl<B: Clone + AsRef<Board>> Goal<B> for NoBranching {
         _moveset: &'b Moveset,
         _game: &'b Game,
         partial_game: &'b PartialGame<'b, B>,
-        _depth: usize
+        _depth: usize,
     ) -> Option<bool> {
         Some(
             partial_game.info.min_timeline() == self.min_timeline
-            && partial_game.info.max_timeline() == self.max_timeline
+                && partial_game.info.max_timeline() == self.max_timeline,
         )
     }
 }

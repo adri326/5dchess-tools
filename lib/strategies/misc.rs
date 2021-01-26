@@ -1,5 +1,5 @@
-use crate::prelude::*;
 use super::*;
+use crate::prelude::*;
 
 /// This is a sample strategy which forbids castling moves
 #[derive(Clone, Copy)]
@@ -19,7 +19,12 @@ where
     type From = Move;
     type To = bool;
 
-    fn apply(&self, mv: Move, _game: &'a Game, _partial_game: &'a PartialGame<'a, B>) -> Option<bool> {
+    fn apply(
+        &self,
+        mv: Move,
+        _game: &'a Game,
+        _partial_game: &'a PartialGame<'a, B>,
+    ) -> Option<bool> {
         Some(mv.kind != MoveKind::Castle)
     }
 }
@@ -44,7 +49,12 @@ where
     type From = Move;
     type To = bool;
 
-    fn apply(&self, mv: Move, _game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool> {
+    fn apply(
+        &self,
+        mv: Move,
+        _game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+    ) -> Option<bool> {
         if mv.from.1.non_physical() == mv.to.1.non_physical() {
             Some(true)
         } else {

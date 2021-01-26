@@ -8,17 +8,13 @@ use std::collections::HashMap;
 **/
 pub fn generate_idle_boards<'a, B>(
     game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>
+    partial_game: &'a PartialGame<'a, B>,
 ) -> Option<PartialGame<'a, B>>
 where
     B: Clone + AsRef<Board> + AsMut<Board>,
     for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
 {
-    let mut new_partial_game = PartialGame::new(
-        HashMap::new(),
-        partial_game.info.clone(),
-        None
-    );
+    let mut new_partial_game = PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
 
     for board in partial_game.own_boards(game) {
         if board.t() == partial_game.info.present {
@@ -28,14 +24,20 @@ where
                     n_board.t += 1;
                     n_board.en_passant = None;
                     new_partial_game.insert(B::from((n_board, game, partial_game)));
-                    new_partial_game.info.get_timeline_mut(board.l())?.last_board += 1;
+                    new_partial_game
+                        .info
+                        .get_timeline_mut(board.l())?
+                        .last_board += 1;
                 }
                 BoardOr::B(board) => {
                     let mut n_board = board.clone();
                     n_board.as_mut().t += 1;
                     n_board.as_mut().en_passant = None;
                     new_partial_game.insert(n_board);
-                    new_partial_game.info.get_timeline_mut(board.as_ref().l())?.last_board += 1;
+                    new_partial_game
+                        .info
+                        .get_timeline_mut(board.as_ref().l())?
+                        .last_board += 1;
                 }
             }
         }
@@ -54,10 +56,7 @@ where
     The function `B::generate_moves_flag(GenMovesFlag::Check, ...)` will be called for this.
     If your function would benefit from knowing that it needs to first yield the checking moves, then you should implement your own version of `B::generate_moves_flag`.
 **/
-pub fn is_in_check<'a, B>(
-    game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>
-) -> Option<bool>
+pub fn is_in_check<'a, B>(game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool>
 where
     B: Clone + AsRef<Board> + AsMut<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
@@ -67,7 +66,7 @@ where
         for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
             if let Some(piece) = mv.to.0 {
                 if piece.is_royal() && piece.white == partial_game.info.active_player {
-                    return Some(true)
+                    return Some(true);
                 }
             }
         }
@@ -85,10 +84,7 @@ where
     The function `B::generate_moves_flag(GenMovesFlag::Check, ...)` will be called for this.
     If your function would benefit from knowing that it needs to first yield the checking moves, then you should implement your own version of `B::generate_moves_flag`.
 **/
-pub fn is_illegal<'a, B>(
-    game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>
-) -> Option<bool>
+pub fn is_illegal<'a, B>(game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool>
 where
     B: Clone + AsRef<Board> + AsMut<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
@@ -98,7 +94,7 @@ where
         for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
             if let Some(piece) = mv.to.0 {
                 if piece.is_royal() && piece.white != partial_game.info.active_player {
-                    return Some(true)
+                    return Some(true);
                 }
             }
         }

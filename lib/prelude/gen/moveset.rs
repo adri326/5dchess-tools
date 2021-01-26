@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 
 pub struct GenMovesetIter<'a, B, I>
 where
-    I: Iterator<Item=Move>,
+    I: Iterator<Item = Move>,
     B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
@@ -18,16 +18,12 @@ where
 // From a set of iterators
 impl<'a, B, I> GenMovesetIter<'a, B, I>
 where
-    I: Iterator<Item=Move>,
+    I: Iterator<Item = Move>,
     B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
     /** Creates a new GenMovesetIter from a set of move iterators **/
-    pub fn from_iters(
-        iters: Vec<I>,
-        game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
-    ) -> Self {
+    pub fn from_iters(iters: Vec<I>, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Self {
         Self {
             _game: game,
             partial_game,
@@ -44,7 +40,7 @@ where
 // From a set of CacheMoves
 impl<'a, B, I> GenMovesetIter<'a, B, I>
 where
-    I: Iterator<Item=Move>,
+    I: Iterator<Item = Move>,
     B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
@@ -96,8 +92,8 @@ pub struct FilterByStrategy<'a, B, I, S>
 where
     B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
-    I: Iterator<Item=Move>,
-    S: Strategy<'a, B, From=Move, To=bool>,
+    I: Iterator<Item = Move>,
+    S: Strategy<'a, B, From = Move, To = bool>,
 {
     iter: I,
     game: &'a Game,
@@ -109,8 +105,8 @@ impl<'a, B, I, S> Iterator for FilterByStrategy<'a, B, I, S>
 where
     B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
-    I: Iterator<Item=Move>,
-    S: Strategy<'a, B, From=Move, To=bool>,
+    I: Iterator<Item = Move>,
+    S: Strategy<'a, B, From = Move, To = bool>,
 {
     type Item = Move;
 
@@ -119,10 +115,10 @@ where
             match self.iter.next() {
                 Some(mv) => {
                     if self.strategy.apply(mv, self.game, self.partial_game)? {
-                        return Some(mv)
+                        return Some(mv);
                     }
-                },
-                None => return None
+                }
+                None => return None,
             }
         }
     }
@@ -139,7 +135,7 @@ pub fn generate_movesets_filter_strategy<'a, S, B>(
 where
     B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
-    S: Strategy<'a, B, From=Move, To=bool>,
+    S: Strategy<'a, B, From = Move, To = bool>,
 {
     GenMovesetIter {
         _game: game,
@@ -147,12 +143,14 @@ where
         states: vec![None; boards.len()],
         boards: boards
             .into_iter()
-            .filter_map(move |borb| Some(FilterByStrategy {
-                iter: borb.generate_moves(game, partial_game)?,
-                game,
-                partial_game,
-                strategy: strategy.clone(),
-            }))
+            .filter_map(move |borb| {
+                Some(FilterByStrategy {
+                    iter: borb.generate_moves(game, partial_game)?,
+                    game,
+                    partial_game,
+                    strategy: strategy.clone(),
+                })
+            })
             .map(|iter| CacheMoves::new(iter))
             .collect(),
         done: false,
@@ -170,8 +168,8 @@ pub fn generate_movesets_iterator_strategy<'a, S, B>(
 where
     B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
-    S: Strategy<'a, B, From=BoardOr<'a, B>>,
-    <S as Strategy<'a, B>>::To: Iterator<Item=Move>,
+    S: Strategy<'a, B, From = BoardOr<'a, B>>,
+    <S as Strategy<'a, B>>::To: Iterator<Item = Move>,
 {
     GenMovesetIter {
         _game: game,
@@ -188,7 +186,7 @@ where
 
 impl<'a, B, I> GenMovesetIter<'a, B, I>
 where
-    I: Iterator<Item=Move>,
+    I: Iterator<Item = Move>,
     B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {
@@ -217,7 +215,7 @@ where
 
 impl<'a, B, I> Iterator for GenMovesetIter<'a, B, I>
 where
-    I: Iterator<Item=Move>,
+    I: Iterator<Item = Move>,
     B: Clone + AsRef<Board>,
     for<'b> &'b B: GenMoves<'b, B>,
 {

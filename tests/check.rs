@@ -1,5 +1,5 @@
-use chess5dlib::prelude::*;
 use chess5dlib::parse::test::read_and_parse;
+use chess5dlib::prelude::*;
 
 #[test]
 fn test_check_standard() {
@@ -34,7 +34,10 @@ fn test_check_d4() {
     let board = board.unwrap();
 
     assert_eq!(board.pieces, game.get_board((0, 1)).unwrap().pieces);
-    assert_eq!(board.en_passant, None, "Asserts that generate_idle_boards removes the en_passant flag.");
+    assert_eq!(
+        board.en_passant, None,
+        "Asserts that generate_idle_boards removes the en_passant flag."
+    );
 
     let check = is_in_check(&game, &idle_boards);
     assert_eq!(check, Some(false));
