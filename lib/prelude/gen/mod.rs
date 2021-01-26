@@ -60,17 +60,23 @@ pub enum GenMovesFlag {
     Check,
 }
 
+/**
+    A trait representing the ability for an object (a board, a move cache, a piece, etc.) to generate a list of moves, as an iterator.
+**/
 pub trait GenMoves<'a, B: Clone + AsRef<Board>>: Sized {
     type Iter: Iterator<Item = Move>;
 
     /**
         Returns the iterator that yields all of the moves.
     **/
+    #[inline]
     fn generate_moves(
         self,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
-    ) -> Option<Self::Iter>;
+    ) -> Option<Self::Iter> {
+        self.generate_moves_flag(game, partial_game, GenMovesFlag::Any)
+    }
 
     /**
         Returns true if `mv` is a valid move. The default implementation traverses the iterator yielded by `generate_moves` and checks

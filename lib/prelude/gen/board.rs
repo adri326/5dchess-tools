@@ -11,6 +11,7 @@ pub struct BoardIterSub<'a, B: Clone + AsRef<Board>> {
     pub partial_game: &'a PartialGame<'a, B>,
     pub index: Physical,
     pub current_piece: Option<super::piece::PieceMoveIter<'a, B>>,
+    pub flag: GenMovesFlag,
 }
 
 impl<'a, B: Clone + AsRef<Board>> Iterator for BoardIterSub<'a, B> {
@@ -65,7 +66,7 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for BoardIterSub<'a, B> {
                     self.index / self.board.width(),
                 ),
             )
-            .generate_moves(self.game, self.partial_game);
+            .generate_moves_flag(self.game, self.partial_game, self.flag);
 
             if self.current_piece.is_none() {
                 self.index += 1;
@@ -104,10 +105,11 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for &'a Board {
     /** Generates the moves for a given board.
         Moves are supposed valid and are only made by the pieces that belong to the given board's color.
     **/
-    fn generate_moves(
+    fn generate_moves_flag(
         self,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
+        flag: GenMovesFlag,
     ) -> Option<Self::Iter> {
         Some(BoardIter(BoardIterSub {
             board: self,
@@ -115,6 +117,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for &'a Board {
             partial_game,
             index: 0,
             current_piece: None,
+            flag,
         }))
     }
 
@@ -164,6 +167,7 @@ where
     /**
         Returns an iterator yielding all of the moves of the current player on a board.
     **/
+    #[inline]
     fn generate_moves(
         self,
         game: &'a Game,

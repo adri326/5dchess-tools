@@ -68,37 +68,40 @@ impl PawnIter {
         piece: PiecePosition,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
+        flag: GenMovesFlag,
     ) -> Option<Self> {
         let mut moves: Vec<Move> = Vec::new();
 
-        // Forward move
-        for perm in vec![Coords(0, 0, 0, 1), Coords(-1, 0, 0, 0)] {
-            let dest = forward(piece.1, perm, piece.0.white);
-            if partial_game
-                .get_with_game(game, dest)
-                .is_blank()
-            {
-                moves.push(Move::new(
-                    game,
-                    partial_game,
-                    piece.1,
-                    dest,
-                )?);
-
-                let dest2 = forward(piece.1, perm + perm, piece.0.white);
-
-                // Kickstart move
-                if !piece.0.moved
-                    && partial_game
-                        .get_with_game(game, dest2)
-                        .is_blank()
+        // Forward moves
+        if flag != GenMovesFlag::Check {
+            for perm in vec![Coords(0, 0, 0, 1), Coords(-1, 0, 0, 0)] {
+                let dest = forward(piece.1, perm, piece.0.white);
+                if partial_game
+                    .get_with_game(game, dest)
+                    .is_blank()
                 {
                     moves.push(Move::new(
                         game,
                         partial_game,
                         piece.1,
-                        dest2,
+                        dest,
                     )?);
+
+                    let dest2 = forward(piece.1, perm + perm, piece.0.white);
+
+                    // Kickstart move
+                    if !piece.0.moved
+                        && partial_game
+                            .get_with_game(game, dest2)
+                            .is_blank()
+                    {
+                        moves.push(Move::new(
+                            game,
+                            partial_game,
+                            piece.1,
+                            dest2,
+                        )?);
+                    }
                 }
             }
         }
@@ -124,20 +127,22 @@ impl PawnIter {
         }
 
         // En-passant
-        if piece.0.can_enpassant() {
-            if let Some((x, y)) = partial_game
-                .get_board_with_game(game, piece.1.non_physical())?
-                .en_passant()
-            {
-                if (x, y) == forward(piece.1, Coords(0, 0, 1, 1), piece.0.white).physical()
-                    || (x, y) == forward(piece.1, Coords(0, 0, -1, 1), piece.0.white).physical()
+        if flag != GenMovesFlag::Check {
+            if piece.0.can_enpassant() {
+                if let Some((x, y)) = partial_game
+                    .get_board_with_game(game, piece.1.non_physical())?
+                    .en_passant()
                 {
-                    moves.push(Move::new(
-                        game,
-                        partial_game,
-                        piece.1,
-                        Coords(piece.1.l(), piece.1.t(), x, y),
-                    )?);
+                    if (x, y) == forward(piece.1, Coords(0, 0, 1, 1), piece.0.white).physical()
+                        || (x, y) == forward(piece.1, Coords(0, 0, -1, 1), piece.0.white).physical()
+                    {
+                        moves.push(Move::new(
+                            game,
+                            partial_game,
+                            piece.1,
+                            Coords(piece.1.l(), piece.1.t(), x, y),
+                        )?);
+                    }
                 }
             }
         }
@@ -172,6 +177,7 @@ pub struct RangingPieceIter<'a, B: Clone + AsRef<Board>> {
     cardinalities: Vec<(isize, isize, isize, isize)>,
     cardinalities_index: usize,
     distance: usize,
+    flag: GenMovesFlag,
 }
 
 impl<'a, B: Clone + AsRef<Board>> RangingPieceIter<'a, B> {
@@ -182,6 +188,7 @@ impl<'a, B: Clone + AsRef<Board>> RangingPieceIter<'a, B> {
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
         cardinalities: Vec<(isize, isize, isize, isize)>,
+        flag: GenMovesFlag,
     ) -> Self {
         RangingPieceIter {
             piece: piece.0,
@@ -191,6 +198,7 @@ impl<'a, B: Clone + AsRef<Board>> RangingPieceIter<'a, B> {
             cardinalities,
             cardinalities_index: 0,
             distance: 0,
+            flag,
         }
     }
 }
@@ -203,23 +211,46 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for RangingPieceIter<'a, B> {
             return None;
         }
         let cardinality = self.cardinalities[self.cardinalities_index];
-        self.distance += 1;
-
-        let n_coords = self.coords + Coords::from(cardinality) * (self.distance as isize);
         let mut next_cardinality = false;
 
-        let res = match self.partial_game.get_with_game(self.game, n_coords) {
-            Tile::Void => {
-                next_cardinality = true;
-                None
-            },
-            Tile::Blank => Move::new(self.game, self.partial_game, self.coords, n_coords),
-            Tile::Piece(p) => {
-                next_cardinality = true;
-                if p.white != self.piece.white {
-                    Move::new(self.game, self.partial_game, self.coords, n_coords)
-                } else {
+        let res = if self.flag == GenMovesFlag::Check {
+            loop {
+                self.distance += 1;
+                let n_coords = self.coords + Coords::from(cardinality) * (self.distance as isize);
+
+                match self.partial_game.get_with_game(self.game, n_coords) {
+                    Tile::Void => {
+                        next_cardinality = true;
+                        break None
+                    },
+                    Tile::Blank => {},
+                    Tile::Piece(p) => {
+                        next_cardinality = true;
+                        if p.white != self.piece.white {
+                            break Move::new(self.game, self.partial_game, self.coords, n_coords)
+                        } else {
+                            break None
+                        }
+                    }
+                }
+            }
+        } else {
+            self.distance += 1;
+            let n_coords = self.coords + Coords::from(cardinality) * (self.distance as isize);
+
+            match self.partial_game.get_with_game(self.game, n_coords) {
+                Tile::Void => {
+                    next_cardinality = true;
                     None
+                },
+                Tile::Blank => Move::new(self.game, self.partial_game, self.coords, n_coords),
+                Tile::Piece(p) => {
+                    next_cardinality = true;
+                    if p.white != self.piece.white {
+                        Move::new(self.game, self.partial_game, self.coords, n_coords)
+                    } else {
+                        None
+                    }
                 }
             }
         };
@@ -229,10 +260,11 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for RangingPieceIter<'a, B> {
             self.cardinalities_index += 1;
         }
 
-        // Weird thing to enable TCR
         if res.is_some() {
             return res;
         }
+
+        // Weird thing to enable TCR
         self.next()
     }
 }
@@ -309,17 +341,19 @@ pub struct KingIter<'a, B: Clone + AsRef<Board>> {
     pub game: &'a Game,
     pub partial_game: &'a PartialGame<'a, B>,
     pub coords: Coords,
+    pub flag: GenMovesFlag,
 }
 
 impl<'a, B: Clone + AsRef<Board>> KingIter<'a, B> {
     #[inline]
-    pub fn new(piece: PiecePosition, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Self {
+    pub fn new(piece: PiecePosition, game: &'a Game, partial_game: &'a PartialGame<'a, B>, flag: GenMovesFlag) -> Self {
         Self {
             castling_direction: 0,
             piece: piece.0,
             coords: piece.1,
             game,
             partial_game,
+            flag,
         }
     }
 }
@@ -328,7 +362,7 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for KingIter<'a, B> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
-        if self.castling_direction > 2 {
+        if self.castling_direction > 2 || self.flag == GenMovesFlag::Check {
             return None;
         }
 
@@ -421,14 +455,15 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
         Generates the moves for a single piece, given a partial game state and its complementary game state.
         You should be using this function if you wish to generate the moves of a piece.
     **/
-    fn generate_moves(
+    fn generate_moves_flag(
         self,
         game: &'a Game,
         partial_game: &'a PartialGame<'a, B>,
+        flag: GenMovesFlag,
     ) -> Option<PieceMoveIter<'a, B>> {
         Some(match self.0.kind {
             PieceKind::Pawn | PieceKind::Brawn => {
-                PieceMoveIter::Pawn(PawnIter::new(self, game, partial_game)?)
+                PieceMoveIter::Pawn(PawnIter::new(self, game, partial_game, flag)?)
             }
             PieceKind::Knight => PieceMoveIter::OneStep(OneStepPieceIter::new(
                 self,
@@ -441,24 +476,28 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
                 game,
                 partial_game,
                 PERMUTATIONS[1].clone(),
+                flag
             )),
             PieceKind::Bishop => PieceMoveIter::Ranging(RangingPieceIter::new(
                 self,
                 game,
                 partial_game,
                 PERMUTATIONS[2].clone(),
+                flag
             )),
             PieceKind::Unicorn => PieceMoveIter::Ranging(RangingPieceIter::new(
                 self,
                 game,
                 partial_game,
                 PERMUTATIONS[3].clone(),
+                flag
             )),
             PieceKind::Dragon => PieceMoveIter::Ranging(RangingPieceIter::new(
                 self,
                 game,
                 partial_game,
                 PERMUTATIONS[4].clone(),
+                flag
             )),
             PieceKind::Princess => PieceMoveIter::Ranging(RangingPieceIter::new(
                 self,
@@ -469,6 +508,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
                     .chain(PERMUTATIONS[2].iter())
                     .cloned()
                     .collect(),
+                flag,
             )),
             PieceKind::Queen | PieceKind::RoyalQueen => {
                 PieceMoveIter::Ranging(RangingPieceIter::new(
@@ -482,10 +522,11 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
                         .chain(PERMUTATIONS[4].iter())
                         .cloned()
                         .collect(),
+                    flag,
                 ))
             }
             PieceKind::King => PieceMoveIter::Chain(
-                Box::new(PieceMoveIter::King(KingIter::new(self, game, partial_game))).chain(
+                Box::new(PieceMoveIter::King(KingIter::new(self, game, partial_game, flag))).chain(
                     Box::new(PieceMoveIter::OneStep(OneStepPieceIter::new(
                         self,
                         game,

@@ -386,6 +386,11 @@ pub fn bench_moveset<M: Measurement>(c: &mut Criterion<M>) {
 
     {
         let mut moveset_group = c.benchmark_group("is_illegal");
+        moveset_group.significance_level(0.1);
+        moveset_group.sample_size(500);
+        moveset_group
+            .warm_up_time(Duration::new(10, 0))
+            .measurement_time(Duration::new(10, 0));
         let game = read_and_parse("tests/games/standard-d4d5.json");
         bench_moveset_is_illegal::<M>(&mut moveset_group, &game, "Simple");
         let game = read_and_parse("tests/games/standard-complex.json");
@@ -403,6 +408,11 @@ pub fn bench_moveset<M: Measurement>(c: &mut Criterion<M>) {
 
     {
         let mut moveset_group = c.benchmark_group("list_legal_movesets");
+        moveset_group.significance_level(0.1);
+        moveset_group.sample_size(500);
+        moveset_group
+            .warm_up_time(Duration::new(10, 0))
+            .measurement_time(Duration::new(10, 0));
         let game = read_and_parse("tests/games/standard-d4d5.json");
         bench_list_legal_movesets::<M>(&mut moveset_group, &game, "Simple");
         let game = read_and_parse("tests/games/standard-complex.json");
