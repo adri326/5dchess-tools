@@ -521,10 +521,6 @@ impl Moveset {
         new_partial_game.info.recalculate_present();
         new_partial_game.parent = Some(partial_game);
 
-        for (_index, board) in &mut new_partial_game.boards {
-            board.populate(game, partial_game);
-        }
-
         if new_partial_game.info.active_player != partial_game.info.active_player {
             Some(new_partial_game)
         } else {

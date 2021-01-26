@@ -85,12 +85,12 @@ fn test_compare_self() {
     compare_methods(
         100,
         2,
-        |game, partial_game| {
+        |game, partial_game: &PartialGame<'_, Board>| {
             GenMovesetIter::new(partial_game.own_boards(game).collect(), game, partial_game)
                 .flatten()
                 .collect()
         },
-        |game, partial_game| {
+        |game, partial_game: &PartialGame<'_, Board>| {
             GenMovesetIter::new(partial_game.own_boards(game).collect(), game, partial_game)
                 .flatten()
                 .collect()
@@ -104,7 +104,7 @@ fn test_compare_err() {
     compare_methods(
         100,
         2,
-        |game, partial_game| {
+        |game, partial_game: &PartialGame<'_, Board>| {
             GenMovesetIter::new(partial_game.own_boards(game).collect(), game, partial_game)
                 .flatten()
                 .collect()

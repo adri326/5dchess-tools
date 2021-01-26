@@ -231,7 +231,7 @@ pub trait PopulateBoard<'a, B>
 where
     B: Clone + AsRef<Board>
 {
-    fn populate(&mut self, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<()> {
+    fn populate(&mut self, _game: &'a Game, _partial_game: Option<&'a PartialGame<'a, B>>) -> Option<()> {
         Some(())
     }
 }

@@ -1,5 +1,4 @@
 use super::*;
-use crate::prelude::*;
 
 /// This is a sample strategy which forbids castling moves
 #[derive(Clone, Copy)]

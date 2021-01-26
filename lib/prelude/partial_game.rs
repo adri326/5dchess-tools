@@ -130,6 +130,16 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
             None => None,
         }
     }
+
+    pub fn populate(&mut self, game: &'a Game) -> Option<()>
+    where for<'b> B: PopulateBoard<'b, B>
+    {
+        for (_index, board) in &mut self.boards {
+            board.populate(game, self.parent)?;
+        }
+
+        Some(())
+    }
 }
 
 #[inline]
@@ -175,5 +185,32 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for PartialGameIter<'a, B> {
         } else {
             (self.iter.size_hint().0, None)
         }
+    }
+}
+
+impl<'a, 'b, B, C> std::convert::TryFrom<(&'b PartialGame<'b, B>, &'a Game)> for PartialGame<'a, C>
+where
+    B: Clone + AsRef<Board>,
+    C: Clone + AsRef<Board>,
+    for<'c> C: From<(&'c B, &'c Game, &'c PartialGame<'c, C>)>,
+{
+    type Error = ();
+
+    fn try_from((partial_game, game): (&'b PartialGame<'b, B>, &'a Game)) -> Result<Self, ()> {
+        let mut res = Self {
+            boards: HashMap::with_capacity(partial_game.boards.len()),
+            info: partial_game.info.clone(),
+            parent: match partial_game.parent {
+                Some(_p) => return Err(()),
+                None => None
+            }
+        };
+
+        for (_index, board) in partial_game.boards.iter() {
+            let new_board = C::from((board, game, &res));
+            res.boards.insert((board.as_ref().l(), board.as_ref().t()), new_board);
+        }
+
+        Ok(res)
     }
 }

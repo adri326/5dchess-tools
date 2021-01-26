@@ -32,7 +32,7 @@ where
     C: Clone + AsRef<Board>,
     for<'b> B: PopulateBoard<'b, C>,
 {
-    fn populate(&mut self, game: &'a Game, partial_game: &'a PartialGame<'a, C>) -> Option<()> {
+    fn populate(&mut self, game: &'a Game, partial_game: Option<&'a PartialGame<'a, C>>) -> Option<()> {
         let mut moves: Vec<Move> = Vec::new();
         for (index, piece) in self.board.as_ref().pieces.iter().enumerate() {
             if let Tile::Piece(piece) = piece {
@@ -92,6 +92,15 @@ where
 {
     fn as_ref(&self) -> &Board {
         self.board.as_ref()
+    }
+}
+
+impl<'a, B> From<(&'a Board, &'a Game, &'a PartialGame<'a, Board>)> for PhaseBoard<B>
+where
+    B: Clone + AsRef<Board> + From<(&'a Board, &'a Game, &'a PartialGame<'a, Board>)>,
+{
+    fn from((board, game, partial_game): (&'a Board, &'a Game, &'a PartialGame<'a, Board>)) -> Self {
+        Self::new(B::from((board, game, partial_game)))
     }
 }
 
