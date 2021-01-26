@@ -37,9 +37,9 @@ use super::*;
     }
     ```
 
-    A similar goal can be found at `goals::misc::NoBranching`.
+    A similar goal can be found at `goals::misc::NoBranching`; it can achieve the same result by combining it with `UntilGoal`: `goals::misc::NoBranching::new(&game.info).until(4)`.
 
-    You may use the included `or`, `and` and `not` functions to combine goals together.
+    You may use the included `or`, `and`, `not` and `until` functions to combine goals together.
 **/
 pub trait Goal<B>
 where
@@ -70,6 +70,13 @@ where
     {
         NotGoal::new(self)
     }
+
+    fn until(self, max_depth: usize) -> UntilGoal<B, Self>
+    where
+        Self: Sized
+    {
+        UntilGoal::new(self, max_depth)
+    }
 }
 
 /** A goal that will always return true. **/
@@ -79,6 +86,7 @@ impl<B> Goal<B> for TrueGoal
 where
     B: Clone + AsRef<Board>,
 {
+    #[inline]
     fn verify<'b>(&self, _moveset: &'b Moveset, _game: &'b Game, _partial_game: &'b PartialGame<'b, B>, _depth: usize) -> Option<bool> {
         Some(true)
     }
@@ -91,6 +99,7 @@ impl<B> Goal<B> for FalseGoal
 where
     B: Clone + AsRef<Board>,
 {
+    #[inline]
     fn verify<'b>(&self, _moveset: &'b Moveset, _game: &'b Game, _partial_game: &'b PartialGame<'b, B>, _depth: usize) -> Option<bool> {
         Some(false)
     }
@@ -127,6 +136,7 @@ where
     B: Clone + AsRef<Board>,
     G: Goal<B>,
 {
+    #[inline]
     fn verify<'b>(&self, moveset: &'b Moveset, game: &'b Game, partial_game: &'b PartialGame<'b, B>, depth: usize) -> Option<bool> {
         match self.goal.verify(moveset, game, partial_game, depth) {
             Some(x) => Some(!x),
@@ -170,6 +180,7 @@ where
     Left: Goal<B>,
     Right: Goal<B>,
 {
+    #[inline]
     fn verify<'b>(&self, moveset: &'b Moveset, game: &'b Game, partial_game: &'b PartialGame<'b, B>, depth: usize) -> Option<bool> {
         match self.left.verify(moveset, game, partial_game, depth) {
             Some(false) => self.right.verify(moveset, game, partial_game, depth),
@@ -213,10 +224,38 @@ where
     Left: Goal<B>,
     Right: Goal<B>,
 {
+    #[inline]
     fn verify<'b>(&self, moveset: &'b Moveset, game: &'b Game, partial_game: &'b PartialGame<'b, B>, depth: usize) -> Option<bool> {
         match self.left.verify(moveset, game, partial_game, depth) {
             Some(true) => self.right.verify(moveset, game, partial_game, depth),
             x => x
+        }
+    }
+}
+
+pub struct UntilGoal<B: Clone + AsRef<Board>, G: Goal<B>> {
+    pub goal: G,
+    pub max_depth: usize,
+    _phantom: std::marker::PhantomData<B>,
+}
+
+impl<B: Clone + AsRef<Board>, G: Goal<B>> UntilGoal<B, G> {
+    pub fn new(goal: G, max_depth: usize) -> Self {
+        Self {
+            goal,
+            max_depth,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<B: Clone + AsRef<Board>, G: Goal<B>> Goal<B> for UntilGoal<B, G> {
+    #[inline]
+    fn verify<'b>(&self, moveset: &'b Moveset, game: &'b Game, partial_game: &'b PartialGame<'b, B>, depth: usize) -> Option<bool> {
+        if depth > self.max_depth {
+            Some(false)
+        } else {
+            self.goal.verify(moveset, game, partial_game, depth)
         }
     }
 }
