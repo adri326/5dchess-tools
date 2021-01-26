@@ -113,7 +113,7 @@ where
     S: Strategy<'a, B, From = Move, To = bool>,
     B: Clone + AsRef<Board> + AsMut<Board> + 'a,
     for<'b> &'b B: GenMoves<'b, B>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
+    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)> + PopulateBoard<'b, B>,
 {
     type Item = (Moveset, PartialGame<'a, B>);
 
@@ -180,7 +180,7 @@ where
     G: Goal<B>,
     B: Clone + AsRef<Board> + AsMut<Board> + 'a,
     for<'c> &'c B: GenMoves<'c, B>,
-    for<'c> B: From<(Board, &'c Game, &'c PartialGame<'c, B>)>,
+    for<'c> B: From<(Board, &'c Game, &'c PartialGame<'c, B>)> + PopulateBoard<'c, B>,
 {
     ApplyGoals::new(
         list_legal_movesets_filter_strategy(game, partial_game, strategy, duration),

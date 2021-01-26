@@ -71,6 +71,19 @@ impl Move {
     }
 
     #[inline]
+    pub fn from_raw(
+        from: (Piece, Coords),
+        to: (Option<Piece>, Coords),
+        kind: MoveKind,
+    ) -> Self {
+        Self {
+            from,
+            to,
+            kind
+        }
+    }
+
+    #[inline]
     pub fn captures(&self) -> bool {
         self.to.0.is_some()
     }
@@ -491,7 +504,7 @@ impl Moveset {
     ) -> Option<PartialGame<'a, B>>
     where
         B: Clone + AsRef<Board>,
-        for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
+        for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)> + PopulateBoard<'b, B>,
     {
         let mut new_partial_game =
             PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
@@ -507,6 +520,10 @@ impl Moveset {
 
         new_partial_game.info.recalculate_present();
         new_partial_game.parent = Some(partial_game);
+
+        for (_index, board) in &mut new_partial_game.boards {
+            board.populate(game, partial_game);
+        }
 
         if new_partial_game.info.active_player != partial_game.info.active_player {
             Some(new_partial_game)

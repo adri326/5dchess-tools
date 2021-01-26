@@ -226,3 +226,17 @@ impl<'a, B: Clone + AsRef<Board> + 'a> std::iter::FromIterator<BoardOr<'a, B>> f
         res
     }
 }
+
+pub trait PopulateBoard<'a, B>
+where
+    B: Clone + AsRef<Board>
+{
+    fn populate(&mut self, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<()> {
+        Some(())
+    }
+}
+
+impl<'a, B> PopulateBoard<'a, B> for Board
+where
+    B: Clone + AsRef<Board>
+{}

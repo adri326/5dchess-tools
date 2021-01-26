@@ -14,3 +14,4 @@ pub mod parse;
 pub mod strategies;
 pub mod traversal;
 pub mod utils;
+pub mod boards;
