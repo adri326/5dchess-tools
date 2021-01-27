@@ -2,6 +2,7 @@ use super::*;
 use itertools::Itertools;
 use std::convert::TryFrom;
 
+#[derive(Clone)]
 pub struct GenMovesetIter<'a, B, I>
 where
     I: Iterator<Item = Move>,
@@ -88,6 +89,7 @@ where
 /**
     Iterator that filters moves from a parent iterator using a given strategy.
 **/
+#[derive(Clone)]
 pub struct FilterByStrategy<'a, B, I, S>
 where
     B: Clone + AsRef<Board>,
@@ -263,6 +265,7 @@ fn inc_option_usize(x: Option<usize>) -> usize {
     }
 }
 
+#[derive(Clone)]
 pub struct PermMovesetIter<'a> {
     pub physical: Vec<Move>,
     pub non_physical_iter: itertools::structs::Permutations<std::vec::IntoIter<Move>>,

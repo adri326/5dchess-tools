@@ -483,8 +483,8 @@ pub fn bench_moveset<M: Measurement>(c: &mut Criterion<M>) {
 }
 
 criterion_group!(
-    name = benches;
+    name = movement;
     config = Criterion::default();
     targets = bench_movement, bench_moveset
 );
-criterion_main!(benches);
+criterion_main!(movement);

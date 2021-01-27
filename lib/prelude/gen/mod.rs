@@ -62,7 +62,7 @@ pub enum GenMovesFlag {
     A trait representing the ability for an object (a board, a move cache, a piece, etc.) to generate a list of moves, as an iterator.
 **/
 pub trait GenMoves<'a, B: Clone + AsRef<Board>>: Sized {
-    type Iter: Iterator<Item = Move>;
+    type Iter: Iterator<Item = Move> + Clone;
 
     /**
         Returns the iterator that yields all of the moves.

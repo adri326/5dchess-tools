@@ -28,6 +28,7 @@ impl PiecePosition {
 /** An iterator that yields the movements of pawn-like pieces (ie. pawns and brawns), including en-passant.
     It is created by `PiecePosition::generate_moves`.
 **/
+#[derive(Clone)]
 pub struct PawnIter {
     moves: Vec<Move>,
     state: usize,
@@ -147,6 +148,7 @@ impl Iterator for PawnIter {
     An iterator that yields the move of a ranging piece (ie. Rooks, Bishops, etc.).
     This iterator is created by `PiecePosition::generate_moves`.
 **/
+#[derive(Clone)]
 pub struct RangingPieceIter<'a, B: Clone + AsRef<Board>> {
     piece: Piece,
     coords: Coords,
@@ -250,6 +252,7 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for RangingPieceIter<'a, B> {
 /** Iterator that yields the moves of a piece that cannot make ranging moves (ie. knights, royal kings).
     This iterator is created by `PiecePosition::generate_moves`.
 **/
+#[derive(Clone)]
 pub struct OneStepPieceIter<'a, B: Clone + AsRef<Board>> {
     piece: Piece,
     coords: Coords,
@@ -313,6 +316,7 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for OneStepPieceIter<'a, B> {
 }
 
 /** Iterator yielding the special movements of a king, castling. **/
+#[derive(Clone)]
 pub struct KingIter<'a, B: Clone + AsRef<Board>> {
     pub castling_direction: u8,
     pub piece: Piece,
@@ -409,6 +413,7 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for KingIter<'a, B> {
 }
 
 /** Iterator combining the different move kinds of all of the pieces. **/
+#[derive(Clone)]
 pub enum PieceMoveIter<'a, B: Clone + AsRef<Board>> {
     Pawn(PawnIter),
     Chain(std::iter::Chain<Box<PieceMoveIter<'a, B>>, Box<PieceMoveIter<'a, B>>>),

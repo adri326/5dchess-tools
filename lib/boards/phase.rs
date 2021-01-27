@@ -69,14 +69,22 @@ where
         flag: GenMovesFlag,
     ) -> Option<Self::Iter> {
         match flag {
-            GenMovesFlag::Check => Some(
-                PhaseIter::Check(self.moves.iter(), self.board.generate_moves_flag(game, partial_game, flag)?, &self.board)
-            ),
+            GenMovesFlag::Check => {
+                match partial_game.get_board_with_game(game, (self.board.as_ref().l(), self.board.as_ref().t() - 1)) {
+                    Some(BoardOr::Board(_)) | None => Some(
+                        PhaseIter::Any(self.board.generate_moves_flag(game, partial_game, flag)?)
+                    ),
+                    Some(BoardOr::B(b)) => Some(
+                        PhaseIter::Check(b.moves.iter(), self.board.generate_moves_flag(game, partial_game, flag)?, &self.board)
+                    )
+                }
+            }
             GenMovesFlag::Any => Some(PhaseIter::Any(self.board.generate_moves_flag(game, partial_game, flag)?)),
         }
     }
 }
 
+#[derive(Clone)]
 pub enum PhaseIter<'a, B>
 where
     B: Clone + AsRef<Board>,
@@ -95,11 +103,21 @@ where
     }
 }
 
-impl<'a, B> From<(&'a Board, &'a Game, &'a PartialGame<'a, Board>)> for PhaseBoard<B>
+impl<B> AsMut<Board> for PhaseBoard<B>
 where
-    B: Clone + AsRef<Board> + From<(&'a Board, &'a Game, &'a PartialGame<'a, Board>)>,
+    B: Clone + AsRef<Board> + AsMut<Board>,
 {
-    fn from((board, game, partial_game): (&'a Board, &'a Game, &'a PartialGame<'a, Board>)) -> Self {
+    fn as_mut(&mut self) -> &mut Board {
+        self.board.as_mut()
+    }
+}
+
+impl<'a, B, C> From<(Board, &'a Game, &'a PartialGame<'a, C>)> for PhaseBoard<B>
+where
+    B: Clone + AsRef<Board> + From<(Board, &'a Game, &'a PartialGame<'a, C>)>,
+    C: Clone + AsRef<Board>,
+{
+    fn from((board, game, partial_game): (Board, &'a Game, &'a PartialGame<'a, C>)) -> Self {
         Self::new(B::from((board, game, partial_game)))
     }
 }

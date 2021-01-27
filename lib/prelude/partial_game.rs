@@ -192,7 +192,7 @@ impl<'a, 'b, B, C> std::convert::TryFrom<(&'b PartialGame<'b, B>, &'a Game)> for
 where
     B: Clone + AsRef<Board>,
     C: Clone + AsRef<Board>,
-    for<'c> C: From<(&'c B, &'c Game, &'c PartialGame<'c, C>)>,
+    for<'c> C: From<(B, &'c Game, &'c PartialGame<'c, C>)>,
 {
     type Error = ();
 
@@ -207,7 +207,7 @@ where
         };
 
         for (_index, board) in partial_game.boards.iter() {
-            let new_board = C::from((board, game, &res));
+            let new_board = C::from((board.clone(), game, &res));
             res.boards.insert((board.as_ref().l(), board.as_ref().t()), new_board);
         }
 

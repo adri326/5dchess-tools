@@ -29,6 +29,10 @@ num_cpus = "1.0"
 name = "movement"
 harness = false
 
+[[bench]]
+name = "boards"
+harness = false
+
 [[example]]
 name = "profiling"
 path = "profiling/main.rs"

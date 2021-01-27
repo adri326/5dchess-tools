@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
     Returns generated movesets and their corresponding, generated partial game, if they are legal movesets.
     A strategy can also be provided to filter the moves.
 **/
+#[derive(Clone)]
 pub struct LegalMovesetsIter<'a, S, B>
 where
     S: Strategy<'a, B, From = Move, To = bool>,
@@ -151,6 +152,7 @@ where
 
 // Goals
 
+#[derive(Clone)]
 pub struct ApplyGoals<'a, 'b, B, G, I>
 where
     'a: 'b,

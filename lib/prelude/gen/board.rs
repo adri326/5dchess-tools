@@ -5,6 +5,7 @@ use super::*;
     The type of the items is `Option<Move>`; `BoardIter` is a wrapper around `BoardIterSub`, which
     does a specialized `filter_map`.
 **/
+#[derive(Clone)]
 pub struct BoardIterSub<'a, B: Clone + AsRef<Board>> {
     pub board: &'a Board,
     pub game: &'a Game,
@@ -82,6 +83,7 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for BoardIterSub<'a, B> {
     Yields all of the moves of the pieces in a board.
     It is a wrapper around `BoardIterSub`.
 **/
+#[derive(Clone)]
 pub struct BoardIter<'a, B: Clone + AsRef<Board>>(pub BoardIterSub<'a, B>);
 
 impl<'a, B: Clone + AsRef<Board>> Iterator for BoardIter<'a, B> {
@@ -133,6 +135,7 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for &'a Board {
     }
 }
 
+#[derive(Clone)]
 pub enum BoardIterOr<'a, B>
 where
     B: Clone + AsRef<Board>,

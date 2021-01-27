@@ -124,9 +124,9 @@ impl Board {
     }
 }
 
-impl<'a> From<(Board, &'a Game, &'a PartialGame<'a, Board>)> for Board {
+impl<'a, B: Clone + AsRef<Board>> From<(Board, &'a Game, &'a PartialGame<'a, B>)> for Board {
     #[inline]
-    fn from((board, _game, _partial_game): (Board, &'a Game, &'a PartialGame<'a, Board>)) -> Self {
+    fn from((board, _game, _partial_game): (Board, &'a Game, &'a PartialGame<'a, B>)) -> Self {
         board
     }
 }
@@ -136,6 +136,8 @@ pub enum BoardOr<'a, B: Clone + AsRef<Board>> {
     Board(&'a Board),
     B(&'a B),
 }
+
+impl<'a, B: Clone + AsRef<Board>> Copy for BoardOr<'a, B> {}
 
 impl<'a, B: Clone + AsRef<Board>> BoardOr<'a, B> {
     #[inline]
