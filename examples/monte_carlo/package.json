@@ -1,0 +1,11 @@
+{
+    "name": "5dchess-tools-db",
+    "version": "0.2.0",
+    "description": "Test, alternative client for 5d-chess-db @ gitlab.com",
+    "main": "hash.js",
+    "author": "Shad Amethyst",
+    "licence": "MIT",
+    "dependencies": {
+        "5d-chess-js": "^1.0.3"
+    }
+}

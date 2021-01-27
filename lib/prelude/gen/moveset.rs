@@ -103,6 +103,23 @@ where
     strategy: S,
 }
 
+impl<'a, B, I, S> FilterByStrategy<'a, B, I, S>
+where
+    B: Clone + AsRef<Board>,
+    for<'b> &'b B: GenMoves<'b, B>,
+    I: Iterator<Item = Move>,
+    S: Strategy<'a, B, From = Move, To = bool>,
+{
+    pub fn new(iter: I, game: &'a Game, partial_game: &'a PartialGame<'a, B>, strategy: S) -> Self {
+        Self {
+            iter,
+            game,
+            partial_game,
+            strategy,
+        }
+    }
+}
+
 impl<'a, B, I, S> Iterator for FilterByStrategy<'a, B, I, S>
 where
     B: Clone + AsRef<Board>,

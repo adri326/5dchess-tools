@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 pub struct CacheMoves<I: Iterator<Item = Move>> {
     iterator: std::iter::Fuse<I>,
     done: bool,
-    cache: Vec<Move>, // TODO: use Cow
+    pub cache: Vec<Move>, // TODO: use Cow
 }
 
 impl<'a, B, G: GenMoves<'a, B>> TryFrom<(G, &'a Game, &'a PartialGame<'a, B>)>

@@ -1,0 +1,39 @@
+[board "Standard"]
+[variant "Standard"]
+[mode "5D"]
+[date "2021.01.27"]
+[white "5D-Chess-DB-Gen_5dchess-tools-v2"]
+[black "5D-Chess-DB-Gen_5dchess-tools-v2"]
+[5dchess_tools "^0.2.0"]
+[bench_time "1.367806"]
+[checkmate_time "15275"]
+[checkmate_difficulty "11167.635371536608"]
+[result "1/2-1/2"]
+[checkmate_timeout "true"]
+[size "8x8"]
+[Hash "0d8a01520d4f52c11ccab4d1b7cb8e45"]
+
+1. b4 / d5
+2. f3 / a5
+3. g4 / a4
+4. f4 / g5
+5. h4 / Nd7
+6. h5 / Nh6
+7. f5 / Nxg4
+8. d3 / Nc5
+9. Bh3 / h6
+10. d4 / Be6
+11. Bf4 / Nh2
+12. bxc5 / Ra5
+13. (0T13)Bf4>>(0T11)h4 / (0T13)Nh2>(1T11)h2
+14. (1T12)fxe6 / (1T12)Ke8>>(1T11)d7
+15. (-1T12)e4 / (-1T12)Kd7>>(0T12)c6
+16. (-2T13)Qd1>>(-1T12)d2 / (2T12)Nh2
+17. (1T13)Bh4>>x(1T12)g4 / (3T12)Bxf5
+18. (-1T13)Bh3>(3T13)d3 (2T13)Qd2>>(1T13)e3 / (-1T13)Ng4>>(-1T12)g2
+19. (-3T13)Kd2 / (4T13)Qd8>>(3T12)d7
+20. (-1T14)Ng1>>(-1T12)g2 / (5T12)Kd6
+21. (5T13)Ba3 (-4T13)e3 / (-2T13)Kc6>>(-1T12)d6
+22. (-5T13)Ke2 / (-1T14)Qd8>>(1T12)b8
+23. (-1T15)Bh4>>(-1T12)e4 / (1T13)Nh2>>x(1T11)h1
+24. (-6T13)Qd1>(-7T12)d2

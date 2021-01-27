@@ -469,6 +469,96 @@ fn reflected_checkmate() {
 }
 
 #[test]
+fn standard_nonmate() {
+    let game = read_and_parse("tests/games/standard-nonmate.json");
+    let partial_game = no_partial_game(&game);
+
+    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
+        Ok(ms) => {
+            let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
+            if is_illegal(&game, &new_partial_game)? {
+                None
+            } else {
+                Some(ms)
+            }
+        }
+        Err(_) => None,
+    };
+
+    let mut iter = generate_movesets_filter_strategy::<LegalMove, Board>(
+        partial_game.own_boards(&game).collect(),
+        &game,
+        &partial_game,
+        LegalMove::new(),
+    )
+    .flatten()
+    .filter_map(|ms| filter_lambda(ms));
+
+    let mv = iter.next();
+
+    assert!(
+        mv.is_some(),
+        "Expected a legal moveset to be found; found None"
+    );
+
+    let mv = random_legal_moveset(
+        &game,
+        &partial_game,
+        None
+    );
+    assert!(
+        mv.is_ok(),
+        "Expected a legal moveset to be found; found {:?}",
+        mv
+    );
+}
+
+#[test]
+fn standard_nonmate2() {
+    let game = read_and_parse("tests/games/standard-nonmate-2.json");
+    let partial_game = no_partial_game(&game);
+
+    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
+        Ok(ms) => {
+            let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
+            if is_illegal(&game, &new_partial_game)? {
+                None
+            } else {
+                Some(ms)
+            }
+        }
+        Err(_) => None,
+    };
+
+    let mut iter = generate_movesets_filter_strategy::<LegalMove, Board>(
+        partial_game.own_boards(&game).collect(),
+        &game,
+        &partial_game,
+        LegalMove::new(),
+    )
+    .flatten()
+    .filter_map(|ms| filter_lambda(ms));
+
+    // let mv = iter.next();
+
+    // assert!(
+    //     mv.is_some(),
+    //     "Expected a legal moveset to be found; found None"
+    // );
+
+    let mv = random_legal_moveset(
+        &game,
+        &partial_game,
+        Some(std::time::Duration::new(5, 0))
+    );
+    assert!(
+        mv.is_ok(),
+        "Expected a legal moveset to be found; found {:?}",
+        mv
+    );
+}
+
+#[test]
 fn test_list_legal_movesets() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>,
                          game: &Game,

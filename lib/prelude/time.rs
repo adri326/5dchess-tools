@@ -561,3 +561,120 @@ where
         }
     }
 }
+
+/** This structure acts the same as `SigmaFilterStrategy`, with the only difference that it accepts a strategy which takes as input a `Copy`-ready object. **/
+pub struct SigmaFilterStrategyCopy<'a, J, S, B>
+where
+    J: Iterator,
+    J::Item: Copy,
+    B: Clone + AsRef<Board>,
+    for<'b> S: Strategy<'b, B, From = J::Item, To = bool>,
+    Self: Sized,
+{
+    pub iterator: J,
+    pub strategy: S,
+    pub sigma: Duration,
+    pub duration: Duration,
+    pub game: &'a Game,
+    pub partial_game: &'a PartialGame<'a, B>,
+}
+
+impl<'a, J, S, B> SigmaFilterStrategyCopy<'a, J, S, B>
+where
+    J: Iterator,
+    J::Item: Copy,
+    B: Clone + AsRef<Board>,
+    for<'b> S: Strategy<'b, B, From = J::Item, To = bool>,
+    Self: Sized,
+{
+    pub fn new(
+        iterator: J,
+        duration: Duration,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+        strategy: S,
+    ) -> Self {
+        Self {
+            iterator,
+            sigma: Duration::new(0, 0),
+            duration,
+            game,
+            partial_game,
+            strategy,
+        }
+    }
+
+    pub fn with_sigma(
+        iterator: J,
+        sigma: Duration,
+        duration: Duration,
+        game: &'a Game,
+        partial_game: &'a PartialGame<'a, B>,
+        strategy: S,
+    ) -> Self {
+        Self {
+            iterator,
+            sigma,
+            duration,
+            game,
+            partial_game,
+            strategy,
+        }
+    }
+
+    pub fn elapsed(&self) -> Duration {
+        self.sigma
+    }
+
+    pub fn remaining(&self) -> Duration {
+        if self.sigma > self.duration {
+            Duration::new(0, 0)
+        } else {
+            self.duration - self.sigma
+        }
+    }
+
+    pub fn timed_out(&self) -> bool {
+        self.sigma > self.duration
+    }
+}
+
+impl<'a, J, S, B> Iterator for SigmaFilterStrategyCopy<'a, J, S, B>
+where
+    J: Iterator,
+    B: Clone + AsRef<Board>,
+    J::Item: Copy,
+    for<'b> S: Strategy<'b, B, From = J::Item, To = bool>,
+    Self: Sized,
+{
+    type Item = J::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let start = Instant::now();
+
+        let res = loop {
+            if self.sigma + start.elapsed() > self.duration {
+                break None;
+            }
+            match self.iterator.next() {
+                Some(item) => {
+                    if self.strategy.apply(item, self.game, self.partial_game)? {
+                        break Some(item);
+                    }
+                }
+                None => break None,
+            }
+        };
+
+        self.sigma += start.elapsed();
+        res
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.sigma > self.duration {
+            (0, Some(0))
+        } else {
+            (0, self.iterator.size_hint().1)
+        }
+    }
+}

@@ -5,6 +5,7 @@ extern crate itertools;
 extern crate scoped_threadpool;
 extern crate serde;
 extern crate serde_json;
+extern crate rand;
 
 pub mod prelude;
 pub use prelude::*;

@@ -1,5 +1,6 @@
 use super::*;
 use std::collections::hash_map::{HashMap, Keys};
+use std::hash::{Hash, Hasher};
 
 /** Represents a "partial game state": the game state that a branch of a tree search algorithm needs to store.
     This structure is recursive to allow for recursive algorithms to perform better (by reducing the number of clones needed).
@@ -49,6 +50,29 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     pub fn insert(&mut self, board: B) {
         self.boards
             .insert((board.as_ref().l(), board.as_ref().t()), board);
+    }
+
+    /** Merges all of the parent `PartialGame`s into itself, returning a now-`'static` PartialGame.
+        This function clones boards, so do not use this function in hot-path code!
+    **/
+    pub fn flatten(self) -> PartialGame<'static, B> {
+        let mut boards = self.boards;
+        if let Some(parent) = self.parent {
+            for board in parent.iter() {
+                boards.insert((board.as_ref().l(), board.as_ref().t()), board.clone());
+            }
+            PartialGame {
+                boards,
+                info: self.info,
+                parent: None,
+            }
+        } else {
+            PartialGame {
+                boards,
+                info: self.info,
+                parent: None,
+            }
+        }
     }
 
     /** Returns an iterator over all of the boards contained within that partial game state and its parents.
@@ -184,6 +208,15 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for PartialGameIter<'a, B> {
             self.iter.size_hint()
         } else {
             (self.iter.size_hint().0, None)
+        }
+    }
+}
+
+impl<'a, B: Clone + AsRef<Board> + Hash> Hash for PartialGame<'a, B> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.info.hash(state);
+        for board in self.iter() {
+            board.hash(state);
         }
     }
 }

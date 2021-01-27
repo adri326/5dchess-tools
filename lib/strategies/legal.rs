@@ -94,7 +94,11 @@ where
             Some(true)
         } else if n_own_boards == 3 {
             let n_opponent_boards = partial_game.opponent_boards(game).count();
-            Some(n_opponent_boards <= 8)
+            if n_opponent_boards <= 8 {
+                LegalMove::apply(&LegalMove, mv, game, partial_game)
+            } else {
+                Some(true)
+            }
         } else {
             LegalMove::apply(&LegalMove, mv, game, partial_game)
         }

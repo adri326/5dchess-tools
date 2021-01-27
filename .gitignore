@@ -4,3 +4,5 @@ db.tar.gz
 5d-chess-db
 converted-db
 *.coz
+/db
+node_modules

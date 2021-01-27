@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TimelineInfo {
     pub index: Layer,
     pub starts_from: Option<(Layer, Time)>,
@@ -8,7 +8,7 @@ pub struct TimelineInfo {
     pub first_board: Time,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Info {
     pub present: Time,
     pub active_player: bool,
