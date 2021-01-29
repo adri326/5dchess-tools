@@ -82,8 +82,11 @@ You'll then want to do:
 cd 5dchess-notation
 npm i # Installs the dependencies of 5dchess-notation
 cd ..
-./prepare-tests.sh # Downloads 5d-chess-db and parses games into JSON (this will take a minute)
+curl -sfo converted-db.zip https://shadamethyst.xyz/static/github/converted-db.zip
+unzip -q converted-db.zip
 ```
+
+*Note: The `prepare-tests.sh` file isn't compatible with the new version of the database anymore, and needs to be modified as to use `gsutils` to download the database (lower charging rates). I might mirror on my end.*
 
 Finally, you can run `cargo test` or `cargo bench`.
 
