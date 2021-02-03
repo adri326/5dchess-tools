@@ -27,6 +27,7 @@ pub mod piece;
 pub use piece::PiecePosition;
 
 pub mod board;
+pub use board::BoardIter;
 
 pub mod cache;
 pub use cache::CacheMoves;
@@ -61,7 +62,7 @@ pub enum GenMovesFlag {
 /**
     A trait representing the ability for an object (a board, a move cache, a piece, etc.) to generate a list of moves, as an iterator.
 **/
-pub trait GenMoves<'a, B: Clone + AsRef<Board>>: Sized {
+pub trait GenMoves<'a>: Sized {
     type Iter: Iterator<Item = Move> + Clone;
 
     /**
@@ -71,7 +72,7 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board>>: Sized {
     fn generate_moves(
         self,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
     ) -> Option<Self::Iter> {
         self.generate_moves_flag(game, partial_game, GenMovesFlag::Any)
     }
@@ -82,7 +83,7 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board>>: Sized {
 
         You should consider implementing your own `validate_move` if you can.
     **/
-    fn validate_move(self, game: &'a Game, partial_game: &'a PartialGame<B>, mv: &Move) -> bool {
+    fn validate_move(self, game: &'a Game, partial_game: &'a PartialGame, mv: &Move) -> bool {
         self.generate_moves(game, partial_game)
             .map(|mut i| i.find(|m| m == mv))
             .flatten()
@@ -100,7 +101,7 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board>>: Sized {
     fn generate_moves_flag(
         self,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         _flag: GenMovesFlag,
     ) -> Option<Self::Iter> {
         self.generate_moves(game, partial_game)
@@ -108,41 +109,34 @@ pub trait GenMoves<'a, B: Clone + AsRef<Board>>: Sized {
 }
 
 #[derive(Clone)]
-pub struct GenMovesStrategy<'a, B, T>
+pub struct GenMovesStrategy<'a, T>
 where
-    B: Clone + AsRef<Board>,
-    T: GenMoves<'a, B> + Clone,
+    T: GenMoves<'a> + Clone,
 {
-    _b: PhantomData<&'a B>,
-    _t: PhantomData<*const T>,
+    _t: PhantomData<&'a T>,
 }
 
-impl<'a, B, T> GenMovesStrategy<'a, B, T>
+impl<'a, T> GenMovesStrategy<'a, T>
 where
-    B: Clone + AsRef<Board>,
-    T: GenMoves<'a, B> + Clone,
+    T: GenMoves<'a> + Clone,
 {
     pub fn new() -> Self {
-        Self {
-            _b: PhantomData,
-            _t: PhantomData,
-        }
+        Self { _t: PhantomData }
     }
 }
 
-impl<'a, B, T> Strategy<'a, B> for GenMovesStrategy<'a, B, T>
+impl<'a, T> Strategy<'a> for GenMovesStrategy<'a, T>
 where
-    B: Clone + AsRef<Board>,
-    T: GenMoves<'a, B> + Clone,
+    T: GenMoves<'a> + Clone,
 {
     type From = T;
-    type To = <T as GenMoves<'a, B>>::Iter;
+    type To = <T as GenMoves<'a>>::Iter;
 
     fn apply(
         &self,
         generator: T,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
     ) -> Option<Self::To> {
         generator.generate_moves(game, partial_game)
     }

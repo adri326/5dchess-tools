@@ -5,25 +5,23 @@ use std::hash::{Hash, Hasher};
 /** Represents a "partial game state": the game state that a branch of a tree search algorithm needs to store.
     This structure is recursive to allow for recursive algorithms to perform better (by reducing the number of clones needed).
     It can be used in a non-recursive way by ommitting the `parent` field.
-
-    The "boards" store a hashmap over an arbitrary data structure B. You may put any extension of `Board` in it!
 **/
 #[derive(Debug)]
-pub struct PartialGame<'a, B: Clone + AsRef<Board>> {
-    pub boards: HashMap<(Layer, Time), B>,
+pub struct PartialGame<'a> {
+    pub boards: HashMap<(Layer, Time), Board>,
     pub info: Info,
-    pub parent: Option<&'a PartialGame<'a, B>>,
+    pub parent: Option<&'a PartialGame<'a>>,
 }
 
-impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
+impl<'a> PartialGame<'a> {
     /** Creates a new PartialGame instance.
         Use this function if you are making use of the recursive data structure or you are initializing a new partial game state
     **/
     #[inline]
     pub fn new(
-        boards: HashMap<(Layer, Time), B>,
+        boards: HashMap<(Layer, Time), Board>,
         info: Info,
-        parent: Option<&'a PartialGame<'a, B>>,
+        parent: Option<&'a PartialGame<'a>>,
     ) -> Self {
         Self {
             boards,
@@ -36,7 +34,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
         yielding a new partial game state with all of the new boards.
         Use this function if you are using this data structure in a non-recursive way.
     **/
-    pub fn merge(&self, boards: HashMap<(Layer, Time), B>, info: Info) -> Self {
+    pub fn merge(&self, boards: HashMap<(Layer, Time), Board>, info: Info) -> Self {
         let mut tmp_boards = self.boards.clone();
         tmp_boards.extend(boards.into_iter());
         Self {
@@ -47,19 +45,18 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     }
 
     #[inline]
-    pub fn insert(&mut self, board: B) {
-        self.boards
-            .insert((board.as_ref().l(), board.as_ref().t()), board);
+    pub fn insert(&mut self, board: Board) {
+        self.boards.insert((board.l(), board.t()), board);
     }
 
     /** Merges all of the parent `PartialGame`s into itself, returning a now-`'static` PartialGame.
         This function clones boards, so do not use this function in hot-path code!
     **/
-    pub fn flatten(self) -> PartialGame<'static, B> {
+    pub fn flatten(self) -> PartialGame<'static> {
         let mut boards = self.boards;
         if let Some(parent) = self.parent {
             for board in parent.iter() {
-                boards.insert((board.as_ref().l(), board.as_ref().t()), board.clone());
+                boards.insert((board.l(), board.t()), board.clone());
             }
             PartialGame {
                 boards,
@@ -76,11 +73,11 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     }
 
     /** Returns an iterator over all of the boards contained within that partial game state and its parents.
-        That iterator yields objects of type `&B`.
+        That iterator yields objects of type `&Board`.
         If you only wish to yield an iterator over the boards in this layer of partial game state, use `iter_shallow` instead.
     **/
     #[inline]
-    pub fn iter(&'a self) -> PartialGameIter<'a, B> {
+    pub fn iter(&'a self) -> PartialGameIter<'a> {
         PartialGameIter {
             partial_game: self,
             iter: self.boards.keys(),
@@ -88,15 +85,15 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     }
 
     /** Returns an iterator over all of the boards contained within that partial game state, ignoring its parents.
-        That iterator yields objects of type `&B`.
+        That iterator yields objects of type `&Board`.
         If you also with to yield the boards of this partial game state's parent, use `iter` instead.
     **/
     #[inline]
-    pub fn iter_shallow(&'a self) -> impl Iterator<Item = &'a B> {
+    pub fn iter_shallow(&'a self) -> impl Iterator<Item = &'a Board> {
         self.boards.values()
     }
 
-    pub fn get_board<'b>(&'b self, coords: (Layer, Time)) -> Option<&'b B> {
+    pub fn get_board<'b>(&'b self, coords: (Layer, Time)) -> Option<&'b Board> {
         match self.boards.get(&coords) {
             Some(b) => Some(b),
             None => match self.parent {
@@ -111,10 +108,10 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
         &'b self,
         game: &'b Game,
         coords: (Layer, Time),
-    ) -> Option<BoardOr<'b, B>> {
+    ) -> Option<&'b Board> {
         match game.get_board(coords) {
-            Some(b) => Some(BoardOr::Board(b)),
-            None => self.get_board(coords).map(|b| BoardOr::B(b)),
+            Some(b) => Some(b),
+            None => self.get_board(coords),
         }
     }
 
@@ -125,7 +122,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     }
 
     #[inline]
-    pub fn own_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = BoardOr<'b, B>> + 'b {
+    pub fn own_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = &'b Board> + 'b {
         self.info
             .timelines_white
             .iter()
@@ -135,10 +132,7 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
     }
 
     #[inline]
-    pub fn opponent_boards<'b>(
-        &'b self,
-        game: &'b Game,
-    ) -> impl Iterator<Item = BoardOr<'b, B>> + 'b {
+    pub fn opponent_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = &'b Board> + 'b {
         self.info
             .timelines_white
             .iter()
@@ -154,24 +148,14 @@ impl<'a, B: Clone + AsRef<Board>> PartialGame<'a, B> {
             None => None,
         }
     }
-
-    pub fn populate(&mut self, game: &'a Game) -> Option<()>
-    where for<'b> B: PopulateBoard<'b, B>
-    {
-        for (_index, board) in &mut self.boards {
-            board.populate(game, self.parent)?;
-        }
-
-        Some(())
-    }
 }
 
 #[inline]
-pub fn no_partial_game<'a>(game: &Game) -> PartialGame<'static, Board> {
+pub fn no_partial_game<'a>(game: &Game) -> PartialGame<'static> {
     PartialGame::new(HashMap::new(), game.info.clone(), None)
 }
 
-impl<'a, B: Clone + AsRef<Board>> From<&'_ Game> for PartialGame<'a, B> {
+impl<'a> From<&'_ Game> for PartialGame<'a> {
     fn from(game: &'_ Game) -> Self {
         Self {
             boards: HashMap::new(),
@@ -181,13 +165,13 @@ impl<'a, B: Clone + AsRef<Board>> From<&'_ Game> for PartialGame<'a, B> {
     }
 }
 
-pub struct PartialGameIter<'a, B: Clone + AsRef<Board>> {
-    pub partial_game: &'a PartialGame<'a, B>,
-    pub iter: Keys<'a, (Layer, Time), B>,
+pub struct PartialGameIter<'a> {
+    pub partial_game: &'a PartialGame<'a>,
+    pub iter: Keys<'a, (Layer, Time), Board>,
 }
 
-impl<'a, B: Clone + AsRef<Board>> Iterator for PartialGameIter<'a, B> {
-    type Item = &'a B;
+impl<'a> Iterator for PartialGameIter<'a> {
+    type Item = &'a Board;
 
     fn next(&'_ mut self) -> Option<Self::Item> {
         match self.iter.next() {
@@ -212,38 +196,11 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for PartialGameIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + Hash> Hash for PartialGame<'a, B> {
+impl<'a> Hash for PartialGame<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.info.hash(state);
         for board in self.iter() {
             board.hash(state);
         }
-    }
-}
-
-impl<'a, 'b, B, C> std::convert::TryFrom<(&'b PartialGame<'b, B>, &'a Game)> for PartialGame<'a, C>
-where
-    B: Clone + AsRef<Board>,
-    C: Clone + AsRef<Board>,
-    for<'c> C: From<(B, &'c Game, &'c PartialGame<'c, C>)>,
-{
-    type Error = ();
-
-    fn try_from((partial_game, game): (&'b PartialGame<'b, B>, &'a Game)) -> Result<Self, ()> {
-        let mut res = Self {
-            boards: HashMap::with_capacity(partial_game.boards.len()),
-            info: partial_game.info.clone(),
-            parent: match partial_game.parent {
-                Some(_p) => return Err(()),
-                None => None
-            }
-        };
-
-        for (_index, board) in partial_game.boards.iter() {
-            let new_board = C::from((board.clone(), game, &res));
-            res.boards.insert((board.as_ref().l(), board.as_ref().t()), new_board);
-        }
-
-        Ok(res)
     }
 }

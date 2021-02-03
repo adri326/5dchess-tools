@@ -106,9 +106,9 @@ pub fn test_standard_king_moves() {
     );
 }
 
-pub fn test_piece_movement<'a, B: Clone + AsRef<Board>>(
+pub fn test_piece_movement<'a>(
     game: &Game,
-    partial_game: &PartialGame<'a, B>,
+    partial_game: &PartialGame<'a>,
     src: Coords,
     targets: Vec<Coords>,
 ) {

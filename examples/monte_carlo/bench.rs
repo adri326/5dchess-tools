@@ -11,6 +11,9 @@ pub fn benchmark() -> Duration {
             Err(_) => {}
         }
     }
-    println!("Benchmark done! Avg. speed: {} μs/checkmate", start.elapsed().as_nanos() as f32 / 1000000.0);
+    println!(
+        "Benchmark done! Avg. speed: {} μs/checkmate",
+        start.elapsed().as_nanos() as f32 / 1000000.0
+    );
     start.elapsed() / 1000
 }

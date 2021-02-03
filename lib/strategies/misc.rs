@@ -10,20 +10,11 @@ impl NoCastling {
     }
 }
 
-impl<'a, B> Strategy<'a, B> for NoCastling
-where
-    B: Clone + AsRef<Board>,
-    for<'b> &'b B: GenMoves<'b, B>,
-{
+impl<'a> Strategy<'a> for NoCastling {
     type From = Move;
     type To = bool;
 
-    fn apply(
-        &self,
-        mv: Move,
-        _game: &'a Game,
-        _partial_game: &'a PartialGame<'a, B>,
-    ) -> Option<bool> {
+    fn apply(&self, mv: Move, _game: &'a Game, _partial_game: &'a PartialGame<'a>) -> Option<bool> {
         Some(mv.kind != MoveKind::Castle)
     }
 }
@@ -40,20 +31,11 @@ impl NoTimeTravel {
     }
 }
 
-impl<'a, B> Strategy<'a, B> for NoTimeTravel
-where
-    B: Clone + AsRef<Board>,
-    for<'b> &'b B: GenMoves<'b, B>,
-{
+impl<'a> Strategy<'a> for NoTimeTravel {
     type From = Move;
     type To = bool;
 
-    fn apply(
-        &self,
-        mv: Move,
-        _game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
-    ) -> Option<bool> {
+    fn apply(&self, mv: Move, _game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
         if mv.from.1.non_physical() == mv.to.1.non_physical() {
             Some(true)
         } else {

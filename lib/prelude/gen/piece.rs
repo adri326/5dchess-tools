@@ -65,10 +65,10 @@ fn forward(a: Coords, b: Coords, color: bool) -> Coords {
 
 impl PawnIter {
     /** Creates a new PawnIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
-    pub fn new<'a, B: Clone + AsRef<Board>>(
+    pub fn new<'a>(
         piece: PiecePosition,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         flag: GenMovesFlag,
     ) -> Option<Self> {
         let mut moves: Vec<Move> = Vec::new();
@@ -145,28 +145,28 @@ impl Iterator for PawnIter {
 }
 
 /**
-    An iterator that yields the move of a ranging piece (ie. Rooks, Bishops, etc.).
+    An iterator that yields the move of a ranging piece (ie. Rooksishops, etc.).
     This iterator is created by `PiecePosition::generate_moves`.
 **/
 #[derive(Clone)]
-pub struct RangingPieceIter<'a, B: Clone + AsRef<Board>> {
+pub struct RangingPieceIter<'a> {
     piece: Piece,
     coords: Coords,
     game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>,
+    partial_game: &'a PartialGame<'a>,
     cardinalities: Vec<(isize, isize, isize, isize)>,
     cardinalities_index: usize,
     distance: usize,
     flag: GenMovesFlag,
 }
 
-impl<'a, B: Clone + AsRef<Board>> RangingPieceIter<'a, B> {
+impl<'a> RangingPieceIter<'a> {
     /** Creates a new RangingPieceIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
     #[inline]
     pub fn new(
         piece: PiecePosition,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         cardinalities: Vec<(isize, isize, isize, isize)>,
         flag: GenMovesFlag,
     ) -> Self {
@@ -183,7 +183,7 @@ impl<'a, B: Clone + AsRef<Board>> RangingPieceIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board>> Iterator for RangingPieceIter<'a, B> {
+impl<'a> Iterator for RangingPieceIter<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
@@ -253,22 +253,22 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for RangingPieceIter<'a, B> {
     This iterator is created by `PiecePosition::generate_moves`.
 **/
 #[derive(Clone)]
-pub struct OneStepPieceIter<'a, B: Clone + AsRef<Board>> {
+pub struct OneStepPieceIter<'a> {
     piece: Piece,
     coords: Coords,
     game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>,
+    partial_game: &'a PartialGame<'a>,
     cardinalities: Vec<(isize, isize, isize, isize)>,
     cardinalities_index: usize,
 }
 
-impl<'a, B: Clone + AsRef<Board>> OneStepPieceIter<'a, B> {
+impl<'a> OneStepPieceIter<'a> {
     /** Creates a new OneStepPieceIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
     #[inline]
     pub fn new(
         piece: PiecePosition,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         cardinalities: Vec<(isize, isize, isize, isize)>,
     ) -> Self {
         OneStepPieceIter {
@@ -282,7 +282,7 @@ impl<'a, B: Clone + AsRef<Board>> OneStepPieceIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board>> Iterator for OneStepPieceIter<'a, B> {
+impl<'a> Iterator for OneStepPieceIter<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
@@ -317,21 +317,21 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for OneStepPieceIter<'a, B> {
 
 /** Iterator yielding the special movements of a king, castling. **/
 #[derive(Clone)]
-pub struct KingIter<'a, B: Clone + AsRef<Board>> {
+pub struct KingIter<'a> {
     pub castling_direction: u8,
     pub piece: Piece,
     pub game: &'a Game,
-    pub partial_game: &'a PartialGame<'a, B>,
+    pub partial_game: &'a PartialGame<'a>,
     pub coords: Coords,
     pub flag: GenMovesFlag,
 }
 
-impl<'a, B: Clone + AsRef<Board>> KingIter<'a, B> {
+impl<'a> KingIter<'a> {
     #[inline]
     pub fn new(
         piece: PiecePosition,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         flag: GenMovesFlag,
     ) -> Self {
         Self {
@@ -345,7 +345,7 @@ impl<'a, B: Clone + AsRef<Board>> KingIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board>> Iterator for KingIter<'a, B> {
+impl<'a> Iterator for KingIter<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
@@ -414,15 +414,15 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for KingIter<'a, B> {
 
 /** Iterator combining the different move kinds of all of the pieces. **/
 #[derive(Clone)]
-pub enum PieceMoveIter<'a, B: Clone + AsRef<Board>> {
+pub enum PieceMoveIter<'a> {
     Pawn(PawnIter),
-    Chain(std::iter::Chain<Box<PieceMoveIter<'a, B>>, Box<PieceMoveIter<'a, B>>>),
-    King(KingIter<'a, B>),
-    Ranging(RangingPieceIter<'a, B>),
-    OneStep(OneStepPieceIter<'a, B>),
+    Chain(std::iter::Chain<Box<PieceMoveIter<'a>>, Box<PieceMoveIter<'a>>>),
+    King(KingIter<'a>),
+    Ranging(RangingPieceIter<'a>),
+    OneStep(OneStepPieceIter<'a>),
 }
 
-impl<'a, B: Clone + AsRef<Board>> Iterator for PieceMoveIter<'a, B> {
+impl<'a> Iterator for PieceMoveIter<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Move> {
@@ -436,8 +436,8 @@ impl<'a, B: Clone + AsRef<Board>> Iterator for PieceMoveIter<'a, B> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
-    type Iter = PieceMoveIter<'a, B>;
+impl<'a> GenMoves<'a> for PiecePosition {
+    type Iter = PieceMoveIter<'a>;
 
     /**
         Generates the moves for a single piece, given a partial game state and its complementary game state.
@@ -446,9 +446,9 @@ impl<'a, B: Clone + AsRef<Board> + 'a> GenMoves<'a, B> for PiecePosition {
     fn generate_moves_flag(
         self,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         flag: GenMovesFlag,
-    ) -> Option<PieceMoveIter<'a, B>> {
+    ) -> Option<PieceMoveIter<'a>> {
         Some(match self.0.kind {
             PieceKind::Pawn | PieceKind::Brawn => {
                 PieceMoveIter::Pawn(PawnIter::new(self, game, partial_game, flag)?)

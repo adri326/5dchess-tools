@@ -1,7 +1,7 @@
 use super::*;
 use std::marker::PhantomData;
 
-pub trait Strategy<'a, B: Clone + AsRef<Board>>: Sized + Clone {
+pub trait Strategy<'a>: Sized + Clone {
     type From;
     type To;
 
@@ -9,7 +9,7 @@ pub trait Strategy<'a, B: Clone + AsRef<Board>>: Sized + Clone {
         &self,
         from: Self::From,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
     ) -> Option<Self::To>;
 }
 
@@ -26,11 +26,11 @@ impl<T: Clone> IdentityStrategy<T> {
     }
 }
 
-impl<'a, B: Clone + AsRef<Board>, T: Clone> Strategy<'a, B> for IdentityStrategy<T> {
+impl<'a, T: Clone> Strategy<'a> for IdentityStrategy<T> {
     type From = T;
     type To = T;
 
-    fn apply(&self, from: T, _game: &'a Game, _partial_game: &'a PartialGame<'a, B>) -> Option<T> {
+    fn apply(&self, from: T, _game: &'a Game, _partial_game: &'a PartialGame<'a>) -> Option<T> {
         Some(from)
     }
 }
@@ -51,20 +51,14 @@ impl<F> TrueStrategy<F> {
     }
 }
 
-impl<'a, B, F> Strategy<'a, B> for TrueStrategy<F>
+impl<'a, F> Strategy<'a> for TrueStrategy<F>
 where
-    B: Clone + AsRef<Board>,
     F: Copy,
 {
     type From = F;
     type To = bool;
 
-    fn apply(
-        &self,
-        _from: F,
-        _game: &'a Game,
-        _partial_game: &'a PartialGame<'a, B>,
-    ) -> Option<bool> {
+    fn apply(&self, _from: F, _game: &'a Game, _partial_game: &'a PartialGame<'a>) -> Option<bool> {
         Some(true)
     }
 }
@@ -85,20 +79,14 @@ impl<F> FalseStrategy<F> {
     }
 }
 
-impl<'a, B, F> Strategy<'a, B> for FalseStrategy<F>
+impl<'a, F> Strategy<'a> for FalseStrategy<F>
 where
-    B: Clone + AsRef<Board>,
     F: Copy,
 {
     type From = F;
     type To = bool;
 
-    fn apply(
-        &self,
-        _from: F,
-        _game: &'a Game,
-        _partial_game: &'a PartialGame<'a, B>,
-    ) -> Option<bool> {
+    fn apply(&self, _from: F, _game: &'a Game, _partial_game: &'a PartialGame<'a>) -> Option<bool> {
         Some(false)
     }
 }
@@ -118,45 +106,38 @@ where
     ```
 **/
 #[derive(Clone, Copy)]
-pub struct AndStrategy<'a, B, F, Left, Right>
+pub struct AndStrategy<F, Left, Right>
 where
-    B: Clone + AsRef<Board>,
     F: Copy,
-    Left: Strategy<'a, B, From = F, To = bool>,
-    Right: Strategy<'a, B, From = F, To = bool>,
 {
-    _b: PhantomData<&'a B>,
+    _f: PhantomData<*const F>,
     left: Left,
     right: Right,
 }
 
-impl<'a, B, F, Left, Right> AndStrategy<'a, B, F, Left, Right>
+impl<F, Left, Right> AndStrategy<F, Left, Right>
 where
-    B: Clone + AsRef<Board>,
     F: Copy,
-    Left: Strategy<'a, B, From = F, To = bool>,
-    Right: Strategy<'a, B, From = F, To = bool>,
 {
     pub fn new(left: Left, right: Right) -> Self {
         Self {
-            _b: PhantomData,
+            _f: PhantomData,
             left,
             right,
         }
     }
 }
 
-impl<'a, B, F, Left, Right> Strategy<'a, B> for AndStrategy<'a, B, F, Left, Right>
+impl<'a, F, Left, Right> Strategy<'a> for AndStrategy<F, Left, Right>
 where
-    B: Clone + AsRef<Board>,
     F: Copy,
-    Left: Strategy<'a, B, From = F, To = bool>,
-    Right: Strategy<'a, B, From = F, To = bool>,
+    Left: Strategy<'a, From = F, To = bool>,
+    Right: Strategy<'a, From = F, To = bool>,
 {
     type From = F;
     type To = bool;
 
-    fn apply(&self, from: F, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool> {
+    fn apply(&self, from: F, game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
         // and := λleft, λright, (left (right true))
         match self.left.apply(from, game, partial_game) {
             Some(true) => self.right.apply(from, game, partial_game),
@@ -181,45 +162,38 @@ where
     ```
 **/
 #[derive(Clone, Copy)]
-pub struct OrStrategy<'a, B, F, Left, Right>
+pub struct OrStrategy<F, Left, Right>
 where
-    B: Clone + AsRef<Board>,
     F: Copy,
-    Left: Strategy<'a, B, From = F, To = bool>,
-    Right: Strategy<'a, B, From = F, To = bool>,
 {
-    _b: PhantomData<&'a B>,
+    _f: PhantomData<*const F>,
     left: Left,
     right: Right,
 }
 
-impl<'a, B, F, Left, Right> OrStrategy<'a, B, F, Left, Right>
+impl<F, Left, Right> OrStrategy<F, Left, Right>
 where
-    B: Clone + AsRef<Board>,
     F: Copy,
-    Left: Strategy<'a, B, From = F, To = bool>,
-    Right: Strategy<'a, B, From = F, To = bool>,
 {
     pub fn new(left: Left, right: Right) -> Self {
         Self {
-            _b: PhantomData,
+            _f: PhantomData,
             left,
             right,
         }
     }
 }
 
-impl<'a, B, F, Left, Right> Strategy<'a, B> for OrStrategy<'a, B, F, Left, Right>
+impl<'a, F, Left, Right> Strategy<'a> for OrStrategy<F, Left, Right>
 where
-    B: Clone + AsRef<Board>,
     F: Copy,
-    Left: Strategy<'a, B, From = F, To = bool>,
-    Right: Strategy<'a, B, From = F, To = bool>,
+    Left: Strategy<'a, From = F, To = bool>,
+    Right: Strategy<'a, From = F, To = bool>,
 {
     type From = F;
     type To = bool;
 
-    fn apply(&self, from: F, game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool> {
+    fn apply(&self, from: F, game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
         // or := λleft, λright, (left true right)
         match self.left.apply(from, game, partial_game) {
             Some(false) => self.right.apply(from, game, partial_game),

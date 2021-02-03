@@ -13,37 +13,26 @@ use std::time::{Duration, Instant};
     A strategy can also be provided to filter the moves.
 **/
 #[derive(Clone)]
-pub struct LegalMovesetsIter<'a, S, B>
+pub struct LegalMovesetsIter<'a, S>
 where
-    S: Strategy<'a, B, From = Move, To = bool>,
-    B: Clone + AsRef<Board> + AsMut<Board> + 'a,
-    for<'b> &'b B: GenMoves<'b, B>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
+    S: Strategy<'a, From = Move, To = bool>,
 {
     pub game: &'a Game,
-    pub partial_game: &'a PartialGame<'a, B>,
-    pub moveset_iter: std::iter::Flatten<
-        GenMovesetIter<
-            'a,
-            B,
-            FilterByStrategy<'a, B, <BoardOr<'a, B> as GenMoves<'a, B>>::Iter, S>,
-        >,
-    >,
+    pub partial_game: &'a PartialGame<'a>,
+    pub moveset_iter:
+        std::iter::Flatten<GenMovesetIter<'a, FilterByStrategy<'a, BoardIter<'a>, S>>>,
     pub duration: Option<Duration>,
     pub sigma: Duration,
 }
 
-pub fn list_legal_movesets_filter_strategy<'a, S, B>(
+pub fn list_legal_movesets_filter_strategy<'a, S>(
     game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>,
+    partial_game: &'a PartialGame<'a>,
     strategy: S,
     duration: Option<Duration>,
-) -> LegalMovesetsIter<'a, S, B>
+) -> LegalMovesetsIter<'a, S>
 where
-    S: Strategy<'a, B, From = Move, To = bool>,
-    B: Clone + AsRef<Board> + AsMut<Board> + 'a,
-    for<'b> &'b B: GenMoves<'b, B>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
+    S: Strategy<'a, From = Move, To = bool>,
 {
     LegalMovesetsIter {
         game,
@@ -60,17 +49,14 @@ where
     }
 }
 
-pub fn list_legal_movesets<'a, B>(
+pub fn list_legal_movesets<'a>(
     game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>,
+    partial_game: &'a PartialGame<'a>,
     duration: Option<Duration>,
-) -> LegalMovesetsIter<'a, OptLegalMove, B>
+) -> LegalMovesetsIter<'a, OptLegalMove>
 where
-    B: Clone + AsRef<Board> + AsMut<Board> + 'a,
-    for<'b> &'b B: GenMoves<'b, B>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
 {
-    list_legal_movesets_filter_strategy::<OptLegalMove, B>(
+    list_legal_movesets_filter_strategy::<OptLegalMove>(
         game,
         partial_game,
         OptLegalMove::new(),
@@ -78,12 +64,9 @@ where
     )
 }
 
-impl<'a, S, B> LegalMovesetsIter<'a, S, B>
+impl<'a, S> LegalMovesetsIter<'a, S>
 where
-    S: Strategy<'a, B, From = Move, To = bool>,
-    B: Clone + AsRef<Board> + AsMut<Board> + 'a,
-    for<'b> &'b B: GenMoves<'b, B>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
+    S: Strategy<'a, From = Move, To = bool>,
 {
     pub fn elapsed(&self) -> Duration {
         self.sigma
@@ -110,14 +93,11 @@ where
     }
 }
 
-impl<'a, S, B> Iterator for LegalMovesetsIter<'a, S, B>
+impl<'a, S> Iterator for LegalMovesetsIter<'a, S>
 where
-    S: Strategy<'a, B, From = Move, To = bool>,
-    B: Clone + AsRef<Board> + AsMut<Board> + 'a,
-    for<'b> &'b B: GenMoves<'b, B>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)> + PopulateBoard<'b, B>,
+    S: Strategy<'a, From = Move, To = bool>,
 {
-    type Item = (Moveset, PartialGame<'a, B>);
+    type Item = (Moveset, PartialGame<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let start = Instant::now();
@@ -154,12 +134,11 @@ where
 // Goals
 
 #[derive(Clone)]
-pub struct ApplyGoals<'a, 'b, B, G, I>
+pub struct ApplyGoals<'a, 'b, G, I>
 where
     'a: 'b,
-    B: Clone + AsRef<Board> + 'a,
-    G: Goal<B>,
-    I: Iterator<Item = (Moveset, PartialGame<'a, B>)>,
+    G: Goal,
+    I: Iterator<Item = (Moveset, PartialGame<'a>)>,
 {
     pub iterator: I,
     pub goal: &'b G,
@@ -169,21 +148,18 @@ where
     pub depth: usize,
 }
 
-pub fn list_legal_movesets_filter_strategy_goal<'a, 'b, S, G, B>(
+pub fn list_legal_movesets_filter_strategy_goal<'a, 'b, S, G>(
     game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>,
+    partial_game: &'a PartialGame<'a>,
     goal: &'b G,
     strategy: S,
     duration: Option<Duration>,
     depth: usize,
-) -> ApplyGoals<'a, 'b, B, G, LegalMovesetsIter<'a, S, B>>
+) -> ApplyGoals<'a, 'b, G, LegalMovesetsIter<'a, S>>
 where
     'a: 'b,
-    S: Strategy<'a, B, From = Move, To = bool>,
-    G: Goal<B>,
-    B: Clone + AsRef<Board> + AsMut<Board> + 'a,
-    for<'c> &'c B: GenMoves<'c, B>,
-    for<'c> B: From<(Board, &'c Game, &'c PartialGame<'c, B>)> + PopulateBoard<'c, B>,
+    S: Strategy<'a, From = Move, To = bool>,
+    G: Goal,
 {
     ApplyGoals::new(
         list_legal_movesets_filter_strategy(game, partial_game, strategy, duration),
@@ -194,12 +170,11 @@ where
     )
 }
 
-impl<'a, 'b, B, G, I> ApplyGoals<'a, 'b, B, G, I>
+impl<'a, 'b, G, I> ApplyGoals<'a, 'b, G, I>
 where
     'a: 'b,
-    B: Clone + AsRef<Board> + 'a,
-    G: Goal<B>,
-    I: Iterator<Item = (Moveset, PartialGame<'a, B>)>,
+    G: Goal,
+    I: Iterator<Item = (Moveset, PartialGame<'a>)>,
 {
     pub fn new(
         iterator: I,
@@ -243,14 +218,13 @@ where
     }
 }
 
-impl<'a, 'b, B, G, I> Iterator for ApplyGoals<'a, 'b, B, G, I>
+impl<'a, 'b, G, I> Iterator for ApplyGoals<'a, 'b, G, I>
 where
     'a: 'b,
-    B: Clone + AsRef<Board>,
-    G: Goal<B>,
-    I: Iterator<Item = (Moveset, PartialGame<'a, B>)>,
+    G: Goal,
+    I: Iterator<Item = (Moveset, PartialGame<'a>)>,
 {
-    type Item = (Moveset, PartialGame<'a, B>);
+    type Item = (Moveset, PartialGame<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let start = Instant::now();
@@ -293,34 +267,42 @@ pub enum RandomLegalMovesetReason {
     TimeoutStalemate,
 }
 
-pub fn random_legal_moveset_filter_strategy<'a, S, B>(
+pub fn random_legal_moveset_filter_strategy<'a, S>(
     game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>,
+    partial_game: &'a PartialGame<'a>,
     strategy: S,
     duration: Duration,
-) -> Result<(Moveset, PartialGame<'a, B>), RandomLegalMovesetReason>
+) -> Result<(Moveset, PartialGame<'a>), RandomLegalMovesetReason>
 where
-    for<'b> S: Strategy<'b, B, From = Move, To = bool>,
-    B: Clone + AsRef<Board> + AsMut<Board> + std::fmt::Debug + 'a,
-    for<'b> &'b B: GenMoves<'b, B>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)> + PopulateBoard<'b, B>,
+    for<'b> S: Strategy<'b, From = Move, To = bool>,
 {
     let mut rng = rand::thread_rng();
-    let mut boards: Vec<BoardOr<B>> = partial_game.own_boards(game).collect();
-    let mut active_boards: Vec<BoardOr<B>> = partial_game.own_boards(game).filter(|b| b.as_ref().active(&partial_game.info)).collect();
-    let mut inactive_boards: Vec<BoardOr<B>> = partial_game.own_boards(game).filter(|b| !b.as_ref().active(&partial_game.info)).collect();
+    let mut active_boards: Vec<&Board> = partial_game
+        .own_boards(game)
+        .filter(|b| b.active(&partial_game.info))
+        .collect();
+    let mut inactive_boards: Vec<&Board> = partial_game
+        .own_boards(game)
+        .filter(|b| !b.active(&partial_game.info))
+        .collect();
     active_boards.shuffle(&mut rng);
     inactive_boards.shuffle(&mut rng);
-    let boards: Vec<BoardOr<B>> = active_boards.into_iter().chain(inactive_boards.into_iter()).collect();
+    let boards: Vec<&Board> = active_boards
+        .into_iter()
+        .chain(inactive_boards.into_iter())
+        .collect();
     let mut iters = Vec::new();
 
     for board in boards {
         let mut moves: Vec<_> = FilterByStrategy::new(
-            board.generate_moves(game, partial_game).ok_or(RandomLegalMovesetReason::Error)?,
+            board
+                .generate_moves(game, partial_game)
+                .ok_or(RandomLegalMovesetReason::Error)?,
             game,
             partial_game,
             strategy.clone(),
-        ).collect();
+        )
+        .collect();
         moves.shuffle(&mut rng);
         iters.push(CacheMoves::new(moves.into_iter()));
     }
@@ -352,40 +334,33 @@ where
         _ => {
             if iter.timed_out() {
                 match generate_idle_boards(game, partial_game) {
-                    Some(idle_partial_game) => {
-                        match is_in_check(game, &idle_partial_game) {
-                            Some(true) => Err(RandomLegalMovesetReason::TimeoutCheckmate),
-                            Some(false) => Err(RandomLegalMovesetReason::TimeoutStalemate),
-                            None => Err(RandomLegalMovesetReason::Error),
-                        }
-                    }
-                    None => Err(RandomLegalMovesetReason::Error)
+                    Some(idle_partial_game) => match is_in_check(game, &idle_partial_game) {
+                        Some(true) => Err(RandomLegalMovesetReason::TimeoutCheckmate),
+                        Some(false) => Err(RandomLegalMovesetReason::TimeoutStalemate),
+                        None => Err(RandomLegalMovesetReason::Error),
+                    },
+                    None => Err(RandomLegalMovesetReason::Error),
                 }
             } else {
                 match generate_idle_boards(game, partial_game) {
-                    Some(idle_partial_game) => {
-                        match is_in_check(game, &idle_partial_game) {
-                            Some(true) => Err(RandomLegalMovesetReason::Checkmate),
-                            Some(false) => Err(RandomLegalMovesetReason::Stalemate),
-                            None => Err(RandomLegalMovesetReason::Error),
-                        }
-                    }
-                    None => Err(RandomLegalMovesetReason::Error)
+                    Some(idle_partial_game) => match is_in_check(game, &idle_partial_game) {
+                        Some(true) => Err(RandomLegalMovesetReason::Checkmate),
+                        Some(false) => Err(RandomLegalMovesetReason::Stalemate),
+                        None => Err(RandomLegalMovesetReason::Error),
+                    },
+                    None => Err(RandomLegalMovesetReason::Error),
                 }
             }
         }
     }
 }
 
-pub fn random_legal_moveset<'a, B>(
+pub fn random_legal_moveset<'a>(
     game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>,
+    partial_game: &'a PartialGame<'a>,
     duration: Option<Duration>,
-) -> Result<(Moveset, PartialGame<'a, B>), RandomLegalMovesetReason>
+) -> Result<(Moveset, PartialGame<'a>), RandomLegalMovesetReason>
 where
-    B: Clone + AsRef<Board> + AsMut<Board> + std::fmt::Debug + 'a,
-    for<'b> &'b B: GenMoves<'b, B>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)> + PopulateBoard<'b, B>,
 {
     random_legal_moveset_filter_strategy(
         game,

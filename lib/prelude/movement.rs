@@ -40,12 +40,7 @@ impl Move {
         - there is a piece that is moved
         - the piece moved is of the active player's color
     **/
-    pub fn new<B: Clone + AsRef<Board>>(
-        game: &Game,
-        partial_game: &PartialGame<B>,
-        from: Coords,
-        to: Coords,
-    ) -> Option<Self> {
+    pub fn new(game: &Game, partial_game: &PartialGame, from: Coords, to: Coords) -> Option<Self> {
         let mut kind = MoveKind::Normal;
         let board = partial_game.get_board_with_game(game, from.non_physical())?;
         let from: (Piece, Coords) = (partial_game.get_with_game(game, from).piece()?, from);
@@ -71,16 +66,8 @@ impl Move {
     }
 
     #[inline]
-    pub fn from_raw(
-        from: (Piece, Coords),
-        to: (Option<Piece>, Coords),
-        kind: MoveKind,
-    ) -> Self {
-        Self {
-            from,
-            to,
-            kind
-        }
+    pub fn from_raw(from: (Piece, Coords), to: (Option<Piece>, Coords), kind: MoveKind) -> Self {
+        Self { from, to, kind }
     }
 
     #[inline]
@@ -104,18 +91,13 @@ impl Move {
         - the present in `new_partial_game` will not be changed; moreover, this function does not check if the new source or target board are already
             in `new_partial_game` and will overwrite them.
     **/
-    pub fn generate_partial_game<'a, 'b, B>(
+    pub fn generate_partial_game<'a, 'b>(
         &self,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
-        new_partial_game: &'b mut PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
+        new_partial_game: &'b mut PartialGame<'a>,
         kind: PartialGameGenKind,
-    ) -> Option<()>
-    where
-        'a: 'b,
-        B: Clone + AsRef<Board>,
-        for<'c> B: From<(Board, &'c Game, &'c PartialGame<'c, B>)>,
-    {
+    ) -> Option<()> {
         let white = (self.from.1).1 & 1 == 0;
         match self.kind {
             MoveKind::Normal | MoveKind::Promotion => {
@@ -124,11 +106,9 @@ impl Move {
                     // Clone the boards
                     let mut new_source_board: Board = partial_game
                         .get_board_with_game(game, self.from.1.non_physical())?
-                        .as_ref()
                         .clone();
                     let mut new_target_board: Board = partial_game
                         .get_board_with_game(game, self.to.1.non_physical())?
-                        .as_ref()
                         .clone();
 
                     // Handle branching
@@ -200,7 +180,6 @@ impl Move {
                     if kind != PartialGameGenKind::Target {
                         let new_source_coords = (new_source_board.l, new_source_board.t);
                         new_source_board.en_passant = None;
-                        let new_source_board = B::from((new_source_board, game, partial_game));
 
                         new_partial_game
                             .boards
@@ -215,7 +194,6 @@ impl Move {
                     if kind != PartialGameGenKind::Source {
                         let new_target_coords = (new_target_board.l, new_target_board.t);
                         new_target_board.en_passant = None;
-                        let new_target_board = B::from((new_target_board, game, partial_game));
 
                         new_partial_game
                             .boards
@@ -226,7 +204,6 @@ impl Move {
                     // Clone the board and update its metadata
                     let mut new_board: Board = partial_game
                         .get_board_with_game(game, self.from.1.non_physical())?
-                        .as_ref()
                         .clone();
                     new_board.t += 1;
 
@@ -266,7 +243,6 @@ impl Move {
 
                     // Insert board and update timeline info
                     let new_coords = (new_board.l, new_board.t);
-                    let new_board = B::from((new_board, game, partial_game));
 
                     new_partial_game.boards.insert(new_coords, new_board);
                     new_partial_game
@@ -279,7 +255,6 @@ impl Move {
                 // Clone the board and update its metadata
                 let mut new_board: Board = partial_game
                     .get_board_with_game(game, self.from.1.non_physical())?
-                    .as_ref()
                     .clone();
                 let (ex, ey) = new_board.en_passant?;
                 new_board.en_passant = None;
@@ -299,7 +274,6 @@ impl Move {
 
                 // Insert board and update timeline info
                 let new_coords = (new_board.l, new_board.t);
-                let new_board = B::from((new_board, game, partial_game));
 
                 new_partial_game.boards.insert(new_coords, new_board);
                 new_partial_game
@@ -312,7 +286,6 @@ impl Move {
                 let white = (self.from.1).1 & 1 == 0;
                 let mut new_board: Board = partial_game
                     .get_board_with_game(game, self.from.1.non_physical())?
-                    .as_ref()
                     .clone();
                 new_board.en_passant = None;
                 new_board.t += 1;
@@ -376,7 +349,6 @@ impl Move {
 
                 // Insert board and update timeline info
                 let new_coords = (new_board.l, new_board.t);
-                let new_board = B::from((new_board, game, partial_game));
 
                 new_partial_game.boards.insert(new_coords, new_board);
                 new_partial_game
@@ -497,15 +469,11 @@ impl Moveset {
         Because `Moveset`s don't store the `Info` it was validated against, generating a `PartialGame`
         with a different `Info` from the one used when validating the `Moveset` will cause undefined behavior.
     **/
-    pub fn generate_partial_game<'a, B>(
+    pub fn generate_partial_game<'a>(
         &self,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
-    ) -> Option<PartialGame<'a, B>>
-    where
-        B: Clone + AsRef<Board>,
-        for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)> + PopulateBoard<'b, B>,
-    {
+        partial_game: &'a PartialGame<'a>,
+    ) -> Option<PartialGame<'a>> {
         let mut new_partial_game =
             PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
 

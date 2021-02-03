@@ -17,12 +17,12 @@ impl NoBranching {
     }
 }
 
-impl<B: Clone + AsRef<Board>> Goal<B> for NoBranching {
+impl Goal for NoBranching {
     fn verify<'b>(
         &self,
         _moveset: &'b Moveset,
         _game: &'b Game,
-        partial_game: &'b PartialGame<'b, B>,
+        partial_game: &'b PartialGame<'b>,
         _depth: usize,
     ) -> Option<bool> {
         Some(

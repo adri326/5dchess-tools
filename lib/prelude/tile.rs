@@ -7,7 +7,7 @@ use super::Piece;
 
     Most pieces cannot cross the void, which is why that distinction is necessary.
 **/
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Tile {
     Piece(Piece),
     Blank,

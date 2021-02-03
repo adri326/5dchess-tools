@@ -20,21 +20,11 @@ impl OptLegalMove {
     }
 }
 
-impl<'a, B> Strategy<'a, B> for LegalMove
-where
-    B: Clone + AsRef<Board>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
-    for<'b> &'b B: GenMoves<'b, B>,
-{
+impl<'a> Strategy<'a> for LegalMove {
     type From = Move;
     type To = bool;
 
-    fn apply(
-        &self,
-        mv: Move,
-        game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
-    ) -> Option<bool> {
+    fn apply(&self, mv: Move, game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
         let mut new_partial_game =
             PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
 
@@ -74,21 +64,11 @@ where
     }
 }
 
-impl<'a, B> Strategy<'a, B> for OptLegalMove
-where
-    B: Clone + AsRef<Board>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
-    for<'b> &'b B: GenMoves<'b, B>,
-{
+impl<'a> Strategy<'a> for OptLegalMove {
     type From = Move;
     type To = bool;
 
-    fn apply(
-        &self,
-        mv: Move,
-        game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
-    ) -> Option<bool> {
+    fn apply(&self, mv: Move, game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
         let n_own_boards = partial_game.own_boards(game).count();
         if n_own_boards <= 2 {
             Some(true)
@@ -105,12 +85,7 @@ where
     }
 }
 
-fn filter_physical_move<'a, B>(game: &'a Game, partial_game: &'a PartialGame<'a, B>) -> Option<bool>
-where
-    B: Clone + AsRef<Board>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
-    for<'b> &'b B: GenMoves<'b, B>,
-{
+fn filter_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
     for board in partial_game.opponent_boards(game) {
         for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
             match mv.to.0 {
@@ -128,15 +103,7 @@ where
 }
 
 // Must be given a partial game with only the target board!
-fn filter_non_physical_move<'a, B>(
-    game: &'a Game,
-    partial_game: &'a PartialGame<'a, B>,
-) -> Option<bool>
-where
-    B: Clone + AsRef<Board>,
-    for<'b> B: From<(Board, &'b Game, &'b PartialGame<'b, B>)>,
-    for<'b> &'b B: GenMoves<'b, B>,
-{
+fn filter_non_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
     for board in partial_game.iter_shallow() {
         for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
             match mv.to.0 {

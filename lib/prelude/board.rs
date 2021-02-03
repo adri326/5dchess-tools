@@ -2,7 +2,7 @@ use super::*;
 use colored::*;
 use std::fmt;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Board {
     pub l: Layer,
     pub t: Time,
@@ -32,18 +32,6 @@ impl fmt::Debug for Board {
             write!(f, "\n")?;
         }
         Ok(())
-    }
-}
-
-impl std::convert::AsRef<Board> for Board {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
-
-impl std::convert::AsMut<Board> for Board {
-    fn as_mut(&mut self) -> &mut Self {
-        self
     }
 }
 
@@ -123,122 +111,3 @@ impl Board {
         info.is_active(self.l) && info.present >= self.t
     }
 }
-
-impl<'a, B: Clone + AsRef<Board>> From<(Board, &'a Game, &'a PartialGame<'a, B>)> for Board {
-    #[inline]
-    fn from((board, _game, _partial_game): (Board, &'a Game, &'a PartialGame<'a, B>)) -> Self {
-        board
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BoardOr<'a, B: Clone + AsRef<Board>> {
-    Board(&'a Board),
-    B(&'a B),
-}
-
-impl<'a, B: Clone + AsRef<Board>> Copy for BoardOr<'a, B> {}
-
-impl<'a, B: Clone + AsRef<Board>> BoardOr<'a, B> {
-    #[inline]
-    pub fn l(&self) -> Layer {
-        self.as_ref().l()
-    }
-
-    #[inline]
-    pub fn t(&self) -> Time {
-        self.as_ref().t()
-    }
-
-    #[inline]
-    pub fn width(&self) -> Physical {
-        self.as_ref().width()
-    }
-
-    #[inline]
-    pub fn height(&self) -> Physical {
-        self.as_ref().height()
-    }
-
-    #[inline]
-    pub fn get(&self, (x, y): (Physical, Physical)) -> Tile {
-        self.as_ref().get((x, y))
-    }
-
-    #[inline]
-    pub fn get_unchecked(&self, (x, y): (Physical, Physical)) -> Tile {
-        self.as_ref().get_unchecked((x, y))
-    }
-
-    #[inline]
-    pub fn white(&self) -> bool {
-        self.as_ref().white()
-    }
-
-    #[inline]
-    pub fn active(&self, info: &Info) -> bool {
-        self.as_ref().active(info)
-    }
-
-    #[inline]
-    pub fn en_passant(&self) -> Option<(Physical, Physical)> {
-        self.as_ref().en_passant
-    }
-}
-
-impl<'a, B: Clone + AsRef<Board>> From<BoardOr<'a, B>> for Board {
-    #[inline]
-    fn from(borb: BoardOr<B>) -> Board {
-        match borb {
-            BoardOr::Board(board) => board.clone(),
-            BoardOr::B(board) => board.as_ref().clone(),
-        }
-    }
-}
-
-impl<'a, B: Clone + AsRef<Board>> std::convert::AsRef<Board> for BoardOr<'a, B> {
-    #[inline]
-    fn as_ref(&self) -> &Board {
-        match &self {
-            BoardOr::Board(board) => board,
-            BoardOr::B(board) => board.as_ref(),
-        }
-    }
-}
-
-impl<'a, B: Clone + AsRef<Board>> std::convert::From<&'a Board> for BoardOr<'a, B> {
-    #[inline]
-    fn from(board: &'a Board) -> Self {
-        BoardOr::Board(board)
-    }
-}
-
-impl<'a, B: Clone + AsRef<Board> + 'a> std::iter::FromIterator<BoardOr<'a, B>> for Vec<&'a Board> {
-    fn from_iter<I: IntoIterator<Item = BoardOr<'a, B>>>(iter: I) -> Self {
-        let iter = iter.into_iter();
-        let mut res = Vec::with_capacity(iter.size_hint().0.max(1usize));
-
-        for i in iter {
-            match i {
-                BoardOr::Board(b) => res.push(b),
-                BoardOr::B(b) => res.push(b.as_ref()),
-            }
-        }
-
-        res
-    }
-}
-
-pub trait PopulateBoard<'a, B>
-where
-    B: Clone + AsRef<Board>
-{
-    fn populate(&mut self, _game: &'a Game, _partial_game: Option<&'a PartialGame<'a, B>>) -> Option<()> {
-        Some(())
-    }
-}
-
-impl<'a, B> PopulateBoard<'a, B> for Board
-where
-    B: Clone + AsRef<Board>
-{}

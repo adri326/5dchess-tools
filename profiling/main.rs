@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 extern crate coz;
 
+#[allow(unused_variables)]
 fn main() -> std::io::Result<()> {
     let args: Vec<_> = std::env::args().collect();
 
@@ -78,7 +79,7 @@ fn test(
     started: Instant,
     duration: Duration,
     game: &Game,
-    partial_game: &PartialGame<Board>,
+    partial_game: &PartialGame,
     _iterations: usize,
 ) -> (usize, Duration) {
     let mut sigma = 0;

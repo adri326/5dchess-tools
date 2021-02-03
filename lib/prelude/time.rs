@@ -24,17 +24,16 @@ pub trait TimedFilterTrait: Iterator {
 
         See `TimedFilterStrategy` for more information.
     **/
-    fn filter_timed_strategy<'a, S, B>(
+    fn filter_timed_strategy<'a, S>(
         self,
         duration: Duration,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         strategy: S,
-    ) -> TimedFilterStrategy<'a, Self, S, B>
+    ) -> TimedFilterStrategy<'a, Self, S>
     where
-        B: Clone + AsRef<Board>,
-        for<'b> S: Strategy<'b, B, From = &'b Self::Item, To = bool>,
         Self: Sized,
+        for<'b> S: Strategy<'b, From = &'b Self::Item, To = bool>,
     {
         TimedFilterStrategy::new(self, duration, game, partial_game, strategy)
     }
@@ -61,17 +60,16 @@ pub trait TimedFilterTrait: Iterator {
 
         See `SigmaFilterStrategy` for more information.
     **/
-    fn filter_sigma_strategy<'a, S, B>(
+    fn filter_sigma_strategy<'a, S>(
         self,
         duration: Duration,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         strategy: S,
-    ) -> SigmaFilterStrategy<'a, Self, S, B>
+    ) -> SigmaFilterStrategy<'a, Self, S>
     where
-        B: Clone + AsRef<Board>,
-        for<'b> S: Strategy<'b, B, From = &'b Self::Item, To = bool>,
         Self: Sized,
+        for<'b> S: Strategy<'b, From = &'b Self::Item, To = bool>,
     {
         SigmaFilterStrategy::new(self, duration, game, partial_game, strategy)
     }
@@ -210,11 +208,10 @@ where
     the elapsed time since the first call to `next`.
     If you wish to have the former, use `SigmaFilterStrategy` instead.
 **/
-pub struct TimedFilterStrategy<'a, J, S, B>
+pub struct TimedFilterStrategy<'a, J, S>
 where
     J: Iterator,
-    B: Clone + AsRef<Board>,
-    for<'b> S: Strategy<'b, B, From = &'b J::Item, To = bool>,
+    for<'b> S: Strategy<'b, From = &'b J::Item, To = bool>,
     Self: Sized,
 {
     pub iterator: J,
@@ -222,21 +219,20 @@ where
     pub start: Option<Instant>,
     pub duration: Duration,
     pub game: &'a Game,
-    pub partial_game: &'a PartialGame<'a, B>,
+    pub partial_game: &'a PartialGame<'a>,
 }
 
-impl<'a, J, S, B> TimedFilterStrategy<'a, J, S, B>
+impl<'a, J, S> TimedFilterStrategy<'a, J, S>
 where
     J: Iterator,
-    B: Clone + AsRef<Board>,
-    for<'b> S: Strategy<'b, B, From = &'b J::Item, To = bool>,
+    for<'b> S: Strategy<'b, From = &'b J::Item, To = bool>,
     Self: Sized,
 {
     pub fn new(
         iterator: J,
         duration: Duration,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         strategy: S,
     ) -> Self {
         Self {
@@ -254,7 +250,7 @@ where
         start: Option<Instant>,
         duration: Duration,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         strategy: S,
     ) -> Self {
         Self {
@@ -296,11 +292,10 @@ where
     }
 }
 
-impl<'a, J, S, B> Iterator for TimedFilterStrategy<'a, J, S, B>
+impl<'a, J, S> Iterator for TimedFilterStrategy<'a, J, S>
 where
     J: Iterator,
-    B: Clone + AsRef<Board>,
-    for<'b> S: Strategy<'b, B, From = &'b J::Item, To = bool>,
+    for<'b> S: Strategy<'b, From = &'b J::Item, To = bool>,
     Self: Sized,
 {
     type Item = J::Item;
@@ -449,11 +444,10 @@ where
 
     If you wish to have the former, use `TimedFilterStrategy` instead.
 **/
-pub struct SigmaFilterStrategy<'a, J, S, B>
+pub struct SigmaFilterStrategy<'a, J, S>
 where
     J: Iterator,
-    B: Clone + AsRef<Board>,
-    for<'b> S: Strategy<'b, B, From = &'b J::Item, To = bool>,
+    for<'b> S: Strategy<'b, From = &'b J::Item, To = bool>,
     Self: Sized,
 {
     pub iterator: J,
@@ -461,21 +455,20 @@ where
     pub sigma: Duration,
     pub duration: Duration,
     pub game: &'a Game,
-    pub partial_game: &'a PartialGame<'a, B>,
+    pub partial_game: &'a PartialGame<'a>,
 }
 
-impl<'a, J, S, B> SigmaFilterStrategy<'a, J, S, B>
+impl<'a, J, S> SigmaFilterStrategy<'a, J, S>
 where
     J: Iterator,
-    B: Clone + AsRef<Board>,
-    for<'b> S: Strategy<'b, B, From = &'b J::Item, To = bool>,
+    for<'b> S: Strategy<'b, From = &'b J::Item, To = bool>,
     Self: Sized,
 {
     pub fn new(
         iterator: J,
         duration: Duration,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         strategy: S,
     ) -> Self {
         Self {
@@ -493,7 +486,7 @@ where
         sigma: Duration,
         duration: Duration,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         strategy: S,
     ) -> Self {
         Self {
@@ -523,11 +516,10 @@ where
     }
 }
 
-impl<'a, J, S, B> Iterator for SigmaFilterStrategy<'a, J, S, B>
+impl<'a, J, S> Iterator for SigmaFilterStrategy<'a, J, S>
 where
     J: Iterator,
-    B: Clone + AsRef<Board>,
-    for<'b> S: Strategy<'b, B, From = &'b J::Item, To = bool>,
+    for<'b> S: Strategy<'b, From = &'b J::Item, To = bool>,
     Self: Sized,
 {
     type Item = J::Item;
@@ -563,12 +555,11 @@ where
 }
 
 /** This structure acts the same as `SigmaFilterStrategy`, with the only difference that it accepts a strategy which takes as input a `Copy`-ready object. **/
-pub struct SigmaFilterStrategyCopy<'a, J, S, B>
+pub struct SigmaFilterStrategyCopy<'a, J, S>
 where
     J: Iterator,
     J::Item: Copy,
-    B: Clone + AsRef<Board>,
-    for<'b> S: Strategy<'b, B, From = J::Item, To = bool>,
+    for<'b> S: Strategy<'b, From = J::Item, To = bool>,
     Self: Sized,
 {
     pub iterator: J,
@@ -576,22 +567,21 @@ where
     pub sigma: Duration,
     pub duration: Duration,
     pub game: &'a Game,
-    pub partial_game: &'a PartialGame<'a, B>,
+    pub partial_game: &'a PartialGame<'a>,
 }
 
-impl<'a, J, S, B> SigmaFilterStrategyCopy<'a, J, S, B>
+impl<'a, J, S> SigmaFilterStrategyCopy<'a, J, S>
 where
     J: Iterator,
     J::Item: Copy,
-    B: Clone + AsRef<Board>,
-    for<'b> S: Strategy<'b, B, From = J::Item, To = bool>,
+    for<'b> S: Strategy<'b, From = J::Item, To = bool>,
     Self: Sized,
 {
     pub fn new(
         iterator: J,
         duration: Duration,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         strategy: S,
     ) -> Self {
         Self {
@@ -609,7 +599,7 @@ where
         sigma: Duration,
         duration: Duration,
         game: &'a Game,
-        partial_game: &'a PartialGame<'a, B>,
+        partial_game: &'a PartialGame<'a>,
         strategy: S,
     ) -> Self {
         Self {
@@ -639,12 +629,11 @@ where
     }
 }
 
-impl<'a, J, S, B> Iterator for SigmaFilterStrategyCopy<'a, J, S, B>
+impl<'a, J, S> Iterator for SigmaFilterStrategyCopy<'a, J, S>
 where
     J: Iterator,
-    B: Clone + AsRef<Board>,
     J::Item: Copy,
-    for<'b> S: Strategy<'b, B, From = J::Item, To = bool>,
+    for<'b> S: Strategy<'b, From = J::Item, To = bool>,
     Self: Sized,
 {
     type Item = J::Item;

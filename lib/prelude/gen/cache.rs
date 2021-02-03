@@ -11,18 +11,13 @@ pub struct CacheMoves<I: Iterator<Item = Move>> {
     pub cache: Vec<Move>, // TODO: use Cow
 }
 
-impl<'a, B, G: GenMoves<'a, B>> TryFrom<(G, &'a Game, &'a PartialGame<'a, B>)>
-    for CacheMoves<G::Iter>
-where
-    B: Clone + AsRef<Board>,
-    for<'b> &'b B: GenMoves<'b, B>,
-{
+impl<'a, G: GenMoves<'a>> TryFrom<(G, &'a Game, &'a PartialGame<'a>)> for CacheMoves<G::Iter> {
     type Error = ();
     /**
         Creates a new CacheMoves iterator out of a `GenMoves`-implementor and the required information for `generate_moves`.
     **/
     fn try_from(
-        (generator, game, partial_game): (G, &'a Game, &'a PartialGame<'a, B>),
+        (generator, game, partial_game): (G, &'a Game, &'a PartialGame<'a>),
     ) -> Result<Self, Self::Error> {
         match generator.generate_moves(game, partial_game) {
             Some(iter) => Ok(Self {

@@ -123,7 +123,7 @@ pub fn bench_movement<M: Measurement>(c: &mut Criterion<M>) {
 fn bench_moveset_sub<M: Measurement>(group: &mut BenchmarkGroup<M>, game: &Game, name: &str) {
     let partial_game = no_partial_game(&game);
 
-    let own_boards: Vec<BoardOr<Board>> = partial_game.own_boards(game).collect();
+    let own_boards: Vec<&Board> = partial_game.own_boards(game).collect();
     let mut sigma = 0;
     let mut delta = Duration::new(0, 0);
 
@@ -157,10 +157,7 @@ fn bench_moveset_sub<M: Measurement>(group: &mut BenchmarkGroup<M>, game: &Game,
     }
 }
 
-fn bench_moveset_sub_filter<
-    M: Measurement,
-    S: for<'a> Strategy<'a, Board, From = Move, To = bool>,
->(
+fn bench_moveset_sub_filter<M: Measurement, S: for<'a> Strategy<'a, From = Move, To = bool>>(
     group: &mut BenchmarkGroup<M>,
     game: &Game,
     name: &str,
@@ -168,7 +165,7 @@ fn bench_moveset_sub_filter<
 ) {
     let partial_game = no_partial_game(&game);
 
-    let own_boards: Vec<BoardOr<Board>> = partial_game.own_boards(game).collect();
+    let own_boards: Vec<&Board> = partial_game.own_boards(game).collect();
     let mut sigma = 0;
     let mut delta = Duration::new(0, 0);
 
@@ -222,7 +219,7 @@ fn bench_moveset_partial_game<M: Measurement>(
 ) {
     let partial_game = no_partial_game(&game);
 
-    let own_boards: Vec<BoardOr<Board>> = partial_game.own_boards(game).collect();
+    let own_boards: Vec<&Board> = partial_game.own_boards(game).collect();
 
     group.bench_with_input(
         BenchmarkId::new("Moveset::new_partial_game", name),
@@ -266,7 +263,7 @@ fn bench_moveset_is_illegal<M: Measurement>(
 ) {
     let partial_game = no_partial_game(&game);
 
-    let own_boards: Vec<BoardOr<Board>> = partial_game.own_boards(game).collect();
+    let own_boards: Vec<&Board> = partial_game.own_boards(game).collect();
 
     group.bench_with_input(BenchmarkId::new("is_illegal", name), game, |b, game| {
         let lambda = |ms: Result<Moveset, MovesetValidityErr>| ms.ok();
@@ -276,7 +273,7 @@ fn bench_moveset_is_illegal<M: Measurement>(
 
         b.iter_batched(
             || {
-                let mut res: Option<PartialGame<Board>> = None;
+                let mut res: Option<PartialGame> = None;
 
                 match iter.next() {
                     Some(ms) => res = ms.generate_partial_game(game, &partial_game),
@@ -306,7 +303,7 @@ fn bench_list_legal_movesets<M: Measurement>(
 ) {
     let partial_game = no_partial_game(&game);
 
-    let own_boards: Vec<BoardOr<Board>> = partial_game.own_boards(game).collect();
+    let own_boards: Vec<&Board> = partial_game.own_boards(game).collect();
     let mut sigma = 0;
     let mut delta = Duration::new(0, 0);
 

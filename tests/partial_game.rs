@@ -93,16 +93,15 @@ fn test_new_partial_game_castling() {
         );
     }
 
-    let movesets_no_castling: Vec<Moveset> =
-        generate_movesets_filter_strategy::<NoCastling, Board>(
-            partial_game.own_boards(&game).collect(),
-            &game,
-            &partial_game,
-            NoCastling::new(),
-        )
-        .flatten()
-        .filter_map(|ms| ms.ok())
-        .collect();
+    let movesets_no_castling: Vec<Moveset> = generate_movesets_filter_strategy::<NoCastling>(
+        partial_game.own_boards(&game).collect(),
+        &game,
+        &partial_game,
+        NoCastling::new(),
+    )
+    .flatten()
+    .filter_map(|ms| ms.ok())
+    .collect();
 
     assert!(
         movesets_no_castling

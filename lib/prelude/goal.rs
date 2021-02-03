@@ -17,12 +17,12 @@ use super::*;
         pub max_timeline: Layer,
     }
 
-    impl<B: Clone + AsRef<Board>> Goal<B> for MyGoal {
+    impl Goal for MyGoal {
         fn verify<'b>(
             &self,
             moveset: &'b Moveset,
             game: &'b Game,
-            partial_game: &'b PartialGame<'b, B>,
+            partial_game: &'b PartialGame<'b>,
             depth: usize
         ) -> Option<bool> {
             if depth > 4 {
@@ -41,10 +41,7 @@ use super::*;
 
     You may use the included `or`, `and`, `not` and `until` functions to combine goals together.
 **/
-pub trait Goal<B>
-where
-    B: Clone + AsRef<Board>,
-{
+pub trait Goal {
     /**
         Required method. Return `Some(true)` if the given moveset is valid, `Some(false)` if it is invalid and `None` if an error occured.
     **/
@@ -52,32 +49,32 @@ where
         &self,
         moveset: &'b Moveset,
         game: &'b Game,
-        partial_game: &'b PartialGame<'b, B>,
+        partial_game: &'b PartialGame<'b>,
         depth: usize,
     ) -> Option<bool>;
 
-    fn or<G: Goal<B>>(self, goal: G) -> OrGoal<B, Self, G>
+    fn or<G: Goal>(self, goal: G) -> OrGoal<Self, G>
     where
         Self: Sized,
     {
         OrGoal::new(self, goal)
     }
 
-    fn and<G: Goal<B>>(self, goal: G) -> AndGoal<B, Self, G>
+    fn and<G: Goal>(self, goal: G) -> AndGoal<Self, G>
     where
         Self: Sized,
     {
         AndGoal::new(self, goal)
     }
 
-    fn not(self) -> NotGoal<B, Self>
+    fn not(self) -> NotGoal<Self>
     where
         Self: Sized,
     {
         NotGoal::new(self)
     }
 
-    fn until(self, max_depth: usize) -> UntilGoal<B, Self>
+    fn until(self, max_depth: usize) -> UntilGoal<Self>
     where
         Self: Sized,
     {
@@ -88,16 +85,13 @@ where
 /** A goal that will always return true. **/
 pub struct TrueGoal;
 
-impl<B> Goal<B> for TrueGoal
-where
-    B: Clone + AsRef<Board>,
-{
+impl Goal for TrueGoal {
     #[inline]
     fn verify<'b>(
         &self,
         _moveset: &'b Moveset,
         _game: &'b Game,
-        _partial_game: &'b PartialGame<'b, B>,
+        _partial_game: &'b PartialGame<'b>,
         _depth: usize,
     ) -> Option<bool> {
         Some(true)
@@ -107,16 +101,13 @@ where
 /** A goal that will always return false. **/
 pub struct FalseGoal;
 
-impl<B> Goal<B> for FalseGoal
-where
-    B: Clone + AsRef<Board>,
-{
+impl Goal for FalseGoal {
     #[inline]
     fn verify<'b>(
         &self,
         _moveset: &'b Moveset,
         _game: &'b Game,
-        _partial_game: &'b PartialGame<'b, B>,
+        _partial_game: &'b PartialGame<'b>,
         _depth: usize,
     ) -> Option<bool> {
         Some(false)
@@ -127,39 +118,32 @@ where
     A goal that will return true if its sub-goal returns false, representing the negation of its sub-goal.
     If the sub-goal fails (by returning `None`), it will also fail (by returning `None`).
 **/
-pub struct NotGoal<B, G>
+pub struct NotGoal<G>
 where
-    B: Clone + AsRef<Board>,
-    G: Goal<B>,
+    G: Goal,
 {
     pub goal: G,
-    _phantom: std::marker::PhantomData<B>,
 }
 
-impl<B, G> NotGoal<B, G>
+impl<G> NotGoal<G>
 where
-    B: Clone + AsRef<Board>,
-    G: Goal<B>,
+    G: Goal,
 {
     pub fn new(goal: G) -> Self {
-        Self {
-            goal,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { goal }
     }
 }
 
-impl<B, G> Goal<B> for NotGoal<B, G>
+impl<G> Goal for NotGoal<G>
 where
-    B: Clone + AsRef<Board>,
-    G: Goal<B>,
+    G: Goal,
 {
     #[inline]
     fn verify<'b>(
         &self,
         moveset: &'b Moveset,
         game: &'b Game,
-        partial_game: &'b PartialGame<'b, B>,
+        partial_game: &'b PartialGame<'b>,
         depth: usize,
     ) -> Option<bool> {
         match self.goal.verify(moveset, game, partial_game, depth) {
@@ -172,44 +156,36 @@ where
 /**
     A goal that will return true if either of its sub-goals returns true, representing the disjunction of both goals.
 **/
-pub struct OrGoal<B, Left, Right>
+pub struct OrGoal<Left, Right>
 where
-    B: Clone + AsRef<Board>,
-    Left: Goal<B>,
-    Right: Goal<B>,
+    Left: Goal,
+    Right: Goal,
 {
     pub left: Left,
     pub right: Right,
-    _phantom: std::marker::PhantomData<B>,
 }
 
-impl<B, Left, Right> OrGoal<B, Left, Right>
+impl<Left, Right> OrGoal<Left, Right>
 where
-    B: Clone + AsRef<Board>,
-    Left: Goal<B>,
-    Right: Goal<B>,
+    Left: Goal,
+    Right: Goal,
 {
     pub fn new(left: Left, right: Right) -> Self {
-        Self {
-            left,
-            right,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { left, right }
     }
 }
 
-impl<B, Left, Right> Goal<B> for OrGoal<B, Left, Right>
+impl<Left, Right> Goal for OrGoal<Left, Right>
 where
-    B: Clone + AsRef<Board>,
-    Left: Goal<B>,
-    Right: Goal<B>,
+    Left: Goal,
+    Right: Goal,
 {
     #[inline]
     fn verify<'b>(
         &self,
         moveset: &'b Moveset,
         game: &'b Game,
-        partial_game: &'b PartialGame<'b, B>,
+        partial_game: &'b PartialGame<'b>,
         depth: usize,
     ) -> Option<bool> {
         match self.left.verify(moveset, game, partial_game, depth) {
@@ -222,44 +198,36 @@ where
 /**
     A goal that returns true if both sub-goals return true, representing the conjunction of both goals.
 **/
-pub struct AndGoal<B, Left, Right>
+pub struct AndGoal<Left, Right>
 where
-    B: Clone + AsRef<Board>,
-    Left: Goal<B>,
-    Right: Goal<B>,
+    Left: Goal,
+    Right: Goal,
 {
     pub left: Left,
     pub right: Right,
-    _phantom: std::marker::PhantomData<B>,
 }
 
-impl<B, Left, Right> AndGoal<B, Left, Right>
+impl<Left, Right> AndGoal<Left, Right>
 where
-    B: Clone + AsRef<Board>,
-    Left: Goal<B>,
-    Right: Goal<B>,
+    Left: Goal,
+    Right: Goal,
 {
     pub fn new(left: Left, right: Right) -> Self {
-        Self {
-            left,
-            right,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { left, right }
     }
 }
 
-impl<B, Left, Right> Goal<B> for AndGoal<B, Left, Right>
+impl<Left, Right> Goal for AndGoal<Left, Right>
 where
-    B: Clone + AsRef<Board>,
-    Left: Goal<B>,
-    Right: Goal<B>,
+    Left: Goal,
+    Right: Goal,
 {
     #[inline]
     fn verify<'b>(
         &self,
         moveset: &'b Moveset,
         game: &'b Game,
-        partial_game: &'b PartialGame<'b, B>,
+        partial_game: &'b PartialGame<'b>,
         depth: usize,
     ) -> Option<bool> {
         match self.left.verify(moveset, game, partial_game, depth) {
@@ -269,29 +237,24 @@ where
     }
 }
 
-pub struct UntilGoal<B: Clone + AsRef<Board>, G: Goal<B>> {
+pub struct UntilGoal<G: Goal> {
     pub goal: G,
     pub max_depth: usize,
-    _phantom: std::marker::PhantomData<B>,
 }
 
-impl<B: Clone + AsRef<Board>, G: Goal<B>> UntilGoal<B, G> {
+impl<G: Goal> UntilGoal<G> {
     pub fn new(goal: G, max_depth: usize) -> Self {
-        Self {
-            goal,
-            max_depth,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { goal, max_depth }
     }
 }
 
-impl<B: Clone + AsRef<Board>, G: Goal<B>> Goal<B> for UntilGoal<B, G> {
+impl<G: Goal> Goal for UntilGoal<G> {
     #[inline]
     fn verify<'b>(
         &self,
         moveset: &'b Moveset,
         game: &'b Game,
-        partial_game: &'b PartialGame<'b, B>,
+        partial_game: &'b PartialGame<'b>,
         depth: usize,
     ) -> Option<bool> {
         if depth > self.max_depth {

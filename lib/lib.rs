@@ -2,10 +2,10 @@
 extern crate lazy_static;
 extern crate colored;
 extern crate itertools;
+extern crate rand;
 extern crate scoped_threadpool;
 extern crate serde;
 extern crate serde_json;
-extern crate rand;
 
 pub mod prelude;
 pub use prelude::*;
@@ -15,4 +15,3 @@ pub mod parse;
 pub mod strategies;
 pub mod traversal;
 pub mod utils;
-pub mod boards;
