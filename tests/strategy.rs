@@ -1,6 +1,5 @@
 use chess5dlib::parse::test::{read_and_parse, read_and_parse_opt};
 use chess5dlib::prelude::*;
-use chess5dlib::strategies::legal::*;
 use chess5dlib::utils::*;
 use rand::Rng;
 use scoped_threadpool::Pool;
@@ -136,11 +135,10 @@ fn test_legal_move() {
                 .collect()
         },
         |game, partial_game| {
-            generate_movesets_filter_strategy::<LegalMove>(
+            generate_movesets_prefilter(
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
-                LegalMove::new(),
             )
             .flatten()
             .filter_map(|ms| filter_lambda(ms, game, partial_game))
@@ -169,22 +167,20 @@ fn test_legal_opt_move() {
         10,
         3,
         |game, partial_game| {
-            generate_movesets_filter_strategy::<OptLegalMove>(
+            generate_movesets_prefilter(
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
-                OptLegalMove::new(),
             )
             .flatten()
             .filter_map(|ms| filter_lambda(ms, game, partial_game))
             .collect()
         },
         |game, partial_game| {
-            generate_movesets_filter_strategy::<LegalMove>(
+            generate_movesets_prefilter(
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
-                LegalMove::new(),
             )
             .flatten()
             .filter_map(|ms| filter_lambda(ms, game, partial_game))
@@ -210,11 +206,10 @@ fn defended_pawn_checkmate() {
         Err(_) => None,
     };
 
-    let mut iter = generate_movesets_filter_strategy::<LegalMove>(
+    let mut iter = generate_movesets_prefilter(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
-        LegalMove::new(),
     )
     .flatten()
     .filter_map(|ms| filter_lambda(ms));
@@ -245,11 +240,10 @@ fn standard_checkmate() {
         Err(_) => None,
     };
 
-    let mut iter = generate_movesets_filter_strategy::<LegalMove>(
+    let mut iter = generate_movesets_prefilter(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
-        LegalMove::new(),
     )
     .flatten()
     .filter_map(|ms| filter_lambda(ms));
@@ -280,11 +274,10 @@ fn standard_checkmate_2() {
         Err(_) => None,
     };
 
-    let mut iter = generate_movesets_filter_strategy::<LegalMove>(
+    let mut iter = generate_movesets_prefilter(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
-        LegalMove::new(),
     )
     .flatten()
     .filter_map(|ms| filter_lambda(ms));
@@ -315,11 +308,10 @@ fn standard_checkmate_3() {
         Err(_) => None,
     };
 
-    let mut iter = generate_movesets_filter_strategy::<LegalMove>(
+    let mut iter = generate_movesets_prefilter(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
-        LegalMove::new(),
     )
     .flatten()
     .filter_map(|ms| filter_lambda(ms));
@@ -350,11 +342,10 @@ fn princess_checkmate() {
         Err(_) => None,
     };
 
-    let mut iter = generate_movesets_filter_strategy::<LegalMove>(
+    let mut iter = generate_movesets_prefilter(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
-        LegalMove::new(),
     )
     .flatten()
     .filter_map(|ms| filter_lambda(ms));
@@ -393,27 +384,10 @@ fn tricky_nonmate() {
         Err(_) => None,
     };
 
-    let mut iter = generate_movesets_filter_strategy::<TrueStrategy<Move>>(
+    let mut iter = generate_movesets_prefilter(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
-        TrueStrategy::new(),
-    )
-    .flatten()
-    .filter_map(|ms| filter_lambda(ms));
-
-    let mv = iter.next();
-
-    assert!(
-        mv.is_some(),
-        "Expected a legal movesets to be found; found none."
-    );
-
-    let mut iter = generate_movesets_filter_strategy::<LegalMove>(
-        partial_game.own_boards(&game).collect(),
-        &game,
-        &partial_game,
-        LegalMove::new(),
     )
     .flatten()
     .filter_map(|ms| filter_lambda(ms));
@@ -443,11 +417,10 @@ fn reflected_checkmate() {
         Err(_) => None,
     };
 
-    let mut iter = generate_movesets_filter_strategy::<LegalMove>(
+    let mut iter = generate_movesets_prefilter(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
-        LegalMove::new(),
     )
     .flatten()
     .filter_map(|ms| filter_lambda(ms));
@@ -478,11 +451,10 @@ fn standard_nonmate() {
         Err(_) => None,
     };
 
-    let mut iter = generate_movesets_filter_strategy::<LegalMove>(
+    let mut iter = generate_movesets_prefilter(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
-        LegalMove::new(),
     )
     .flatten()
     .filter_map(|ms| filter_lambda(ms));
@@ -507,19 +479,19 @@ fn standard_nonmate2() {
     let game = read_and_parse("tests/games/standard-nonmate-2.json");
     let partial_game = no_partial_game(&game);
 
-    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
-        Ok(ms) => {
-            let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-            if is_illegal(&game, &new_partial_game)? {
-                None
-            } else {
-                Some(ms)
-            }
-        }
-        Err(_) => None,
-    };
+    // let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
+    //     Ok(ms) => {
+    //         let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
+    //         if is_illegal(&game, &new_partial_game)? {
+    //             None
+    //         } else {
+    //             Some(ms)
+    //         }
+    //     }
+    //     Err(_) => None,
+    // };
 
-    // let mut iter = generate_movesets_filter_strategy::<LegalMove>(
+    // let mut iter = generate_movesets_prefilter(
     //     partial_game.own_boards(&game).collect(),
     //     &game,
     //     &partial_game,
@@ -563,11 +535,10 @@ fn test_list_legal_movesets() {
         10,
         3,
         |game, partial_game| {
-            generate_movesets_filter_strategy::<OptLegalMove>(
+            generate_movesets_prefilter(
                 partial_game.own_boards(game).collect(),
                 game,
                 partial_game,
-                OptLegalMove::new(),
             )
             .flatten()
             .filter_map(|ms| filter_lambda(ms, game, partial_game))

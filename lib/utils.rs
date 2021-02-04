@@ -1,5 +1,3 @@
-use crate::prelude::moveset::FilterByStrategy;
-use crate::strategies::legal::OptLegalMove;
 use crate::*;
 use rand::seq::SliceRandom;
 use std::time::{Duration, Instant};
@@ -7,41 +5,31 @@ use std::time::{Duration, Instant};
 // Legality checker
 
 /**
-    Iterator returned by `list_legal_movesets` and `list_legal_movesets_filter_strategy`.
+    Iterator returned by `list_legal_movesets`.
 
     Returns generated movesets and their corresponding, generated partial game, if they are legal movesets.
-    A strategy can also be provided to filter the moves.
 **/
 #[derive(Clone)]
-pub struct LegalMovesetsIter<'a, S>
-where
-    S: Strategy<'a, From = Move, To = bool>,
-{
+pub struct LegalMovesetsIter<'a> {
     pub game: &'a Game,
     pub partial_game: &'a PartialGame<'a>,
-    pub moveset_iter:
-        std::iter::Flatten<GenMovesetIter<'a, FilterByStrategy<'a, BoardIter<'a>, S>>>,
+    pub moveset_iter: std::iter::Flatten<GenMovesetPreFilter<'a>>,
     pub duration: Option<Duration>,
     pub sigma: Duration,
 }
 
-pub fn list_legal_movesets_filter_strategy<'a, S>(
+pub fn list_legal_movesets<'a>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
-    strategy: S,
     duration: Option<Duration>,
-) -> LegalMovesetsIter<'a, S>
-where
-    S: Strategy<'a, From = Move, To = bool>,
-{
+) -> LegalMovesetsIter<'a> {
     LegalMovesetsIter {
         game,
         partial_game,
-        moveset_iter: generate_movesets_filter_strategy(
+        moveset_iter: generate_movesets_prefilter(
             partial_game.own_boards(game).collect(),
             game,
             partial_game,
-            strategy,
         )
         .flatten(),
         duration,
@@ -49,25 +37,7 @@ where
     }
 }
 
-pub fn list_legal_movesets<'a>(
-    game: &'a Game,
-    partial_game: &'a PartialGame<'a>,
-    duration: Option<Duration>,
-) -> LegalMovesetsIter<'a, OptLegalMove>
-where
-{
-    list_legal_movesets_filter_strategy::<OptLegalMove>(
-        game,
-        partial_game,
-        OptLegalMove::new(),
-        duration,
-    )
-}
-
-impl<'a, S> LegalMovesetsIter<'a, S>
-where
-    S: Strategy<'a, From = Move, To = bool>,
-{
+impl<'a> LegalMovesetsIter<'a> {
     pub fn elapsed(&self) -> Duration {
         self.sigma
     }
@@ -93,10 +63,7 @@ where
     }
 }
 
-impl<'a, S> Iterator for LegalMovesetsIter<'a, S>
-where
-    S: Strategy<'a, From = Move, To = bool>,
-{
+impl<'a> Iterator for LegalMovesetsIter<'a> {
     type Item = (Moveset, PartialGame<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -148,21 +115,19 @@ where
     pub depth: usize,
 }
 
-pub fn list_legal_movesets_filter_strategy_goal<'a, 'b, S, G>(
+pub fn list_legal_movesets_filter_goal<'a, 'b, G>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
     goal: &'b G,
-    strategy: S,
     duration: Option<Duration>,
     depth: usize,
-) -> ApplyGoals<'a, 'b, G, LegalMovesetsIter<'a, S>>
+) -> ApplyGoals<'a, 'b, G, LegalMovesetsIter<'a>>
 where
     'a: 'b,
-    S: Strategy<'a, From = Move, To = bool>,
     G: Goal,
 {
     ApplyGoals::new(
-        list_legal_movesets_filter_strategy(game, partial_game, strategy, duration),
+        list_legal_movesets(game, partial_game, duration),
         goal,
         game,
         duration,
@@ -267,15 +232,12 @@ pub enum RandomLegalMovesetReason {
     TimeoutStalemate,
 }
 
-pub fn random_legal_moveset_filter_strategy<'a, S>(
+pub fn random_legal_moveset<'a>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
-    strategy: S,
-    duration: Duration,
-) -> Result<(Moveset, PartialGame<'a>), RandomLegalMovesetReason>
-where
-    for<'b> S: Strategy<'b, From = Move, To = bool>,
-{
+    duration: Option<Duration>,
+) -> Result<(Moveset, PartialGame<'a>), RandomLegalMovesetReason> {
+    let duration = duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1));
     let mut rng = rand::thread_rng();
     let mut active_boards: Vec<&Board> = partial_game
         .own_boards(game)
@@ -294,13 +256,12 @@ where
     let mut iters = Vec::new();
 
     for board in boards {
-        let mut moves: Vec<_> = FilterByStrategy::new(
+        let mut moves: Vec<_> = FilterLegalMove::new(
             board
                 .generate_moves(game, partial_game)
                 .ok_or(RandomLegalMovesetReason::Error)?,
             game,
             partial_game,
-            strategy.clone(),
         )
         .collect();
         moves.shuffle(&mut rng);
@@ -353,19 +314,4 @@ where
             }
         }
     }
-}
-
-pub fn random_legal_moveset<'a>(
-    game: &'a Game,
-    partial_game: &'a PartialGame<'a>,
-    duration: Option<Duration>,
-) -> Result<(Moveset, PartialGame<'a>), RandomLegalMovesetReason>
-where
-{
-    random_legal_moveset_filter_strategy(
-        game,
-        partial_game,
-        OptLegalMove::new(),
-        duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
-    )
 }

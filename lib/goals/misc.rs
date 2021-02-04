@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 /**
-    Verifies that no branching moveset is done. You can further optimize the search by also giving it as strategy `NoTimeTravel`.
+    Verifies that no branching moveset is done.
 **/
 pub struct NoBranching {
     pub min_timeline: Layer,

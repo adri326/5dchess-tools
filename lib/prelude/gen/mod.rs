@@ -21,7 +21,6 @@
     ```
 */
 use super::*;
-use std::marker::PhantomData;
 
 pub mod piece;
 pub use piece::PiecePosition;
@@ -33,9 +32,7 @@ pub mod cache;
 pub use cache::CacheMoves;
 
 pub mod moveset;
-pub use moveset::{
-    generate_movesets_filter_strategy, generate_movesets_iterator_strategy, GenMovesetIter,
-};
+pub use moveset::{generate_movesets_prefilter, GenMovesetIter, GenMovesetPreFilter, FilterLegalMove};
 
 /**
     An enum containing the different flags used by `GenMoves::generate_moves_flag.`
@@ -105,39 +102,5 @@ pub trait GenMoves<'a>: Sized {
         _flag: GenMovesFlag,
     ) -> Option<Self::Iter> {
         self.generate_moves(game, partial_game)
-    }
-}
-
-#[derive(Clone)]
-pub struct GenMovesStrategy<'a, T>
-where
-    T: GenMoves<'a> + Clone,
-{
-    _t: PhantomData<&'a T>,
-}
-
-impl<'a, T> GenMovesStrategy<'a, T>
-where
-    T: GenMoves<'a> + Clone,
-{
-    pub fn new() -> Self {
-        Self { _t: PhantomData }
-    }
-}
-
-impl<'a, T> Strategy<'a> for GenMovesStrategy<'a, T>
-where
-    T: GenMoves<'a> + Clone,
-{
-    type From = T;
-    type To = <T as GenMoves<'a>>::Iter;
-
-    fn apply(
-        &self,
-        generator: T,
-        game: &'a Game,
-        partial_game: &'a PartialGame<'a>,
-    ) -> Option<Self::To> {
-        generator.generate_moves(game, partial_game)
     }
 }

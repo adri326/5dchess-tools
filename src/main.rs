@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use chess5dlib::{parse::*, prelude::*, strategies::legal::*};
+use chess5dlib::{parse::*, prelude::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -56,11 +56,10 @@ fn main() -> std::io::Result<()> {
     //     }
     // }).count());
 
-    let mut iter = generate_movesets_filter_strategy::<OptLegalMove>(
+    let mut iter = generate_movesets_prefilter(
         partial_game.own_boards(&game).collect(),
         &game,
         &partial_game,
-        OptLegalMove::new(),
     )
     .flatten()
     .filter(|ms| match ms {

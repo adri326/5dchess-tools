@@ -72,40 +72,42 @@ where
     }
 }
 
+pub type GenMovesetPreFilter<'a> = GenMovesetIter<
+    'a,
+    FilterLegalMove<
+        'a,
+        BoardIter<'a>>,
+>;
+
 /**
-    Iterator that filters moves from a parent iterator using a given strategy.
+    Iterator that filters moves from a parent iterator using a given filter function.
 **/
 #[derive(Clone)]
-pub struct FilterByStrategy<'a, I, S>
+pub struct FilterLegalMove<'a, I>
 where
     I: Iterator<Item = Move>,
-    S: Strategy<'a, From = Move, To = bool>,
 {
     iter: I,
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
-    strategy: S,
 }
 
-impl<'a, I, S> FilterByStrategy<'a, I, S>
+impl<'a, I> FilterLegalMove<'a, I>
 where
     I: Iterator<Item = Move>,
-    S: Strategy<'a, From = Move, To = bool>,
 {
-    pub fn new(iter: I, game: &'a Game, partial_game: &'a PartialGame<'a>, strategy: S) -> Self {
+    pub fn new(iter: I, game: &'a Game, partial_game: &'a PartialGame<'a>) -> Self {
         Self {
             iter,
             game,
             partial_game,
-            strategy,
         }
     }
 }
 
-impl<'a, I, S> Iterator for FilterByStrategy<'a, I, S>
+impl<'a, I> Iterator for FilterLegalMove<'a, I>
 where
     I: Iterator<Item = Move>,
-    S: Strategy<'a, From = Move, To = bool>,
 {
     type Item = Move;
 
@@ -113,7 +115,7 @@ where
         loop {
             match self.iter.next() {
                 Some(mv) => {
-                    if self.strategy.apply(mv, self.game, self.partial_game)? {
+                    if is_legal_move_optional(mv, self.game, self.partial_game)? {
                         return Some(mv);
                     }
                 }
@@ -123,17 +125,12 @@ where
     }
 }
 
-// From a filter strategy
-/** Creates a new GenMovesetIter from a set of boards and a `Move` → `bool` strategy. **/
-pub fn generate_movesets_filter_strategy<'a, S>(
+/** Creates a new GenMovesetIter with the moves pre-filtered. **/
+pub fn generate_movesets_prefilter<'a>(
     boards: Vec<&'a Board>,
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
-    strategy: S,
-) -> GenMovesetIter<'a, FilterByStrategy<'a, BoardIter<'a>, S>>
-where
-    S: Strategy<'a, From = Move, To = bool>,
-{
+) -> GenMovesetPreFilter<'a> {
     GenMovesetIter {
         _game: game,
         partial_game,
@@ -141,38 +138,12 @@ where
         boards: boards
             .into_iter()
             .filter_map(move |board| {
-                Some(FilterByStrategy {
+                Some(FilterLegalMove {
                     iter: board.generate_moves(game, partial_game)?,
                     game,
                     partial_game,
-                    strategy: strategy.clone(),
                 })
             })
-            .map(|iter| CacheMoves::new(iter))
-            .collect(),
-        done: false,
-    }
-}
-
-// From an iterator strategy
-/** Creates a new GenMovesetIter from a set of boards and a `&Board` → `Iterator<Item=Move>` strategy. **/
-pub fn generate_movesets_iterator_strategy<'a, S>(
-    boards: Vec<&'a Board>,
-    game: &'a Game,
-    partial_game: &'a PartialGame<'a>,
-    strategy: S,
-) -> GenMovesetIter<'a, S::To>
-where
-    S: Strategy<'a, From = &'a Board>,
-    <S as Strategy<'a>>::To: Iterator<Item = Move>,
-{
-    GenMovesetIter {
-        _game: game,
-        partial_game,
-        states: vec![None; boards.len()],
-        boards: boards
-            .into_iter()
-            .filter_map(|board| strategy.apply(board, game, partial_game))
             .map(|iter| CacheMoves::new(iter))
             .collect(),
         done: false,

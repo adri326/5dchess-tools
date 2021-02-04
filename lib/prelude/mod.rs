@@ -29,8 +29,8 @@ pub use movement::*;
 pub mod partial_game;
 pub use partial_game::*;
 
-pub mod strategy;
-pub use strategy::*;
+pub mod legal;
+pub use legal::*;
 
 pub mod goal;
 pub use goal::*;

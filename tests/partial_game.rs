@@ -1,6 +1,5 @@
 use chess5dlib::parse::test::read_and_parse;
 use chess5dlib::prelude::*;
-use chess5dlib::strategies::misc::NoCastling;
 use std::convert::TryFrom;
 
 #[test]
@@ -93,21 +92,22 @@ fn test_new_partial_game_castling() {
         );
     }
 
-    let movesets_no_castling: Vec<Moveset> = generate_movesets_filter_strategy::<NoCastling>(
-        partial_game.own_boards(&game).collect(),
-        &game,
-        &partial_game,
-        NoCastling::new(),
-    )
-    .flatten()
-    .filter_map(|ms| ms.ok())
-    .collect();
+    // TODO: use goals instead
 
-    assert!(
-        movesets_no_castling
-            .iter()
-            .find(|ms| ms.moves()[0].kind == MoveKind::Castle)
-            .is_none(),
-        "∄ a castling move when castling is filtered out"
-    );
+    // let movesets_no_castling: Vec<Moveset> = generate_movesets_prefilter(
+    //     partial_game.own_boards(&game).collect(),
+    //     &game,
+    //     &partial_game,
+    // )
+    // .flatten()
+    // .filter_map(|ms| ms.ok())
+    // .collect();
+
+    // assert!(
+    //     movesets_no_castling
+    //         .iter()
+    //         .find(|ms| ms.moves()[0].kind == MoveKind::Castle)
+    //         .is_none(),
+    //     "∄ a castling move when castling is filtered out"
+    // );
 }
