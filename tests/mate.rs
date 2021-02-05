@@ -38,7 +38,7 @@ fn compare_methods<F1, F2, M>(
         })
         .collect();
 
-    assert!(games.len() > 1);
+    assert!(games.len() > 100);
 
     let mut pool = Pool::new(num_cpus::get() as u32);
 
@@ -98,7 +98,7 @@ fn test_compare_self() {
 #[should_panic]
 fn test_compare_err() {
     compare_methods(
-        100,
+        200,
         2,
         |game, partial_game: &PartialGame<'_>| {
             GenMovesetIter::new(partial_game.own_boards(game).collect(), game, partial_game)
@@ -508,4 +508,17 @@ fn test_list_legal_movesets() {
                 .collect()
         },
     );
+}
+
+#[test]
+fn test_issue_1() {
+    let game = read_and_parse("tests/games/issue-1.json");
+    let partial_game = no_partial_game(&game);
+
+    match is_mate(&game, &partial_game, Some(std::time::Duration::new(15, 0))) {
+        Mate::None(ms) => {
+            // Ok!
+        },
+        x => panic!("Expected position tests/games/issue-1.json to be non-mate; got {:?}", x),
+    };
 }
