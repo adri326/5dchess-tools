@@ -40,3 +40,6 @@ pub use tile::*;
 
 pub mod time;
 pub use time::*;
+
+pub mod mate;
+pub use mate::*;

@@ -31,14 +31,9 @@ jobs:
         npm i
         cd ..
       if: ${{ env.CI_SKIP == 'false' }}
-    - name: Prepare tests, faster
-      run: |
-        curl -sfo converted-db.zip https://shadamethyst.xyz/static/github/converted-db.zip
-        unzip -q converted-db.zip
+    - name: Prepare tests
+      run: ./prepare-tests.sh
       if: ${{ env.CI_SKIP == 'false' }}
-    # - name: Prepare tests
-    #   run: ./prepare-tests.sh
-    #   if: ${{ env.CI_SKIP == 'false' }}
     - name: Run tests
       run: cargo test --verbose --release
       if: ${{ env.CI_SKIP == 'false' }}

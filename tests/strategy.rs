@@ -22,8 +22,8 @@ fn compare_methods<F1, F2, M>(
     for<'a> F2: Fn(&'a Game, &'a PartialGame<'a>) -> Vec<M> + Copy + Send + Sync,
     M: Eq + Hash + Debug,
 {
-    let dir = read_dir(Path::new("./converted-db/nonmate"));
-    assert!(dir.is_ok(), "Can't open `./converted-db/nonmate`");
+    let dir = read_dir(Path::new("./converted-db/standard/none"));
+    assert!(dir.is_ok(), "Can't open `./converted-db/standard/none`");
     let dir = dir.unwrap().filter_map(|entry| entry.ok());
 
     let games: Vec<(Game, String)> = dir
@@ -133,48 +133,6 @@ fn test_legal_move() {
                 .flatten()
                 .filter_map(|ms| filter_lambda(ms, game, partial_game))
                 .collect()
-        },
-        |game, partial_game| {
-            generate_movesets_prefilter(
-                partial_game.own_boards(game).collect(),
-                game,
-                partial_game,
-            )
-            .flatten()
-            .filter_map(|ms| filter_lambda(ms, game, partial_game))
-            .collect()
-        },
-    );
-}
-
-#[test]
-fn test_legal_opt_move() {
-    let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>,
-                         game: &Game,
-                         partial_game: &PartialGame| match ms {
-        Ok(ms) => {
-            let new_partial_game = ms.generate_partial_game(game, partial_game)?;
-            if is_illegal(game, &new_partial_game)? {
-                None
-            } else {
-                Some(ms)
-            }
-        }
-        Err(_) => None,
-    };
-
-    compare_methods(
-        10,
-        3,
-        |game, partial_game| {
-            generate_movesets_prefilter(
-                partial_game.own_boards(game).collect(),
-                game,
-                partial_game,
-            )
-            .flatten()
-            .filter_map(|ms| filter_lambda(ms, game, partial_game))
-            .collect()
         },
         |game, partial_game| {
             generate_movesets_prefilter(

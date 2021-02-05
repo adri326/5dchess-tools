@@ -36,3 +36,4 @@ path = "profiling/main.rs"
 
 [profile.release]
 debug = 1
+opt-level = 3

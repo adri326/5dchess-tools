@@ -6,3 +6,4 @@ converted-db
 *.coz
 /db
 node_modules
+*.tar.gz

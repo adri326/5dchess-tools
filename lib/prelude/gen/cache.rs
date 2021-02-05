@@ -39,6 +39,14 @@ impl<I: Iterator<Item = Move>> CacheMoves<I> {
         }
     }
 
+    pub fn from_raw_parts(iterator: std::iter::Fuse<I>, cache: Vec<Move>, done: bool) -> Self {
+        Self {
+            iterator,
+            cache,
+            done,
+        }
+    }
+
     /**
         Validates a move by looking through the cached moves. This function will not query
         the move iterator.
@@ -117,6 +125,13 @@ impl<I: Iterator<Item = Move>> CacheMoves<I> {
     **/
     pub fn done(&self) -> bool {
         self.done
+    }
+
+    /**
+        Returns the underlying raw parts. Only use this if you know what you're doing!
+    **/
+    pub fn into_raw_parts(self) -> (std::iter::Fuse<I>, Vec<Move>, bool) {
+        (self.iterator, self.cache, self.done)
     }
 
     /**

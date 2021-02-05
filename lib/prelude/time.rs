@@ -17,6 +17,18 @@ pub trait TimedFilterTrait: Iterator {
     }
 
     /**
+        Returns an iterator, which stops when the time since the first call to `next()` exceeds `duration`.
+
+        See `Timed` for more information.
+    **/
+    fn timed(self, duration: Duration) -> Timed<Self>
+    where
+        Self: Sized,
+    {
+        Timed::new(self, duration)
+    }
+
+    /**
         Returns a filtered iterator, which only yields the elements of the current iterator if:
         - `condition(item) == true`
         - The sum of the time taken by `condition` does not exceed `duration`
@@ -138,6 +150,112 @@ where
                 None => return None,
             }
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self.remaining() {
+            Some(d) => {
+                if d == Duration::new(0, 0) {
+                    return (0, Some(0));
+                }
+            }
+            _ => {}
+        }
+
+        (0, self.iterator.size_hint().1)
+    }
+}
+
+
+/**
+    An iterator, which has a maximum duration.
+    It measures the elapsed time from the first call to `next` and stops when the maximum duration is reached.
+
+    You should create instances of it by calling the `timed` function on any iterator, given that `TimedFilterTrait` is
+    loaded in your context (it is by default included in `prelude::*`).
+
+    Note that this iterator does *not* measure the summation of the time taken by the filter function, but instead naively measures
+    the elapsed time since the first call to `next`.
+    If you wish to have the former, use `Sigma` instead.
+**/
+pub struct Timed<J>
+where
+    J: Iterator,
+{
+    pub iterator: J,
+    pub start: Option<Instant>,
+    pub duration: Duration,
+}
+
+impl<J> Timed<J>
+where
+    J: Iterator,
+{
+    pub fn new(iterator: J, duration: Duration) -> Self {
+        Self {
+            iterator,
+            start: None,
+            duration,
+        }
+    }
+
+    pub fn with_start(
+        iterator: J,
+        start: Option<Instant>,
+        duration: Duration,
+    ) -> Self {
+        Self {
+            iterator,
+            start,
+            duration,
+        }
+    }
+
+    pub fn elapsed(&self) -> Option<Duration> {
+        match self.start {
+            Some(instant) => Some(instant.elapsed()),
+            None => None,
+        }
+    }
+
+    pub fn remaining(&self) -> Option<Duration> {
+        match self.start {
+            Some(instant) => {
+                let elapsed = instant.elapsed();
+                if elapsed > self.duration {
+                    Some(Duration::new(0, 0))
+                } else {
+                    Some(self.duration - elapsed)
+                }
+            }
+            None => None,
+        }
+    }
+
+    pub fn timed_out(&self) -> bool {
+        match self.start {
+            Some(instant) => instant.elapsed() > self.duration,
+            None => false,
+        }
+    }
+}
+
+impl<J> Iterator for Timed<J>
+where
+    J: Iterator,
+{
+    type Item = J::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.start.is_none() {
+            self.start = Some(Instant::now());
+        }
+
+        if self.start.unwrap().elapsed() > self.duration {
+            return None;
+        }
+
+        self.iterator.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
