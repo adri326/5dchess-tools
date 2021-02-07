@@ -5,9 +5,11 @@ use std::fs::read_dir;
 use std::time::{Duration, Instant};
 use std::path::Path;
 
+const MAX_TIMELINES: usize = 8;
+
 fn main() {
-    nonmates();
     checkmates();
+    nonmates();
 }
 
 fn nonmates() {
@@ -23,16 +25,22 @@ fn nonmates() {
 
     let games: Vec<(Game, String)> = dir
         .into_iter()
-        .take(n_games * 2)
         .filter_map(|entry| {
             if let Some(ext) = entry.path().as_path().extension() {
                 if ext == "json" {
-                    return read_and_parse_opt(&entry.path().to_str()?)
-                        .map(|g| (g, entry.path().to_str().unwrap().to_string()));
+                    match read_and_parse_opt(&entry.path().to_str()?) {
+                        Some(game) => {
+                            if game.info.len_timelines() <= MAX_TIMELINES {
+                                return Some((game, entry.path().to_str().unwrap().to_string()))
+                            }
+                        },
+                        None => {}
+                    }
                 }
             }
             None
         })
+        .take(n_games * 2)
         .collect();
 
     println!("Testing nonmates, {} random games...", n_games);
@@ -83,16 +91,22 @@ fn checkmates() {
 
     let games: Vec<(Game, String)> = dir
         .into_iter()
-        .take(n_games * 2)
         .filter_map(|entry| {
             if let Some(ext) = entry.path().as_path().extension() {
                 if ext == "json" {
-                    return read_and_parse_opt(&entry.path().to_str()?)
-                        .map(|g| (g, entry.path().to_str().unwrap().to_string()));
+                    match read_and_parse_opt(&entry.path().to_str()?) {
+                        Some(game) => {
+                            if game.info.len_timelines() <= MAX_TIMELINES {
+                                return Some((game, entry.path().to_str().unwrap().to_string()))
+                            }
+                        },
+                        None => {}
+                    }
                 }
             }
             None
         })
+        .take(n_games * 2)
         .collect();
 
     println!("Testing checkmates, {} random games...", n_games);

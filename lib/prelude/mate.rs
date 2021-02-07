@@ -20,7 +20,7 @@ macro_rules! unwrap_mate {
     ( $x:expr ) => {
         match $x {
             Some(x) => x,
-            None => return Mate::Error,
+            None => panic!(),
         }
     };
 }
@@ -57,6 +57,8 @@ pub fn is_mate<'a>(
         }
     }
 
+    dbg!("[Step 1]");
+
     // List all boards and moves (we'll need them anyways)
     let own_boards: Vec<&Board> = partial_game.own_boards(game).collect();
     let mut moves: Vec<_> = Vec::new();
@@ -78,13 +80,17 @@ pub fn is_mate<'a>(
             for mv in own_moves {
                 if mv.from.1.non_physical() != mv.to.1.non_physical()
                     && (mv.to.1).1 < partial_game.info.present
+                    && unwrap_mate!(partial_game.info.get_timeline((mv.to.1).0)).last_board
+                        != (mv.to.1).1
                 {
                     match Moveset::new(vec![mv], &partial_game.info) {
                         Ok(ms) => {
-                            let new_partial_game =
-                                unwrap_mate!(ms.generate_partial_game(game, partial_game));
-                            if !unwrap_mate!(is_illegal(game, &new_partial_game)) {
-                                return Mate::None(ms);
+                            if let Some(new_partial_game) =
+                                ms.generate_partial_game(game, partial_game)
+                            {
+                                if !unwrap_mate!(is_illegal(game, &new_partial_game)) {
+                                    return Mate::None(ms);
+                                }
                             }
                         }
                         Err(_) => {}
@@ -100,6 +106,8 @@ pub fn is_mate<'a>(
             }
         }
     }
+
+    dbg!("[Step 2]");
 
     let moves = if n_timelines > 2 {
         // Build the three danger maps
@@ -176,25 +184,56 @@ pub fn is_mate<'a>(
             .collect()
     };
 
-    let iter = Timed::with_start(GenMovesetIter::from_cached_iters(moves, game, partial_game), Some(start), max_duration);
+    let iter = Timed::with_start(
+        GenMovesetIter::from_cached_iters(moves, game, partial_game),
+        Some(start),
+        max_duration,
+    );
+
+    dbg!("[Step 3]");
 
     // Big boy to look for legal moves
-    match iter.flatten().map(|ms| {
-        let res = match ms {
-            Ok(ms) => match ms.generate_partial_game(game, partial_game) {
-                Some(new_partial_game) => Some((ms, new_partial_game)),
-                None => None,
+    match iter
+        .flatten()
+        .map(|ms| {
+            let res = match ms {
+                Ok(ms) => match ms.generate_partial_game(game, partial_game) {
+                    Some(new_partial_game) => Some((ms, new_partial_game)),
+                    None => None,
+                },
+                Err(_) => None,
+            };
+            res
+        })
+        .filter_timed(
+            |ms| match ms {
+                Some((_ms, new_partial_game)) => {
+                    for &(pos, _physical) in attackers.iter() {
+                        match new_partial_game.get_with_game(game, pos) {
+                            Tile::Piece(p) if p.white != partial_game.info.active_player => {
+                                for mv in unwrap_mate!(PiecePosition::new(p, pos)
+                                    .generate_moves_flag(
+                                        game,
+                                        new_partial_game,
+                                        GenMovesFlag::Check
+                                    ))
+                                {
+                                    if mv.to.0.is_some() && mv.to.0.unwrap().is_royal() {
+                                        return false;
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    !is_illegal(game, &new_partial_game).unwrap_or(true)
+                }
+                None => false,
             },
-            Err(_) => None,
-        };
-        res
-    }).filter_timed(|ms| {
-            match ms {
-                Some((_ms, new_partial_game)) => !is_illegal(game, &new_partial_game).unwrap_or(true),
-                None => false
-            }
-        }, max_duration - start.elapsed()
-    ).next() {
+            max_duration - start.elapsed(),
+        )
+        .next()
+    {
         Some(Some((ms, _pos))) => Mate::None(ms),
         Some(None) => Mate::Error, // Unreachable
         None => {
