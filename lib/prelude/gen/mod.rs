@@ -32,7 +32,7 @@ pub mod cache;
 pub use cache::CacheMoves;
 
 pub mod moveset;
-pub use moveset::{generate_movesets_prefilter, GenMovesetIter, GenMovesetPreFilter, FilterLegalMove};
+pub use moveset::{generate_movesets_prefilter, GenMovesetIter, GenMovesetPreFilter};
 
 /**
     An enum containing the different flags used by `GenMoves::generate_moves_flag.`

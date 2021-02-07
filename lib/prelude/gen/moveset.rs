@@ -49,13 +49,7 @@ where
             done: false,
         }
     }
-}
 
-// From a set of CacheMoves
-impl<'a, I> GenMovesetIter<'a, I>
-where
-    I: Iterator<Item = Move>,
-{
     /** Creates a new GenMovesetIter from a set of cached move iterators **/
     pub fn from_cached_iters(
         iters: Vec<CacheMoves<I>>,
@@ -79,52 +73,7 @@ pub type GenMovesetPreFilter<'a> = GenMovesetIter<
         BoardIter<'a>>,
 >;
 
-/**
-    Iterator that filters moves from a parent iterator using a given filter function.
-**/
-#[derive(Clone)]
-pub struct FilterLegalMove<'a, I>
-where
-    I: Iterator<Item = Move>,
-{
-    iter: I,
-    game: &'a Game,
-    partial_game: &'a PartialGame<'a>,
-}
-
-impl<'a, I> FilterLegalMove<'a, I>
-where
-    I: Iterator<Item = Move>,
-{
-    pub fn new(iter: I, game: &'a Game, partial_game: &'a PartialGame<'a>) -> Self {
-        Self {
-            iter,
-            game,
-            partial_game,
-        }
-    }
-}
-
-impl<'a, I> Iterator for FilterLegalMove<'a, I>
-where
-    I: Iterator<Item = Move>,
-{
-    type Item = Move;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.iter.next() {
-                Some(mv) => {
-                    if is_legal_move_optional(mv, self.game, self.partial_game)? {
-                        return Some(mv);
-                    }
-                }
-                None => return None,
-            }
-        }
-    }
-}
-
+// TODO: turn this into a proper, legal moveset generator (deprecating that of utils.rs)
 /** Creates a new GenMovesetIter with the moves pre-filtered. **/
 pub fn generate_movesets_prefilter<'a>(
     boards: Vec<&'a Board>,
