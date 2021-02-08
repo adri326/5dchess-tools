@@ -57,8 +57,6 @@ pub fn is_mate<'a>(
         }
     }
 
-    dbg!("[Step 1]");
-
     // List all boards and moves (we'll need them anyways)
     let own_boards: Vec<&Board> = partial_game.own_boards(game).collect();
     let mut moves: Vec<_> = Vec::new();
@@ -106,8 +104,6 @@ pub fn is_mate<'a>(
             }
         }
     }
-
-    dbg!("[Step 2]");
 
     let moves = if n_timelines > 2 {
         // Build the three danger maps
@@ -189,8 +185,6 @@ pub fn is_mate<'a>(
         Some(start),
         max_duration,
     );
-
-    dbg!("[Step 3]");
 
     // Big boy to look for legal moves
     match iter

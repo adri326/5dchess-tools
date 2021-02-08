@@ -1,21 +1,41 @@
 use chess5dlib::parse::test::read_and_parse_opt;
 use chess5dlib::*;
+use chess5dlib::utils::list_legal_movesets;
 use rand::{Rng, prelude::SliceRandom};
 use std::fs::read_dir;
 use std::time::{Duration, Instant};
 use std::path::Path;
 
+// Some of the games in the database can be quite wild, so this is to limit the number of total timelines that there are.
+// The best case GenLegalMovesetIter's optimizations would be with between 3 and 5 playable boards and complex, inter-timeline checking scenarios
 const MAX_TIMELINES: usize = 8;
+
+// bit 0 (2⁰=1): is_mate
+// bit 1 (2¹=2): GenLegalMovesetIter
+// bit 2 (2²=4): list_legal_movesets
+// This means that 7 runs all of the methods and compares their results and 2 only runs GenLegalMovesetIter
+const METHOD: u8 = 7;
+
+// The higher, the more games will be analyzed. Games are randomly sampled from the database without putting them back in the pool, so it will take a lot of games to get a statistically representative number.
+const N_GAMES: usize = 100;
+
+// Whether or not the program should not report data for each game analyzed
+const SILENT: bool = true;
+
+// The maximum number of seconds that each method may take. The higher, the slower (obviously), but the more valid results may come in.
+// A value between 3 and 10 seconds should include more than 90% of the games (complexity grows exponentially anyways)
+const MAX_SECONDS: usize = 10;
 
 fn main() {
     checkmates();
     nonmates();
 }
 
-fn nonmates() {
-    let mut ok = 0;
-    let n_games = 100;
+// Note: sigma measures the sum of the time taken to prove mate/nonmate, but only for the valid samples
+// eta measures the sum of the time taken to prove mate/nonmate, divided by the number of timelines that that game has and only for the valid samples
+// ok measures the number of valid samples
 
+fn nonmates() {
     let dir = read_dir(Path::new("./converted-db/standard/none"));
     assert!(dir.is_ok(), "Can't open `./converted-db/standard/none`");
     let mut dir = dir.unwrap().filter_map(|entry| entry.ok()).collect::<Vec<_>>();
@@ -40,48 +60,131 @@ fn nonmates() {
             }
             None
         })
-        .take(n_games * 2)
+        .take(N_GAMES * 2)
         .collect();
 
-    println!("Testing nonmates, {} random games...", n_games);
+    println!("Testing nonmates, {} random games...", N_GAMES);
+    let mut ok = 0;
     let mut sigma = Duration::new(0, 0);
     let mut eta = Duration::new(0, 0);
 
-    for _ in 0..n_games {
+    let mut ok2 = 0;
+    let mut sigma2 = Duration::new(0, 0);
+    let mut eta2 = Duration::new(0, 0);
+
+    let mut ok3 = 0;
+    let mut sigma3 = Duration::new(0, 0);
+    let mut eta3 = Duration::new(0, 0);
+
+    for _ in 0..N_GAMES {
         let game = &games[rng.gen_range(0..games.len())];
         let partial_game = no_partial_game(&game.0);
         let start = Instant::now();
-        println!("Analyzing game: {} timelines, {} playable boards ...", game.0.info.len_timelines(), partial_game.own_boards(&game.0).count());
-        match is_mate(&game.0, &partial_game, Some(Duration::new(10, 0))) {
-            Mate::None(_ms) => {
-                ok += 1;
-                println!("... Game {}, OK! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
-                sigma += start.elapsed();
-                eta += start.elapsed() / game.0.info.len_timelines() as u32;
-            },
-            Mate::Error => {
-                println!("... Game {}, error while looking for mate!", game.1);
-            },
-            Mate::TimeoutCheckmate | Mate::TimeoutStalemate => {
-                println!("... Game {}, timed out while looking for mate!", game.1);
-            },
-            Mate::Checkmate => {
-                println!("... Game {}, found checkmate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+        if !SILENT {
+            println!("Analyzing game: {} timelines, {} playable boards ...", game.0.info.len_timelines(), partial_game.own_boards(&game.0).count());
+        }
+        if METHOD & 1 > 0 {
+            match is_mate(&game.0, &partial_game, Some(Duration::new(10, 0))) {
+                Mate::None(_ms) => {
+                    ok += 1;
+                    if !SILENT {
+                        println!("... Game {}, OK! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                    sigma += start.elapsed();
+                    eta += start.elapsed() / game.0.info.len_timelines() as u32;
+                },
+                Mate::Error => {
+                    if !SILENT {
+                        println!("... Game {}, error while looking for mate!", game.1);
+                    }
+                },
+                Mate::TimeoutCheckmate | Mate::TimeoutStalemate => {
+                    if !SILENT {
+                        println!("... Game {}, timed out while looking for mate!", game.1);
+                    }
+                },
+                Mate::Checkmate => {
+                    if !SILENT {
+                        println!("... Game {}, found checkmate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                }
+                Mate::Stalemate => {
+                    if !SILENT {
+                        println!("... Game {}, found stalemate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                }
             }
-            Mate::Stalemate => {
-                println!("... Game {}, found stalemate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+        }
+        if METHOD & 2 > 0 {
+            let mut iter = GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(10, 0)));
+            match iter.next() {
+                Some((_ms, _pos)) => {
+                    ok2 += 1;
+                    if !SILENT {
+                        println!("... Game {}, OK! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                    sigma2 += start.elapsed();
+                    eta2 += start.elapsed() / game.0.info.len_timelines() as u32;
+                }
+                None => {
+                    if iter.timed_out() {
+                        if !SILENT {
+                            println!("... Game {}, timed out while looking for mate!", game.1);
+                        }
+                    } else {
+                        if !SILENT {
+                            println!("... Game {}, found mate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                        }
+                    }
+                }
+            }
+        }
+        if METHOD & 4 > 0 {
+            let mut iter = list_legal_movesets(&game.0, &partial_game, Some(Duration::new(10, 0)));
+            match iter.next() {
+                Some((_ms, _pos)) => {
+                    ok3 += 1;
+                    if !SILENT {
+                        println!("... Game {}, OK! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                    sigma3 += start.elapsed();
+                    eta3 += start.elapsed() / game.0.info.len_timelines() as u32;
+                }
+                None => {
+                    if iter.timed_out() {
+                        if !SILENT {
+                            println!("... Game {}, timed out while looking for mate!", game.1);
+                        }
+                    } else {
+                        if !SILENT {
+                            println!("... Game {}, found mate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                        }
+                    }
+                }
             }
         }
     }
-    println!("Ok: {} / {}", ok, n_games);
-    println!("Average time taken: {} μs/position", (sigma / ok).as_nanos() as f64 / 1000.0);
-    println!("Average time taken: {} μs/position/timeline", (eta / ok).as_nanos() as f64 / 1000.0);
+    if METHOD & 1 > 0 {
+        println!("is_mate() on non-mates:");
+        println!("Ok: {} / {}", ok, N_GAMES);
+        println!("Average time taken: {} μs/position", (sigma / ok).as_nanos() as f64 / 1000.0);
+        println!("Average time taken: {} μs/position/timeline", (eta / ok).as_nanos() as f64 / 1000.0);
+    }
+    if METHOD & 2 > 0 {
+        println!("GenLegalMovesetIter on non-mates:");
+        println!("Ok: {} / {}", ok2, N_GAMES);
+        println!("Average time taken: {} μs/position", (sigma2 / ok2).as_nanos() as f64 / 1000.0);
+        println!("Average time taken: {} μs/position/timeline", (eta2 / ok2).as_nanos() as f64 / 1000.0);
+    }
+    if METHOD & 4 > 0 {
+        println!("list_legal_movesets() on non-mates:");
+        println!("Ok: {} / {}", ok3, N_GAMES);
+        println!("Average time taken: {} μs/position", (sigma3 / ok3).as_nanos() as f64 / 1000.0);
+        println!("Average time taken: {} μs/position/timeline", (eta3 / ok3).as_nanos() as f64 / 1000.0);
+    }
 }
 
 fn checkmates() {
-    let mut ok = 0;
-    let n_games = 100;
-
     let dir = read_dir(Path::new("./converted-db/standard/black"));
     assert!(dir.is_ok(), "Can't open `./converted-db/standard/black`");
     let mut dir = dir.unwrap().filter_map(|entry| entry.ok()).collect::<Vec<_>>();
@@ -106,40 +209,131 @@ fn checkmates() {
             }
             None
         })
-        .take(n_games * 2)
+        .take(N_GAMES * 2)
         .collect();
 
-    println!("Testing checkmates, {} random games...", n_games);
+    println!("Testing checkmates, {} random games...", N_GAMES);
+    let mut ok = 0;
     let mut sigma = Duration::new(0, 0);
     let mut eta = Duration::new(0, 0);
 
-    for _ in 0..n_games {
+    let mut ok2 = 0;
+    let mut sigma2 = Duration::new(0, 0);
+    let mut eta2 = Duration::new(0, 0);
+
+    let mut ok3 = 0;
+    let mut sigma3 = Duration::new(0, 0);
+    let mut eta3 = Duration::new(0, 0);
+
+    for _ in 0..N_GAMES {
         let game = &games[rng.gen_range(0..games.len())];
         let partial_game = no_partial_game(&game.0);
         let start = Instant::now();
-        println!("Analyzing game: {} timelines, {} playable boards ...", game.0.info.len_timelines(), partial_game.own_boards(&game.0).count());
-        match is_mate(&game.0, &partial_game, Some(Duration::new(10, 0))) {
-            Mate::None(ms) => {
-                println!("... Game {}, found moveset: {}! ({} μs)", game.1, ms, start.elapsed().as_nanos() as f64 / 1000.0);
-            },
-            Mate::Error => {
-                println!("... Game {}, error while looking for mate!", game.1);
-            },
-            Mate::TimeoutCheckmate | Mate::TimeoutStalemate => {
-                println!("... Game {}, timed out while looking for mate!", game.1);
-            },
-            Mate::Checkmate => {
-                println!("... Game {}, found checkmate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
-                ok += 1;
-                sigma += start.elapsed();
-                eta += start.elapsed() / game.0.info.len_timelines() as u32;
+
+        if !SILENT {
+            println!("Analyzing game: {} timelines, {} playable boards ...", game.0.info.len_timelines(), partial_game.own_boards(&game.0).count());
+        }
+
+        if METHOD & 1 > 0 {
+            match is_mate(&game.0, &partial_game, Some(Duration::new(10, 0))) {
+                Mate::None(ms) => {
+                    if !SILENT {
+                        println!("... Game {}, found moveset: {}! ({} μs)", game.1, ms, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                },
+                Mate::Error => {
+                    if !SILENT {
+                        println!("... Game {}, error while looking for mate!", game.1);
+                    }
+                },
+                Mate::TimeoutCheckmate | Mate::TimeoutStalemate => {
+                    if !SILENT {
+                        println!("... Game {}, timed out while looking for mate!", game.1);
+                    }
+                },
+                Mate::Checkmate => {
+                    if !SILENT {
+                        println!("... Game {}, found checkmate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                    ok += 1;
+                    sigma += start.elapsed();
+                    eta += start.elapsed() / game.0.info.len_timelines() as u32;
+                }
+                Mate::Stalemate => {
+                    if !SILENT {
+                        println!("... Game {}, found stalemate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                }
             }
-            Mate::Stalemate => {
-                println!("... Game {}, found stalemate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+        }
+        if METHOD & 2 > 0 {
+            let mut iter = GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(10, 0)));
+            match iter.next() {
+                Some((_ms, _pos)) => {
+                    if !SILENT {
+                        println!("... Game {}, OK! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                }
+                None => {
+                    if iter.timed_out() {
+                        if !SILENT {
+                            println!("... Game {}, timed out while looking for mate!", game.1);
+                        }
+                    } else {
+                        if !SILENT {
+                            println!("... Game {}, found mate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                        }
+                        ok2 += 1;
+                        sigma2 += start.elapsed();
+                        eta2 += start.elapsed() / game.0.info.len_timelines() as u32;
+                    }
+                }
+            }
+        }
+        if METHOD & 4 > 0 {
+            let mut iter = list_legal_movesets(&game.0, &partial_game, Some(Duration::new(10, 0)));
+            match iter.next() {
+                Some((_ms, _pos)) => {
+                    if !SILENT {
+                        println!("... Game {}, OK! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                    }
+                }
+                None => {
+                    if iter.timed_out() {
+                        if !SILENT {
+                            println!("... Game {}, timed out while looking for mate!", game.1);
+                        }
+                    } else {
+                        if !SILENT {
+                            println!("... Game {}, found mate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
+                        }
+                        ok3 += 1;
+                        sigma3 += start.elapsed();
+                        eta3 += start.elapsed() / game.0.info.len_timelines() as u32;
+                    }
+                }
             }
         }
     }
-    println!("Ok: {} / {}", ok, n_games);
-    println!("Average time taken: {} μs/position", (sigma / ok).as_nanos() as f64 / 1000.0);
-    println!("Average time taken: {} μs/position/timeline", (eta / ok).as_nanos() as f64 / 1000.0);
+
+    if METHOD & 1 > 0 {
+        println!("is_mate() on checkmates:");
+        println!("Ok: {} / {}", ok, N_GAMES);
+        println!("Average time taken: {} μs/position", (sigma / ok).as_nanos() as f64 / 1000.0);
+        println!("Average time taken: {} μs/position/timeline", (eta / ok).as_nanos() as f64 / 1000.0);
+    }
+
+    if METHOD & 2 > 0 {
+        println!("GenLegalMovesetIter on checkmates:");
+        println!("Ok: {} / {}", ok2, N_GAMES);
+        println!("Average time taken: {} μs/position", (sigma2 / ok2).as_nanos() as f64 / 1000.0);
+        println!("Average time taken: {} μs/position/timeline", (eta2 / ok2).as_nanos() as f64 / 1000.0);
+    }
+
+    if METHOD & 4 > 0 {
+        println!("list_legal_movesets() on checkmates:");
+        println!("Ok: {} / {}", ok3, N_GAMES);
+        println!("Average time taken: {} μs/position", (sigma3 / ok3).as_nanos() as f64 / 1000.0);
+        println!("Average time taken: {} μs/position/timeline", (eta3 / ok3).as_nanos() as f64 / 1000.0);
+    }
 }
