@@ -42,6 +42,18 @@ pub trait TimedFilterTrait: Iterator {
     {
         SigmaFilter::new(self, condition, duration)
     }
+
+    /**
+        Returns an iterator, which stops when the sum of the time taken by the underlying iterator exceeds `duration`.
+
+        See `Sigma` for more information.
+    **/
+    fn sigma(self, duration: Duration) -> Sigma<Self>
+    where
+        Self: Sized,
+    {
+        Sigma::new(self, duration)
+    }
 }
 
 impl<T: ?Sized> TimedFilterTrait for T where T: Iterator {}
@@ -57,6 +69,7 @@ impl<T: ?Sized> TimedFilterTrait for T where T: Iterator {}
     the elapsed time since the first call to `next`.
     If you wish to have the former, use `SigmaFilter` instead.
 **/
+#[derive(Clone)]
 pub struct TimedFilter<J, F>
 where
     J: Iterator,
@@ -178,6 +191,7 @@ where
     the elapsed time since the first call to `next`.
     If you wish to have the former, use `Sigma` instead.
 **/
+#[derive(Clone)]
 pub struct Timed<J>
 where
     J: Iterator,
@@ -283,6 +297,7 @@ where
 
     If you wish to have the former, use `TimedFilter` instead.
 **/
+#[derive(Clone)]
 pub struct SigmaFilter<J, F>
 where
     J: Iterator,
@@ -357,6 +372,92 @@ where
                 None => break None,
             }
         };
+
+        self.sigma += start.elapsed();
+        res
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.sigma > self.duration {
+            (0, Some(0))
+        } else {
+            (0, self.iterator.size_hint().1)
+        }
+    }
+}
+
+/**
+    An iterator, which limits the time that the iterator may take.
+    It measures the sum of the elapsed time taken by the filter function and stops once it exceeds the given, maximum duration.
+
+    You should create instances of it by calling the `sigma` function on any iterator, given that `TimedFilterTrait` is
+    loaded in your context (it is by default included in `prelude::*`).
+
+    Note that this iterator does *not* measure the elapsed time since the first call to `next`, but instead the summation of the time taken by the filter function.
+
+    If you wish to have the former, use `Timed` instead.
+**/
+#[derive(Clone)]
+pub struct Sigma<J>
+where
+    J: Iterator,
+{
+    pub iterator: J,
+    pub sigma: Duration,
+    pub duration: Duration,
+}
+
+impl<J> Sigma<J>
+where
+    J: Iterator,
+{
+    pub fn new(iterator: J, duration: Duration) -> Self {
+        Self {
+            iterator,
+            sigma: Duration::new(0, 0),
+            duration,
+        }
+    }
+
+    pub fn with_sigma(iterator: J, sigma: Duration, duration: Duration) -> Self {
+        Self {
+            iterator,
+            sigma,
+            duration,
+        }
+    }
+
+    pub fn elapsed(&self) -> Duration {
+        self.sigma
+    }
+
+    pub fn remaining(&self) -> Duration {
+        if self.sigma > self.duration {
+            Duration::new(0, 0)
+        } else {
+            self.duration - self.sigma
+        }
+    }
+
+    pub fn timed_out(&self) -> bool {
+        self.sigma > self.duration
+    }
+}
+
+impl<J> Iterator for Sigma<J>
+where
+    J: Iterator,
+{
+    type Item = J::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let start = Instant::now();
+
+        if self.sigma > self.duration {
+            return None
+        }
+
+        let res = self.iterator.next();
 
         self.sigma += start.elapsed();
         res

@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
     This structure is recursive to allow for recursive algorithms to perform better (by reducing the number of clones needed).
     It can be used in a non-recursive way by ommitting the `parent` field.
 **/
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PartialGame<'a> {
     pub boards: HashMap<(Layer, Time), Board>,
     pub info: Info,

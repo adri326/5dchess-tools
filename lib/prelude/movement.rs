@@ -148,7 +148,7 @@ impl Move {
                             new_partial_game
                                 .info
                                 .get_timeline_mut((self.to.1).0)?
-                                .last_board += 1;
+                                .last_board = new_target_board.t + 1;
                             new_target_board.t += 1;
                         }
                     }
@@ -187,7 +187,7 @@ impl Move {
                         new_partial_game
                             .info
                             .get_timeline_mut((self.from.1).0)?
-                            .last_board += 1;
+                            .last_board = new_source_coords.1;
                     }
 
                     // Insert target board
@@ -199,7 +199,7 @@ impl Move {
                             .boards
                             .insert(new_target_coords, new_target_board);
                     }
-                } else {
+                } else if kind != PartialGameGenKind::Target {
                     // If the move isn't a jump...
                     // Clone the board and update its metadata
                     let mut new_board: Board = partial_game
@@ -248,113 +248,117 @@ impl Move {
                     new_partial_game
                         .info
                         .get_timeline_mut((self.from.1).0)?
-                        .last_board += 1;
+                        .last_board = new_coords.1;
                 }
             }
             MoveKind::EnPassant => {
-                // Clone the board and update its metadata
-                let mut new_board: Board = partial_game
-                    .get_board_with_game(game, self.from.1.non_physical())?
-                    .clone();
-                let (ex, ey) = new_board.en_passant?;
-                new_board.en_passant = None;
-                new_board.t += 1;
+                if kind != PartialGameGenKind::Target {
+                    // Clone the board and update its metadata
+                    let mut new_board: Board = partial_game
+                        .get_board_with_game(game, self.from.1.non_physical())?
+                        .clone();
+                    let (ex, ey) = new_board.en_passant?;
+                    new_board.en_passant = None;
+                    new_board.t += 1;
 
-                // Generate the indices
-                let from_index = (self.from.1).2 as usize
-                    + (self.from.1).3 as usize * new_board.width() as usize;
-                let to_index =
-                    (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
-                let capture_index = ex as usize + ey as usize * new_board.width() as usize;
+                    // Generate the indices
+                    let from_index = (self.from.1).2 as usize
+                        + (self.from.1).3 as usize * new_board.width() as usize;
+                    let to_index =
+                        (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
+                    let capture_index = ex as usize + ey as usize * new_board.width() as usize;
 
-                // Replace pieces
-                new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
-                new_board.pieces[from_index] = Tile::Blank;
-                new_board.pieces[capture_index] = Tile::Blank;
+                    // Replace pieces
+                    new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
+                    new_board.pieces[from_index] = Tile::Blank;
+                    new_board.pieces[capture_index] = Tile::Blank;
 
-                // Insert board and update timeline info
-                let new_coords = (new_board.l, new_board.t);
+                    // Insert board and update timeline info
+                    let new_coords = (new_board.l, new_board.t);
 
-                new_partial_game.boards.insert(new_coords, new_board);
-                new_partial_game
-                    .info
-                    .get_timeline_mut((self.from.1).0)?
-                    .last_board += 1;
+                    new_partial_game.boards.insert(new_coords, new_board);
+                    new_partial_game
+                        .info
+                        .get_timeline_mut((self.from.1).0)?
+                        .last_board = new_coords.1;
+                }
             }
             MoveKind::Castle => {
-                // Clone the board and update its metadata
-                let white = (self.from.1).1 & 1 == 0;
-                let mut new_board: Board = partial_game
-                    .get_board_with_game(game, self.from.1.non_physical())?
-                    .clone();
-                new_board.en_passant = None;
-                new_board.t += 1;
+                if kind != PartialGameGenKind::Target {
+                    // Clone the board and update its metadata
+                    let white = (self.from.1).1 & 1 == 0;
+                    let mut new_board: Board = partial_game
+                        .get_board_with_game(game, self.from.1.non_physical())?
+                        .clone();
+                    new_board.en_passant = None;
+                    new_board.t += 1;
 
-                // Find out the castling direction and rook position
-                let direction = (self.from.1).2 > (self.to.1).2;
-                let rook_position = if direction {
-                    let mut x = (self.from.1).2;
-                    let y = (self.from.1).3;
-                    loop {
-                        x -= 1;
-                        if let Tile::Piece(p) = new_board.get((x, y)) {
-                            if p.white == white && p.can_castle_to() && !p.moved {
-                                break Some((x, y));
-                            } else {
+                    // Find out the castling direction and rook position
+                    let direction = (self.from.1).2 > (self.to.1).2;
+                    let rook_position = if direction {
+                        let mut x = (self.from.1).2;
+                        let y = (self.from.1).3;
+                        loop {
+                            x -= 1;
+                            if let Tile::Piece(p) = new_board.get((x, y)) {
+                                if p.white == white && p.can_castle_to() && !p.moved {
+                                    break Some((x, y));
+                                } else {
+                                    break None;
+                                }
+                            }
+                            if x <= 0 {
                                 break None;
                             }
                         }
-                        if x <= 0 {
-                            break None;
-                        }
-                    }
-                } else {
-                    let mut x = (self.from.1).2;
-                    let y = (self.from.1).3;
-                    loop {
-                        x += 1;
-                        if let Tile::Piece(p) = new_board.get((x, y)) {
-                            if p.white == white && p.can_castle_to() && !p.moved {
-                                break Some((x, y));
-                            } else {
+                    } else {
+                        let mut x = (self.from.1).2;
+                        let y = (self.from.1).3;
+                        loop {
+                            x += 1;
+                            if let Tile::Piece(p) = new_board.get((x, y)) {
+                                if p.white == white && p.can_castle_to() && !p.moved {
+                                    break Some((x, y));
+                                } else {
+                                    break None;
+                                }
+                            }
+                            if x >= new_board.width() - 1 {
                                 break None;
                             }
                         }
-                        if x >= new_board.width() - 1 {
-                            break None;
-                        }
+                    };
+                    let rook_position = rook_position?;
+
+                    // Calculate the indices
+                    let rook_index = rook_position.0 as usize
+                        + rook_position.1 as usize * new_board.width() as usize;
+                    let from_index = (self.from.1).2 as usize
+                        + (self.from.1).3 as usize * new_board.width() as usize;
+                    let to_index =
+                        (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
+
+                    // Update pieces
+                    new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
+                    new_board.pieces[from_index] = Tile::Blank;
+                    if direction {
+                        new_board.pieces[from_index - 1] =
+                            set_moved(new_board.pieces[rook_index], true);
+                    } else {
+                        new_board.pieces[from_index + 1] =
+                            set_moved(new_board.pieces[rook_index], true);
                     }
-                };
-                let rook_position = rook_position?;
+                    new_board.pieces[rook_index] = Tile::Blank;
 
-                // Calculate the indices
-                let rook_index = rook_position.0 as usize
-                    + rook_position.1 as usize * new_board.width() as usize;
-                let from_index = (self.from.1).2 as usize
-                    + (self.from.1).3 as usize * new_board.width() as usize;
-                let to_index =
-                    (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
+                    // Insert board and update timeline info
+                    let new_coords = (new_board.l, new_board.t);
 
-                // Update pieces
-                new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
-                new_board.pieces[from_index] = Tile::Blank;
-                if direction {
-                    new_board.pieces[from_index - 1] =
-                        set_moved(new_board.pieces[rook_index], true);
-                } else {
-                    new_board.pieces[from_index + 1] =
-                        set_moved(new_board.pieces[rook_index], true);
+                    new_partial_game.boards.insert(new_coords, new_board);
+                    new_partial_game
+                        .info
+                        .get_timeline_mut((self.from.1).0)?
+                        .last_board = new_coords.1;
                 }
-                new_board.pieces[rook_index] = Tile::Blank;
-
-                // Insert board and update timeline info
-                let new_coords = (new_board.l, new_board.t);
-
-                new_partial_game.boards.insert(new_coords, new_board);
-                new_partial_game
-                    .info
-                    .get_timeline_mut((self.from.1).0)?
-                    .last_board += 1;
             }
         }
         Some(())

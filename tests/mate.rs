@@ -8,6 +8,7 @@ use std::fmt::Debug;
 use std::fs::read_dir;
 use std::hash::Hash;
 use std::path::Path;
+use std::time::Duration;
 
 // I'm very sorry.
 // - Shad
@@ -30,8 +31,11 @@ fn compare_methods<F1, F2, M>(
         .filter_map(|entry| {
             if let Some(ext) = entry.path().as_path().extension() {
                 if ext == "json" {
-                    return read_and_parse_opt(&entry.path().to_str()?)
-                        .map(|g| (g, entry.path().to_str().unwrap().to_string()));
+                    if let Some(game) = read_and_parse_opt(&entry.path().to_str()?) {
+                        if game.info.len_timelines() <= max_playable_boards * 2 + 4 {
+                            return Some((game, entry.path().to_str().unwrap().to_string()));
+                        }
+                    }
                 }
             }
             None
@@ -146,6 +150,96 @@ fn test_legal_move() {
         },
     );
 }
+
+// #[test]
+// fn test_gen_legal_moveset() {
+//     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>,
+//                          game: &Game,
+//                          partial_game: &PartialGame| match ms {
+//         Ok(ms) => {
+//             let new_partial_game = ms.generate_partial_game(game, partial_game)?;
+//             if is_illegal(game, &new_partial_game)? {
+//                 None
+//             } else {
+//                 Some(ms)
+//             }
+//         }
+//         Err(_) => None,
+//     };
+
+//     compare_methods(
+//         250,
+//         2,
+//         |game, partial_game| {
+//             GenMovesetIter::new(partial_game.own_boards(game).collect(), game, partial_game)
+//                 .flatten()
+//                 .filter_map(|ms| filter_lambda(ms, game, partial_game))
+//                 .collect()
+//         },
+//         |game, partial_game| {
+//             GenLegalMovesetIter::new(game, partial_game, None).map(|(ms, _pos)| ms).collect()
+//         },
+//     );
+// }
+
+#[test]
+fn test_gen_legal_moveset_partial_game() {
+    let game = read_and_parse("tests/games/tricky-nonmate.json");
+    let partial_game = no_partial_game(&game);
+
+    println!("Testing on tricky-nonmate game...");
+
+    let mut yielded = false;
+    let start = std::time::Instant::now();
+    for (ms, pos) in GenLegalMovesetIter::new(&game, &partial_game, Some(Duration::new(2, 0))) {
+        yielded = true;
+        let new_pos = ms.generate_partial_game(&game, &partial_game).unwrap();
+        assert_eq!(pos, new_pos);
+        if is_illegal(&game, &new_pos) != Some(false) {
+            panic!("GenLegalMovesetIter yielded an illegal position on tricky-nonmate: {}", ms);
+        }
+    }
+    assert!(yielded, "GenLegalMovesetIter didn't yield any position for tricky-nonmate!");
+
+    println!("Testing on random games...");
+
+    let dir = read_dir(Path::new("./converted-db/standard/none"));
+    assert!(dir.is_ok(), "Can't open `./converted-db/standard/none`");
+    let dir = dir.unwrap().filter_map(|entry| entry.ok());
+
+    let games: Vec<(Game, String)> = dir
+        .filter_map(|entry| {
+            if let Some(ext) = entry.path().as_path().extension() {
+                if ext == "json" {
+                    if let Some(game) = read_and_parse_opt(&entry.path().to_str()?) {
+                        if game.info.len_timelines() <= 8 {
+                            return Some((game, entry.path().to_str().unwrap().to_string()));
+                        }
+                    }
+                }
+            }
+            None
+        })
+        .collect();
+
+    assert!(games.len() > 10);
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..20 {
+        let game = &games[rng.gen_range(0..games.len())];
+        let partial_game: PartialGame = PartialGame::from(&game.0);
+
+        for (ms, pos) in GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(1, 0))) {
+            let new_pos = ms.generate_partial_game(&game.0, &partial_game).expect(&format!("Couldn't create a new partial game from the moveset {:?} ({})", ms, ms));
+            assert_eq!(pos, new_pos, "{}", ms);
+            if is_illegal(&game.0, &new_pos) != Some(false) {
+                panic!("GenLegalMovesetIter yielded an illegal position on {}: {}", game.1, ms);
+            }
+        }
+    }
+
+}
+
 
 #[test]
 fn defended_pawn_checkmate() {
@@ -516,7 +610,7 @@ fn test_issue_1() {
     let partial_game = no_partial_game(&game);
 
     match is_mate(&game, &partial_game, Some(std::time::Duration::new(15, 0))) {
-        Mate::None(ms) => {
+        Mate::None(_ms) => {
             // Ok!
         },
         x => panic!("Expected position tests/games/issue-1.json to be non-mate; got {:?}", x),
