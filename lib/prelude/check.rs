@@ -1,5 +1,4 @@
 use super::*;
-use std::collections::HashMap;
 
 /**
     Generates idle boards. Idle boards are defined as such:
@@ -10,7 +9,7 @@ pub fn generate_idle_boards<'a>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
 ) -> Option<PartialGame<'a>> {
-    let mut new_partial_game = PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
+    let mut new_partial_game = PartialGame::empty(partial_game.info.clone(), None);
 
     for board in partial_game.own_boards(game) {
         if board.t() == partial_game.info.present {

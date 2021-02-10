@@ -1,6 +1,5 @@
 use super::*;
 use colored::*;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -503,8 +502,7 @@ impl Moveset {
         game: &'a Game,
         partial_game: &'a PartialGame<'a>,
     ) -> Option<PartialGame<'a>> {
-        let mut new_partial_game =
-            PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
+        let mut new_partial_game = PartialGame::empty(partial_game.info.clone(), None);
 
         for mv in self.moves.iter() {
             mv.generate_partial_game(

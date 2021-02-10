@@ -1,6 +1,5 @@
 use super::*;
 use itertools::Itertools;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::time::{Duration, Instant};
 
@@ -303,8 +302,7 @@ impl<'a> GenLegalMovesetIter<'a> {
         self.current_partial_games
             .last()
             .cloned()
-            .unwrap_or(PartialGame::new(
-                HashMap::new(),
+            .unwrap_or(PartialGame::empty(
                 self.partial_game.info.clone(),
                 Some(self.partial_game),
             ))

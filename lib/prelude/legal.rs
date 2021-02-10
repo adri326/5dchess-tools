@@ -6,7 +6,7 @@ pub fn is_legal_move<'a>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
 ) -> Option<bool> {
-    let mut new_partial_game = PartialGame::new(HashMap::new(), partial_game.info.clone(), None);
+    let mut new_partial_game = PartialGame::empty(partial_game.info.clone(), None);
 
     if mv.from.1.non_physical() == mv.to.1.non_physical() {
         mv.generate_partial_game(
@@ -31,7 +31,7 @@ pub fn is_legal_move<'a>(
         }
 
         new_partial_game.parent = Some(partial_game);
-        new_partial_game.boards = HashMap::with_capacity(1);
+        new_partial_game.set_boards(PartialGameStorage::Deep(HashMap::with_capacity(1)));
         mv.generate_partial_game(
             game,
             partial_game,
