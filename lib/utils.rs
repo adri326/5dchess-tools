@@ -73,6 +73,7 @@ impl<'a> Iterator for LegalMovesetsIter<'a> {
             match self.duration {
                 Some(duration) => {
                     if self.sigma + start.elapsed() > duration {
+                        self.sigma += start.elapsed();
                         break None;
                     }
                 }
@@ -89,7 +90,10 @@ impl<'a> Iterator for LegalMovesetsIter<'a> {
                     None => {}
                 },
                 Some(Err(_)) => {}
-                None => break None,
+                None => {
+                    self.sigma += start.elapsed();
+                    break None;
+                }
             }
         };
 

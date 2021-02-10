@@ -30,6 +30,10 @@ chrono = "0.4"
 name = "movement"
 harness = false
 
+[[bench]]
+name = "mate"
+harness = false
+
 [[example]]
 name = "profiling"
 path = "profiling/main.rs"

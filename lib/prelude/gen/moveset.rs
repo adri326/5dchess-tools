@@ -272,22 +272,12 @@ impl<'a> GenLegalMovesetIter<'a> {
             })
             .collect::<Vec<_>>();
         let states = vec![None; boards.len()];
-        let mut current_partial_games: Vec<PartialGame<'a>> =
+        let current_partial_games: Vec<PartialGame<'a>> =
             Vec::with_capacity(if states.len() >= MIN_CACHING_DEPTH {
                 states.len() - MIN_CACHING_DEPTH
             } else {
                 0
             });
-
-        if states.len() >= MIN_CACHING_DEPTH {
-            for _ in MIN_CACHING_DEPTH..states.len() {
-                current_partial_games.push(PartialGame::new(
-                    HashMap::new(),
-                    partial_game.info.clone(),
-                    Some(partial_game),
-                ));
-            }
-        }
 
         Self {
             game,
@@ -298,7 +288,7 @@ impl<'a> GenLegalMovesetIter<'a> {
             boards,
             states,
 
-            current_partial_games: vec![],
+            current_partial_games,
 
             sigma: start.elapsed(),
             max_duration,
@@ -468,6 +458,7 @@ impl<'a> Iterator for GenLegalMovesetIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let start = Instant::now();
+
         if self.done {
             return None;
         }
@@ -477,8 +468,6 @@ impl<'a> Iterator for GenLegalMovesetIter<'a> {
                 self.sigma += start.elapsed();
                 return None;
             }
-
-            self.inc();
 
             if let Some(iter) = &mut self.non_physical_iter {
                 if let Some(perm) = iter.next() {
@@ -518,17 +507,22 @@ impl<'a> Iterator for GenLegalMovesetIter<'a> {
                             }
                         }
 
-                        if let Some(false) = is_in_check(self.game, &new_partial_game) {
-                            new_partial_game.info.recalculate_present();
-                            if new_partial_game.info.active_player
-                                != self.partial_game.info.active_player
-                            {
+                        new_partial_game.info.recalculate_present();
+                        if new_partial_game.info.active_player
+                            != self.partial_game.info.active_player
+                        {
+                            if let Some(false) = is_illegal(self.game, &new_partial_game) {
+
                                 self.sigma += start.elapsed();
                                 break (ms, new_partial_game);
                             }
                         }
                     }
+                } else {
+                    self.inc();
                 }
+            } else {
+                self.inc();
             }
         })
     }
