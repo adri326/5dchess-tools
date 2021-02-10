@@ -270,6 +270,8 @@ impl Move {
                         set_moved(Tile::Piece(self.from.0), true);
                 }
 
+                new_board.en_passant = None;
+
                 Some(new_board)
             },
             _ => None
@@ -294,69 +296,94 @@ impl Move {
         new_partial_game: &'b mut PartialGame<'a>,
         kind: PartialGameGenKind,
     ) -> Option<()> {
-        let white = (self.from.1).1 & 1 == 0;
-
         if kind != PartialGameGenKind::Target {
             // Generate source board
             let new_source_board = self.generate_source_board(game, partial_game)?;
 
             // Insert source board
-            let new_source_coords = (new_source_board.l, new_source_board.t);
-
-            new_partial_game
-                .boards
-                .insert(new_source_coords, new_source_board);
-            new_partial_game
-                .info
-                .get_timeline_mut((self.from.1).0)?
-                .last_board = new_source_coords.1;
+            self.insert_source_board(new_partial_game, new_source_board)?;
         }
 
         if self.is_jump() && kind != PartialGameGenKind::Source {
             // Generate target board
-            let mut new_target_board = self.generate_target_board(game, partial_game)?;
+            let new_target_board = self.generate_target_board(game, partial_game)?;
 
-            // Handle new timelines
-            if new_partial_game
-                .info
-                .get_timeline((self.to.1).0)?
-                .last_board
-                > (self.to.1).1
-            {
-                let new_layer = if white {
-                    new_partial_game.info.max_timeline() + 1
-                } else {
-                    new_partial_game.info.min_timeline() - 1
-                };
-
-                // Generate a new timeline info
-                let new_timeline = TimelineInfo::new(
-                    new_layer,
-                    Some(self.to.1.non_physical()),
-                    (self.to.1).1 + 1,
-                    (self.to.1).1 + 1,
-                );
-
-                // Push the new timeline info
-                if white {
-                    new_partial_game.info.timelines_white.push(new_timeline);
-                } else {
-                    new_partial_game.info.timelines_black.push(new_timeline);
-                }
-
-                new_target_board.l = new_layer;
-            }
-
-            // Insert target board
-            if kind != PartialGameGenKind::Source {
-                let new_target_coords = (new_target_board.l, new_target_board.t);
-                new_target_board.en_passant = None;
-
-                new_partial_game
-                    .boards
-                    .insert(new_target_coords, new_target_board);
-            }
+            self.insert_target_board(new_partial_game, new_target_board)?;
         }
+
+        Some(())
+    }
+
+    /**
+        Inserts the given board as the new source board of a move.
+        Returns None on failure.
+    **/
+    pub fn insert_source_board<'a, 'b>(
+        &self,
+        new_partial_game: &'b mut PartialGame<'a>,
+        board: Board,
+    ) -> Option<()> {
+        let new_source_coords = (board.l, board.t);
+
+        new_partial_game
+            .boards
+            .insert(new_source_coords, board);
+
+        new_partial_game
+            .info
+            .get_timeline_mut((self.from.1).0)?
+            .last_board = new_source_coords.1;
+
+        Some(())
+    }
+
+    /**
+        Inserts the given board as the new target board of a move, creating a new timeline if need be.
+        Returns None on failure.
+    **/
+    pub fn insert_target_board<'a, 'b>(
+        &self,
+        new_partial_game: &'b mut PartialGame<'a>,
+        mut board: Board,
+    ) -> Option<()> {
+        let white = (self.from.1).1 & 1 == 0;
+        // Handle new timelines
+        if new_partial_game
+            .info
+            .get_timeline((self.to.1).0)?
+            .last_board
+            > (self.to.1).1
+        {
+            let new_layer = if white {
+                new_partial_game.info.max_timeline() + 1
+            } else {
+                new_partial_game.info.min_timeline() - 1
+            };
+
+            // Generate a new timeline info
+            let new_timeline = TimelineInfo::new(
+                new_layer,
+                Some(self.to.1.non_physical()),
+                (self.to.1).1 + 1,
+                (self.to.1).1 + 1,
+            );
+
+            // Push the new timeline info
+            if white {
+                new_partial_game.info.timelines_white.push(new_timeline);
+            } else {
+                new_partial_game.info.timelines_black.push(new_timeline);
+            }
+
+            board.l = new_layer;
+        }
+
+        // Insert target board
+        let new_target_coords = (board.l, board.t);
+
+        new_partial_game
+            .boards
+            .insert(new_target_coords, board);
 
         Some(())
     }
