@@ -323,16 +323,15 @@ impl Move {
         new_partial_game: &'b mut PartialGame<'a>,
         board: Board,
     ) -> Option<()> {
-        let new_source_coords = (board.l, board.t);
+        let t = board.t;
 
         new_partial_game
-            .boards
-            .insert(new_source_coords, board);
+            .insert(board);
 
         new_partial_game
             .info
             .get_timeline_mut((self.from.1).0)?
-            .last_board = new_source_coords.1;
+            .last_board = t;
 
         Some(())
     }
@@ -376,14 +375,16 @@ impl Move {
             }
 
             board.l = new_layer;
+        } else {
+            new_partial_game
+                .info
+                .get_timeline_mut((self.to.1).0)?
+                .last_board = board.t;
         }
 
         // Insert target board
-        let new_target_coords = (board.l, board.t);
-
         new_partial_game
-            .boards
-            .insert(new_target_coords, board);
+            .insert(board);
 
         Some(())
     }
@@ -573,8 +574,8 @@ impl TryFrom<(Vec<Move>, &Info)> for Moveset {
         // Check the validity of the moveset (whether or not it is possible to make the moves; does not look for legality)
         // Should be O(n)
 
-        let mut timelines_moved: HashMap<Layer, bool> =
-            HashMap::with_capacity(info.len_timelines());
+        let mut timelines_moved_white: Vec<bool> = vec![false; info.timelines_white.len()];
+        let mut timelines_moved_black: Vec<bool> = vec![false; info.timelines_black.len()];
 
         for mv in moves.iter() {
             if mv.from.1.t() & 1 == info.active_player as Time
@@ -594,7 +595,10 @@ impl TryFrom<(Vec<Move>, &Info)> for Moveset {
                 return Err(MovesetValidityErr::MoveFromVoid(*mv));
             }
 
-            if *timelines_moved.get(&mv.from.1.l()).unwrap_or(&false) {
+            if
+                mv.from.1.l() < 0 && timelines_moved_black[-mv.from.1.l() as usize - 1]
+                || mv.from.1.l() >= 0 && timelines_moved_white[mv.from.1.l() as usize]
+            {
                 // Already played
                 return Err(MovesetValidityErr::AlreadyPlayed(*mv));
             }
@@ -602,12 +606,21 @@ impl TryFrom<(Vec<Move>, &Info)> for Moveset {
             if let Some(tl) = info.get_timeline(mv.to.1.l()) {
                 if mv.to.1.t() == tl.last_board {
                     // (Possibly) non-branching jump
-                    timelines_moved.insert(mv.to.1.l(), true);
+                    if mv.to.1.l() >= 0 {
+                        timelines_moved_white[mv.to.1.l() as usize] = true;
+                    } else {
+                        timelines_moved_black[-mv.to.1.l() as usize - 1] = true;
+                    }
                 } else if mv.to.1.t() > tl.last_board || mv.to.1.t() < tl.first_board {
                     // Void
                     return Err(MovesetValidityErr::MoveToVoid(*mv));
                 }
-                timelines_moved.insert(mv.from.1.l(), true);
+
+                if mv.from.1.l() >= 0 {
+                    timelines_moved_white[mv.from.1.l() as usize] = true;
+                } else {
+                    timelines_moved_black[-mv.from.1.l() as usize - 1] = true;
+                }
             } else {
                 // Void
                 return Err(MovesetValidityErr::MoveToVoid(*mv));
