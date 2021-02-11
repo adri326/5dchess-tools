@@ -230,7 +230,7 @@ pub struct GenLegalMovesetIter<'a> {
     /// A variable-basis state counter, with a special value (None) for "no move"
     states: Vec<Option<usize>>,
 
-    /// A stack of partial games, containing the pre-generated moves for boards[MIN_CACHING_DEPTH..]
+    /// A stack of partial games, containing the pre-generated moves for boards[boards.len()-CACHING_DEPTH..]
     /// It grows in reverse compared to `boards` and `states`; see the comments in `inc` for details about its structure
     current_partial_games: Vec<PartialGame<'a>>,
 
@@ -244,7 +244,8 @@ pub struct GenLegalMovesetIter<'a> {
     non_physical_iter: Option<itertools::structs::Permutations<std::vec::IntoIter<(Move, bool)>>>,
 }
 
-const MIN_CACHING_DEPTH: usize = 2;
+const MIN_CACHING_DEPTH: usize = 4;
+const PG_CACHE_LENGTH: usize = 1;
 
 // This was probably a mistake :/
 // TODO: there are some shady, unnecessary calls to Board::generate_partial_game, where the timeline's last_board was incremented twice.
@@ -273,7 +274,7 @@ impl<'a> GenLegalMovesetIter<'a> {
         let states = vec![None; boards.len()];
         let current_partial_games: Vec<PartialGame<'a>> =
             Vec::with_capacity(if states.len() >= MIN_CACHING_DEPTH {
-                states.len() - MIN_CACHING_DEPTH
+                PG_CACHE_LENGTH
             } else {
                 0
             });
@@ -332,7 +333,7 @@ impl<'a> GenLegalMovesetIter<'a> {
             }
         }
 
-        if index >= MIN_CACHING_DEPTH && index < self.boards.len() {
+        if self.boards.len() >= MIN_CACHING_DEPTH && index < self.boards.len() && index >= self.boards.len() - PG_CACHE_LENGTH {
             // Loop to update the PartialGame stack and look for move legality
             'l: loop {
                 if self.done || start.elapsed() + self.sigma > self.max_duration {
@@ -345,11 +346,11 @@ impl<'a> GenLegalMovesetIter<'a> {
                 // We wish to have, if index = 4:
                 // P₀, P₁, (P₂), X, X, _, _
                 // Where P₃ is the new, generated partial game, X are partial games to be removed and _ are partial games that aren't on the stack
-                // because of MIN_CACHING_DEPTH.
+                // because of PG_CACHE_LENGTH (here it is set to 5).
                 // If index = 3:
                 // P₀, P₁, P₂, (P₃), X, _, _
 
-                // Note that the partial game stack grows in reverse order; if MIN_CACHING_DEPTH = 2, it'd look like that:
+                // Note that the partial game stack grows in reverse order; if PG_CACHE_LENGTH = 4, it'd look like that:
                 // Board    = [A, B, C, D, E, F, G]
                 // Partials = [_, _, 4, 3, 2, 1, 0]
 
@@ -414,7 +415,7 @@ impl<'a> GenLegalMovesetIter<'a> {
 
             // End of the loop; we add the missing partial games if need be
             // TODO: maybe don't have this? It'll be done if we need to update the stack anyways
-            while self.current_partial_games.len() + MIN_CACHING_DEPTH <= self.states.len() {
+            while self.current_partial_games.len() <= PG_CACHE_LENGTH {
                 let new_partial_game = self.get_new_partial_game();
                 self.current_partial_games.push(new_partial_game);
             }
@@ -427,12 +428,20 @@ impl<'a> GenLegalMovesetIter<'a> {
         for index in 0..self.states.len() {
             if let Some(state) = self.states[index] {
                 if let Some(mv) = self.boards[index].get(state) {
-                    if mv.is_jump() {
-                        non_physical_moves.push((mv, index >= MIN_CACHING_DEPTH));
-                    } else if index < MIN_CACHING_DEPTH {
-                        remaining_physical_moves.push(mv);
+                    if self.boards.len() >= MIN_CACHING_DEPTH {
+                        if mv.is_jump() {
+                            non_physical_moves.push((mv, index >= self.boards.len() - PG_CACHE_LENGTH));
+                        } else if index >= self.boards.len() - PG_CACHE_LENGTH {
+                            physical_moves.push(mv);
+                        } else {
+                            remaining_physical_moves.push(mv);
+                        }
                     } else {
-                        physical_moves.push(mv);
+                        if mv.is_jump() {
+                            non_physical_moves.push((mv, false));
+                        } else {
+                            remaining_physical_moves.push(mv);
+                        }
                     }
                 }
             }
