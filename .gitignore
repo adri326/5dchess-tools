@@ -7,3 +7,4 @@ converted-db
 /db
 node_modules
 *.tar.gz
+perf.data*

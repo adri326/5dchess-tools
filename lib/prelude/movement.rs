@@ -126,7 +126,10 @@ impl Move {
 
                 if !self.is_jump()
                     && self.from.0.can_kickstart()
-                    && ((self.from.1).3 as i8 - (self.to.1).3 as i8).abs() >= 2
+                    && (
+                        (self.from.1).3 >= (self.to.1).3 + 2
+                        || (self.to.1).3 >= (self.from.1).3 + 2
+                    )
                 {
                     if new_board.t & 1 == 1 {
                         new_board.en_passant = Some(((self.from.1).2, (self.from.1).3 + 1));

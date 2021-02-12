@@ -26,7 +26,7 @@ fn main() -> std::io::Result<()> {
         }
     };
 
-    let files = read_dir("./converted-db/nonmate")?;
+    let files = read_dir("./converted-db/standard/none")?;
     let mut games: Vec<Game> = Vec::new();
 
     for path in files {
@@ -86,7 +86,7 @@ fn test(
     let mut delta = Duration::new(0, 0);
 
     coz::begin!("new");
-    let mut iter = list_legal_movesets(game, partial_game, Some(Duration::new(30, 0)));
+    let mut iter = GenLegalMovesetIter::new(game, partial_game, Some(Duration::new(30, 0)));
     coz::end!("new");
 
     loop {
