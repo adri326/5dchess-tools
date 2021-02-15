@@ -191,7 +191,8 @@ fn test_gen_legal_moveset_partial_game() {
 
     let mut yielded = false;
     let start = std::time::Instant::now();
-    for (ms, pos) in GenLegalMovesetIter::new(&game, &partial_game, Some(Duration::new(2, 0))) {
+    let mut iter = GenLegalMovesetIter::new(&game, &partial_game, Some(Duration::new(2, 0)));
+    for (ms, pos) in &mut iter {
         yielded = true;
         let new_pos = ms.generate_partial_game(&game, &partial_game).unwrap();
         assert_eq!(pos, new_pos);

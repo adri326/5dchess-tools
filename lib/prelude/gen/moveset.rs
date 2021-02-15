@@ -225,6 +225,8 @@ pub struct GenLegalMovesetIter<'a> {
     partial_game: &'a PartialGame<'a>,
 
     done: bool,
+    first_pass: bool,
+    iter_tampered: bool,
 
     boards: Vec<CacheMoves<FilterLegalMove<'a, Sigma<BoardIter<'a>>>>>,
     /// A variable-basis state counter, with a special value (None) for "no move"
@@ -266,6 +268,8 @@ impl<'a> GenLegalMovesetIter<'a> {
             partial_game,
 
             done: false,
+            first_pass: true,
+            iter_tampered: true,
 
             boards,
             states,
@@ -282,7 +286,7 @@ impl<'a> GenLegalMovesetIter<'a> {
     fn inc(&mut self) {
         let mut index: usize = 0;
         let start = Instant::now();
-        if self.done {
+        if self.done && !self.first_pass || self.sigma > self.max_duration {
             return;
         }
 
@@ -302,6 +306,22 @@ impl<'a> GenLegalMovesetIter<'a> {
             }
         }
 
+        if self.done {
+            if self.first_pass {
+                self.first_pass = false;
+                self.iter_tampered = false;
+                self.done = false;
+                self.states = vec![None; self.boards.len()];
+                self.sigma += start.elapsed();
+                self.non_physical_iter = None;
+                return self.inc()
+            } else {
+                self.sigma += start.elapsed();
+                return
+            }
+        }
+
+
         // Update physical_moves, remaining_physical_moves and non_physical_iter
         let mut physical_moves = Vec::new();
         let mut non_physical_moves = Vec::new();
@@ -316,10 +336,21 @@ impl<'a> GenLegalMovesetIter<'a> {
                 }
             }
         }
-        self.physical_moves = physical_moves;
 
         let length = non_physical_moves.len();
-        self.non_physical_iter = Some(non_physical_moves.into_iter().permutations(length));
+        if self.first_pass || length > 1 {
+            self.physical_moves = physical_moves;
+
+            let mut iter = non_physical_moves.into_iter().permutations(length);
+            if !self.first_pass {
+                iter.next();
+            }
+
+            self.non_physical_iter = Some(iter);
+            self.iter_tampered = false;
+        } else {
+            self.non_physical_iter = None;
+        }
 
         self.sigma += start.elapsed();
     }
@@ -345,7 +376,12 @@ impl<'a> Iterator for GenLegalMovesetIter<'a> {
                 return None;
             }
 
+            while self.first_pass && self.iter_tampered {
+                self.inc();
+            }
+
             if let Some(iter) = &mut self.non_physical_iter {
+                self.iter_tampered = true;
                 if let Some(mut perm) = iter.next() {
                     let mut moves = self.physical_moves.clone();
                     moves.append(&mut perm);
@@ -370,7 +406,6 @@ impl<'a> Iterator for GenLegalMovesetIter<'a> {
                             != self.partial_game.info.active_player
                         {
                             if let Some(false) = is_illegal(self.game, &new_partial_game) {
-
                                 self.sigma += start.elapsed();
                                 break (ms, new_partial_game);
                             }
