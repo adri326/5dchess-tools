@@ -22,7 +22,11 @@ fn bench_is_mate_sub<M: Measurement>(group: &mut BenchmarkGroup<M>, game: &Game,
                     sigma += 1;
                     delta += start.elapsed();
                 }
-                x => panic!("Expected Checkmate, got {:?}", x)
+                Mate::None(_ms) => {
+                    sigma += 1;
+                    delta += start.elapsed();
+                }
+                x => panic!("Expected checkmate or none, got {:?}", x),
             }
         })
     });
@@ -55,7 +59,14 @@ fn bench_list_legal_movesets_sub<M: Measurement>(group: &mut BenchmarkGroup<M>, 
                         delta += start.elapsed();
                     }
                 }
-                x => panic!("Expected Checkmate, got {:?}", x)
+                Some(_ms) => {
+                    if iter.timed_out() {
+                        panic!("Timed out!");
+                    } else {
+                        sigma += 1;
+                        delta += start.elapsed();
+                    }
+                }
             }
         })
     });
@@ -96,7 +107,14 @@ fn bench_gen_legal_moveset_sub<M: Measurement>(group: &mut BenchmarkGroup<M>, ga
                         delta += start.elapsed();
                     }
                 }
-                x => panic!("Expected Checkmate, got {:?}", x)
+                Some(_ms) => {
+                    if iter.timed_out() {
+                        panic!("Timed out!");
+                    } else {
+                        sigma += 1;
+                        delta += start.elapsed();
+                    }
+                }
             }
         })
     });
@@ -128,6 +146,32 @@ pub fn bench_checkmate<M: Measurement>(c: &mut Criterion<M>) {
         bench_is_mate_sub(&mut moveset_group, &game, "Standard Checkmate 3");
         bench_list_legal_movesets_sub(&mut moveset_group, &game, "Standard Checkmate 3");
         bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Standard Checkmate 3");
+    }
+    {
+        let mut moveset_group = c.benchmark_group("Non-mates");
+        moveset_group
+            .warm_up_time(Duration::new(5, 0))
+            .measurement_time(Duration::new(10, 0));
+        let game = read_and_parse("tests/games/standard-check.json");
+        bench_is_mate_sub(&mut moveset_group, &game, "Standard Check");
+        bench_list_legal_movesets_sub(&mut moveset_group, &game, "Standard Check");
+        bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Standard Check");
+        let game = read_and_parse("tests/games/standard-complex.json");
+        bench_is_mate_sub(&mut moveset_group, &game, "Standard Complex");
+        bench_list_legal_movesets_sub(&mut moveset_group, &game, "Standard Complex");
+        bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Standard Complex");
+        let game = read_and_parse("tests/games/standard-complex-2.json");
+        bench_is_mate_sub(&mut moveset_group, &game, "Standard Complex 2");
+        bench_list_legal_movesets_sub(&mut moveset_group, &game, "Standard Complex 2");
+        bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Standard Complex 2");
+        let game = read_and_parse("tests/games/tricky-nonmate.json");
+        bench_is_mate_sub(&mut moveset_group, &game, "Tricky Nonmate");
+        bench_list_legal_movesets_sub(&mut moveset_group, &game, "Tricky Nonmate");
+        bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Tricky Nonmate");
+        let game = read_and_parse("tests/games/issue-1.json");
+        bench_is_mate_sub(&mut moveset_group, &game, "Issue 1");
+        bench_list_legal_movesets_sub(&mut moveset_group, &game, "Issue 1");
+        bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Issue 1");
     }
 }
 
