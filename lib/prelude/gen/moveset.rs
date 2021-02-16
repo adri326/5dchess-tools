@@ -236,7 +236,7 @@ pub struct GenLegalMovesetIter<'a> {
     done: bool,
     first_pass: bool,
 
-    boards: Vec<CacheMoves<FilterLegalMove<'a, Sigma<BoardIter<'a>>>>>,
+    boards: Vec<CacheMovesBoards<'a, FilterLegalMove<'a, Sigma<BoardIter<'a>>>>>,
     /// A variable-basis state counter, with a special value (None) for "no move"
     states: Vec<Option<usize>>,
 
@@ -245,9 +245,9 @@ pub struct GenLegalMovesetIter<'a> {
     max_duration: Duration,
 
     // Permutation
-    physical_moves: Vec<Move>,
-    non_physical_iter: Option<itertools::structs::Permutations<std::vec::IntoIter<Move>>>,
-    non_physical_moves: Option<Vec<Move>>,
+    physical_moves: Vec<(usize, usize)>,
+    non_physical_iter: Option<itertools::structs::Permutations<std::vec::IntoIter<(usize, usize)>>>,
+    non_physical_moves: Option<Vec<(usize, usize)>>,
 
     // Attacker cache
     attackers: Vec<(Coords, usize)>,
@@ -265,13 +265,17 @@ impl<'a> GenLegalMovesetIter<'a> {
         let boards = partial_game
             .own_boards(game)
             .filter_map(|board| {
-                Some(CacheMoves::new(FilterLegalMove::new(
-                    board
-                        .generate_moves(game, partial_game)?
-                        .sigma(max_duration),
+                Some(CacheMovesBoards::new(
+                    FilterLegalMove::new(
+                        board
+                            .generate_moves(game, partial_game)?
+                            .sigma(max_duration),
+                        game,
+                        partial_game,
+                    ),
                     game,
                     partial_game,
-                )))
+                ))
             })
             .collect::<Vec<_>>();
         let states = vec![None; boards.len()];
@@ -345,9 +349,9 @@ impl<'a> GenLegalMovesetIter<'a> {
             if let Some(state) = self.states[index] {
                 if let Some(mv) = self.boards[index].get(state) {
                     if mv.is_jump() {
-                        non_physical_moves.push(mv);
+                        non_physical_moves.push((index, state));
                     } else {
-                        physical_moves.push(mv);
+                        physical_moves.push((index, state));
                     }
                 }
             }
@@ -376,23 +380,45 @@ impl<'a> GenLegalMovesetIter<'a> {
     }
 
     #[inline]
-    fn yield_perm(&mut self, mut perm: Vec<Move>) -> Option<(Moveset, PartialGame<'a>)> {
-        let mut moves = self.physical_moves.clone();
-        moves.append(&mut perm);
+    fn yield_perm(&mut self, perm: Vec<(usize, usize)>) -> Option<(Moveset, PartialGame<'a>)> {
+        let mut moves = Vec::with_capacity(self.physical_moves.len() + perm.len());
+        let mut boards = Vec::with_capacity(self.physical_moves.len() + perm.len());
+
+        for &(index, state) in &self.physical_moves {
+            moves.push(self.boards[index].get_cached(state).unwrap());
+            boards.push(self.boards[index].get_cached_board(state).unwrap());
+        }
+
+        for (index, state) in perm {
+            moves.push(self.boards[index].get_cached(state).unwrap());
+            boards.push(self.boards[index].get_cached_board(state).unwrap());
+        }
 
         if let Ok(ms) = Moveset::new(moves, &self.partial_game.info) {
             let mut new_partial_game = PartialGame::empty(self.partial_game.info.clone(), Some(self.partial_game));
 
             // Generate the remaining boards
-            for i in 0..ms.moves().len() {
-                let mv = &ms.moves()[i];
-
-                mv.generate_partial_game(
-                    self.game,
-                    self.partial_game,
+            for (mv, (source, target)) in ms.moves().iter().zip(boards.into_iter()) {
+                mv.insert_source_board(
                     &mut new_partial_game,
-                    PartialGameGenKind::Both,
+                    source.into_owned(),
                 );
+
+                match target {
+                    std::borrow::Cow::Borrowed(Some(target)) => {
+                        mv.insert_target_board(
+                            &mut new_partial_game,
+                            target.clone(),
+                        );
+                    }
+                    std::borrow::Cow::Owned(Some(target)) => {
+                        mv.insert_target_board(
+                            &mut new_partial_game,
+                            target,
+                        );
+                    }
+                    _ => {}
+                }
             }
 
             new_partial_game.info.recalculate_present();

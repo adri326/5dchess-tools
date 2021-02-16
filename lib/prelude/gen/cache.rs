@@ -291,7 +291,7 @@ impl<'a, I: Iterator<Item = Move>> CacheMovesBoards<'a, I> {
 
         Returns `None` if the move isn't in the cache.
     **/
-    pub fn get_cached(&mut self, n: usize) -> Option<Move> {
+    pub fn get_cached(&self, n: usize) -> Option<Move> {
         if n < self.cache.len() {
             Some(self.cache[n])
         } else {

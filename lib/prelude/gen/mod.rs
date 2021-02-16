@@ -29,7 +29,7 @@ pub mod board;
 pub use board::BoardIter;
 
 pub mod cache;
-pub use cache::CacheMoves;
+pub use cache::{CacheMoves, CacheMovesBoards};
 
 pub mod moveset;
 pub use moveset::{generate_movesets_prefilter, GenMovesetIter, GenMovesetPreFilter, GenLegalMovesetIter};
