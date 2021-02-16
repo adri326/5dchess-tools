@@ -383,8 +383,12 @@ impl<'a> GenLegalMovesetIter<'a> {
             if new_partial_game.info.active_player
                 != self.partial_game.info.active_player
             {
-                if let Some(false) = is_illegal(self.game, &new_partial_game) {
-                    return Some((ms, new_partial_game));
+                match is_illegal(self.game, &new_partial_game) {
+                    Some((false, _)) => return Some((ms, new_partial_game)),
+                    Some((true, _mv)) => {
+                        // TODO
+                    }
+                    None => return None
                 }
             }
         }

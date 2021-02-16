@@ -86,7 +86,7 @@ pub fn is_mate<'a>(
                             if let Some(new_partial_game) =
                                 ms.generate_partial_game(game, partial_game)
                             {
-                                if !unwrap_mate!(is_illegal(game, &new_partial_game)) {
+                                if !unwrap_mate!(is_illegal(game, &new_partial_game)).0 {
                                     return Mate::None(ms);
                                 }
                             }
@@ -220,7 +220,7 @@ pub fn is_mate<'a>(
                             _ => {}
                         }
                     }
-                    !is_illegal(game, &new_partial_game).unwrap_or(true)
+                    !is_illegal(game, &new_partial_game).unwrap_or((true, None)).0
                 }
                 None => false,
             },

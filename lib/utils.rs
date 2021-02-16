@@ -83,7 +83,7 @@ impl<'a> Iterator for LegalMovesetsIter<'a> {
             match self.moveset_iter.next() {
                 Some(Ok(ms)) => match ms.generate_partial_game(self.game, self.partial_game) {
                     Some(new_partial_game) => {
-                        if !is_illegal(self.game, &new_partial_game)? {
+                        if !is_illegal(self.game, &new_partial_game)?.0 {
                             break Some((ms, new_partial_game));
                         }
                     }
@@ -289,7 +289,7 @@ pub fn random_legal_moveset<'a>(
             .filter_timed(|x| x.is_some(), duration),
         |opt| {
             let (_ms, new_partial_game) = opt.as_ref().unwrap();
-            !is_illegal(game, &new_partial_game).unwrap_or(true)
+            !is_illegal(game, &new_partial_game).unwrap_or((true, None)).0
         },
         duration,
     );
@@ -299,18 +299,18 @@ pub fn random_legal_moveset<'a>(
         _ => {
             if iter.timed_out() {
                 match generate_idle_boards(game, partial_game) {
-                    Some(idle_partial_game) => match is_in_check(game, &idle_partial_game) {
-                        Some(true) => Err(RandomLegalMovesetReason::TimeoutCheckmate),
-                        Some(false) => Err(RandomLegalMovesetReason::TimeoutStalemate),
+                    Some(idle_partial_game) => match is_threatened(game, &idle_partial_game) {
+                        Some((true, _)) => Err(RandomLegalMovesetReason::TimeoutCheckmate),
+                        Some((false, _)) => Err(RandomLegalMovesetReason::TimeoutStalemate),
                         None => Err(RandomLegalMovesetReason::Error),
                     },
                     None => Err(RandomLegalMovesetReason::Error),
                 }
             } else {
                 match generate_idle_boards(game, partial_game) {
-                    Some(idle_partial_game) => match is_in_check(game, &idle_partial_game) {
-                        Some(true) => Err(RandomLegalMovesetReason::Checkmate),
-                        Some(false) => Err(RandomLegalMovesetReason::Stalemate),
+                    Some(idle_partial_game) => match is_threatened(game, &idle_partial_game) {
+                        Some((true, _)) => Err(RandomLegalMovesetReason::Checkmate),
+                        Some((false, _)) => Err(RandomLegalMovesetReason::Stalemate),
                         None => Err(RandomLegalMovesetReason::Error),
                     },
                     None => Err(RandomLegalMovesetReason::Error),

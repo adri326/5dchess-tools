@@ -120,7 +120,7 @@ fn test_legal_move() {
                          partial_game: &PartialGame| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(game, partial_game)?;
-            if is_illegal(game, &new_partial_game)? {
+            if is_illegal(game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)
@@ -158,7 +158,7 @@ fn test_legal_move() {
 //                          partial_game: &PartialGame| match ms {
 //         Ok(ms) => {
 //             let new_partial_game = ms.generate_partial_game(game, partial_game)?;
-//             if is_illegal(game, &new_partial_game)? {
+//             if is_illegal(game, &new_partial_game)?.0 {
 //                 None
 //             } else {
 //                 Some(ms)
@@ -190,13 +190,13 @@ fn test_gen_legal_moveset_partial_game() {
     println!("Testing on tricky-nonmate game...");
 
     let mut yielded = false;
-    let start = std::time::Instant::now();
+    // let start = std::time::Instant::now();
     let mut iter = GenLegalMovesetIter::new(&game, &partial_game, Some(Duration::new(2, 0)));
     for (ms, pos) in &mut iter {
         yielded = true;
         let new_pos = ms.generate_partial_game(&game, &partial_game).unwrap();
         assert_eq!(pos, new_pos);
-        if is_illegal(&game, &new_pos) != Some(false) {
+        if let Some((true, _)) = is_illegal(&game, &new_pos) {
             panic!("GenLegalMovesetIter yielded an illegal position on tricky-nonmate: {}", ms);
         }
     }
@@ -233,7 +233,7 @@ fn test_gen_legal_moveset_partial_game() {
         for (ms, pos) in GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(1, 0))) {
             let new_pos = ms.generate_partial_game(&game.0, &partial_game).expect(&format!("Couldn't create a new partial game from the moveset {:?} ({})", ms, ms));
             assert_eq!(pos, new_pos, "{}", ms);
-            if is_illegal(&game.0, &new_pos) != Some(false) {
+            if let Some((true, _)) = is_illegal(&game.0, &new_pos) {
                 panic!("GenLegalMovesetIter yielded an illegal position on {}: {}", game.1, ms);
             }
         }
@@ -250,7 +250,7 @@ fn defended_pawn_checkmate() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-            if is_illegal(&game, &new_partial_game)? {
+            if is_illegal(&game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)
@@ -284,7 +284,7 @@ fn standard_checkmate() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-            if is_illegal(&game, &new_partial_game)? {
+            if is_illegal(&game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)
@@ -318,7 +318,7 @@ fn standard_checkmate_2() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-            if is_illegal(&game, &new_partial_game)? {
+            if is_illegal(&game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)
@@ -352,7 +352,7 @@ fn standard_checkmate_3() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-            if is_illegal(&game, &new_partial_game)? {
+            if is_illegal(&game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)
@@ -386,7 +386,7 @@ fn princess_checkmate() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-            if is_illegal(&game, &new_partial_game)? {
+            if is_illegal(&game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)
@@ -428,7 +428,7 @@ fn tricky_nonmate() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-            if is_illegal(&game, &new_partial_game)? {
+            if is_illegal(&game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)
@@ -461,7 +461,7 @@ fn reflected_checkmate() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-            if is_illegal(&game, &new_partial_game)? {
+            if is_illegal(&game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)
@@ -495,7 +495,7 @@ fn standard_nonmate() {
     let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-            if is_illegal(&game, &new_partial_game)? {
+            if is_illegal(&game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)
@@ -535,7 +535,7 @@ fn standard_nonmate2() {
     // let filter_lambda = |ms: Result<Moveset, MovesetValidityErr>| match ms {
     //     Ok(ms) => {
     //         let new_partial_game = ms.generate_partial_game(&game, &partial_game)?;
-    //         if is_illegal(&game, &new_partial_game)? {
+    //         if is_illegal(&game, &new_partial_game)?.0 {
     //             None
     //         } else {
     //             Some(ms)
@@ -575,7 +575,7 @@ fn test_list_legal_movesets() {
                          partial_game: &PartialGame| match ms {
         Ok(ms) => {
             let new_partial_game = ms.generate_partial_game(game, partial_game)?;
-            if is_illegal(game, &new_partial_game)? {
+            if is_illegal(game, &new_partial_game)?.0 {
                 None
             } else {
                 Some(ms)

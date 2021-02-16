@@ -65,7 +65,7 @@ fn main() -> std::io::Result<()> {
     .filter(|ms| match ms {
         Ok(ms) => {
             if let Some(new_partial_game) = ms.generate_partial_game(&game, &partial_game) {
-                !is_in_check(&game, &new_partial_game).unwrap()
+                !is_illegal(&game, &new_partial_game).unwrap().0
             } else {
                 false
             }

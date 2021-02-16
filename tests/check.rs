@@ -16,8 +16,8 @@ fn test_check_standard() {
 
     assert_eq!(board.pieces, game.get_board((0, 0)).unwrap().pieces);
 
-    let check = is_in_check(&game, &idle_boards);
-    assert_eq!(check, Some(false));
+    let check = is_threatened(&game, &idle_boards);
+    assert_eq!(check, Some((false, None)));
 }
 
 #[test]
@@ -39,8 +39,8 @@ fn test_check_d4() {
         "Asserts that generate_idle_boards removes the en_passant flag."
     );
 
-    let check = is_in_check(&game, &idle_boards);
-    assert_eq!(check, Some(false));
+    let check = is_threatened(&game, &idle_boards);
+    assert_eq!(check, Some((false, None)));
 }
 
 #[test]
@@ -49,6 +49,7 @@ fn test_check_true() {
     let partial_game = no_partial_game(&game);
     let idle_boards = generate_idle_boards(&game, &partial_game).unwrap();
 
-    let check = is_in_check(&game, &idle_boards);
-    assert_eq!(check, Some(true));
+    let check = is_threatened(&game, &idle_boards);
+    assert!(check.is_some());
+    assert!(check.unwrap().0);
 }
