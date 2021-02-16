@@ -94,16 +94,28 @@ pub fn test_standard_king_moves() {
     let game = read_and_parse("tests/games/standard-castle.json");
 
     // e1-king
-    test_piece_movement(
-        &game,
-        &no_partial_game(&game),
-        Coords::new(0, 6, 4, 0),
-        vec![
-            Coords::new(0, 6, 5, 0),
-            Coords::new(0, 6, 6, 0),
-            Coords::new(0, 4, 4, 1),
-        ],
-    );
+    if cfg!(castling) {
+        test_piece_movement(
+            &game,
+            &no_partial_game(&game),
+            Coords::new(0, 6, 4, 0),
+            vec![
+                Coords::new(0, 6, 5, 0),
+                Coords::new(0, 6, 6, 0),
+                Coords::new(0, 4, 4, 1),
+            ],
+        );
+    } else {
+        test_piece_movement(
+            &game,
+            &no_partial_game(&game),
+            Coords::new(0, 6, 4, 0),
+            vec![
+                Coords::new(0, 6, 5, 0),
+                Coords::new(0, 4, 4, 1),
+            ],
+        );
+    }
 }
 
 pub fn test_piece_movement<'a>(

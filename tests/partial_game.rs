@@ -51,6 +51,7 @@ fn test_new_partial_game_d4() {
 }
 
 #[test]
+#[cfg(castling)]
 fn test_new_partial_game_castling() {
     // Tests that every move from a position where castling is legal, thus including the move where white castles
 

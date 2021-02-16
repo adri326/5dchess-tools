@@ -345,6 +345,7 @@ impl<'a> KingIter<'a> {
     }
 }
 
+#[cfg(castling)]
 impl<'a> Iterator for KingIter<'a> {
     type Item = Move;
 
@@ -409,6 +410,16 @@ impl<'a> Iterator for KingIter<'a> {
 
         // TCR
         self.next()
+    }
+}
+
+#[cfg(not(castling))]
+impl<'a> Iterator for KingIter<'a> {
+    type Item = Move;
+
+    #[inline]
+    fn next(&mut self) -> Option<Move> {
+        None
     }
 }
 
@@ -513,26 +524,42 @@ impl<'a> GenMoves<'a> for PiecePosition {
                     flag,
                 ))
             }
-            PieceKind::King => PieceMoveIter::Chain(
-                Box::new(PieceMoveIter::King(KingIter::new(
-                    self,
-                    game,
-                    partial_game,
-                    flag,
-                )))
-                .chain(Box::new(PieceMoveIter::OneStep(OneStepPieceIter::new(
-                    self,
-                    game,
-                    partial_game,
-                    PERMUTATIONS[1]
-                        .iter()
-                        .chain(PERMUTATIONS[2].iter())
-                        .chain(PERMUTATIONS[3].iter())
-                        .chain(PERMUTATIONS[4].iter())
-                        .cloned()
-                        .collect(),
-                )))),
-            ),
+            PieceKind::King => {
+                if cfg!(castling) {
+                    PieceMoveIter::Chain(
+                        Box::new(PieceMoveIter::King(KingIter::new(
+                            self,
+                            game,
+                            partial_game,
+                            flag,
+                        )))
+                        .chain(Box::new(PieceMoveIter::OneStep(OneStepPieceIter::new(
+                            self,
+                            game,
+                            partial_game,
+                            PERMUTATIONS[1]
+                                .iter()
+                                .chain(PERMUTATIONS[2].iter())
+                                .chain(PERMUTATIONS[3].iter())
+                                .chain(PERMUTATIONS[4].iter())
+                                .cloned()
+                                .collect(),
+                        )))))
+                } else {
+                    PieceMoveIter::OneStep(OneStepPieceIter::new(
+                        self,
+                        game,
+                        partial_game,
+                        PERMUTATIONS[1]
+                            .iter()
+                            .chain(PERMUTATIONS[2].iter())
+                            .chain(PERMUTATIONS[3].iter())
+                            .chain(PERMUTATIONS[4].iter())
+                            .cloned()
+                            .collect(),
+                    ))
+                }
+            }
             PieceKind::CommonKing => PieceMoveIter::OneStep(OneStepPieceIter::new(
                 self,
                 game,

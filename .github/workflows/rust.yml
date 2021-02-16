@@ -10,18 +10,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  prepare:
     runs-on: ubuntu-latest
-
+    name: Prepare
     steps:
     - uses: actions/checkout@v2
     - uses: mstachniuk/ci-skip@v1
-    - name: Build
-      run: |
-        cargo build --verbose
-        cargo build --tests --verbose --release
-      if: ${{ env.CI_SKIP == 'false' }}
     - name: Fetch submodule(s)
       run: git submodule update --init --recursive
       if: ${{ env.CI_SKIP == 'false' }}
@@ -34,6 +28,31 @@ jobs:
     - name: Prepare tests
       run: ./prepare-tests.sh
       if: ${{ env.CI_SKIP == 'false' }}
+
+  build:
+    runs-on: ubuntu-latest
+    needs: prepare
+    name: Build (default features)
+    steps:
+    - name: Build
+      run: |
+        cargo build --verbose
+        cargo build --tests --verbose --release
+      if: ${{ env.CI_SKIP == 'false' }}
     - name: Run tests
       run: cargo test --verbose --release
+      if: ${{ env.CI_SKIP == 'false' }}
+
+  build-no-castling:
+    runs-on: ubuntu-latest
+    needs: prepare
+    name: Build (no castling)
+    steps:
+    - name: Build
+      run: |
+        cargo build --verbose --no-default-features
+        cargo build --tests --verbose --release --no-default-features
+      if: ${{ env.CI_SKIP == 'false' }}
+    - name: Run tests
+      run: cargo test --verbose --release --no-default-features
       if: ${{ env.CI_SKIP == 'false' }}
