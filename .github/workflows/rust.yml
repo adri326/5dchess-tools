@@ -34,6 +34,7 @@ jobs:
     needs: prepare
     name: Build (default features)
     steps:
+    - uses: mstachniuk/ci-skip@v1
     - name: Build
       run: |
         cargo build --verbose
@@ -48,6 +49,7 @@ jobs:
     needs: prepare
     name: Build (no castling)
     steps:
+    - uses: mstachniuk/ci-skip@v1
     - name: Build
       run: |
         cargo build --verbose --no-default-features
