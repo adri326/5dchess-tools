@@ -226,7 +226,6 @@ pub struct GenLegalMovesetIter<'a> {
 
     done: bool,
     first_pass: bool,
-    iter_tampered: bool,
 
     boards: Vec<CacheMoves<FilterLegalMove<'a, Sigma<BoardIter<'a>>>>>,
     /// A variable-basis state counter, with a special value (None) for "no move"
@@ -239,6 +238,7 @@ pub struct GenLegalMovesetIter<'a> {
     // Permutation
     physical_moves: Vec<Move>,
     non_physical_iter: Option<itertools::structs::Permutations<std::vec::IntoIter<Move>>>,
+    non_physical_moves: Option<Vec<Move>>,
 }
 
 impl<'a> GenLegalMovesetIter<'a> {
@@ -269,7 +269,6 @@ impl<'a> GenLegalMovesetIter<'a> {
 
             done: false,
             first_pass: true,
-            iter_tampered: true,
 
             boards,
             states,
@@ -279,6 +278,7 @@ impl<'a> GenLegalMovesetIter<'a> {
 
             physical_moves: vec![],
             non_physical_iter: None,
+            non_physical_moves: None,
         }
     }
 
@@ -309,11 +309,11 @@ impl<'a> GenLegalMovesetIter<'a> {
         if self.done {
             if self.first_pass {
                 self.first_pass = false;
-                self.iter_tampered = false;
                 self.done = false;
                 self.states = vec![None; self.boards.len()];
                 self.sigma += start.elapsed();
                 self.non_physical_iter = None;
+                self.non_physical_moves = None;
                 return self.inc()
             } else {
                 self.sigma += start.elapsed();
@@ -338,16 +338,16 @@ impl<'a> GenLegalMovesetIter<'a> {
         }
 
         let length = non_physical_moves.len();
-        if self.first_pass || length > 1 {
+        if self.first_pass {
+            self.physical_moves = physical_moves;
+            self.non_physical_moves = Some(non_physical_moves);
+        } else if length > 1 {
             self.physical_moves = physical_moves;
 
             let mut iter = non_physical_moves.into_iter().permutations(length);
-            if !self.first_pass {
-                iter.next();
-            }
+            iter.next();
 
             self.non_physical_iter = Some(iter);
-            self.iter_tampered = false;
         } else {
             self.non_physical_iter = None;
         }
@@ -357,6 +357,39 @@ impl<'a> GenLegalMovesetIter<'a> {
 
     pub fn timed_out(&self) -> bool {
         self.sigma >= self.max_duration
+    }
+
+    #[inline]
+    fn yield_perm(&mut self, mut perm: Vec<Move>) -> Option<(Moveset, PartialGame<'a>)> {
+        let mut moves = self.physical_moves.clone();
+        moves.append(&mut perm);
+
+        if let Ok(ms) = Moveset::new(moves, &self.partial_game.info) {
+            let mut new_partial_game = PartialGame::empty(self.partial_game.info.clone(), Some(self.partial_game));
+
+            // Generate the remaining boards
+            for i in 0..ms.moves().len() {
+                let mv = &ms.moves()[i];
+
+                mv.generate_partial_game(
+                    self.game,
+                    self.partial_game,
+                    &mut new_partial_game,
+                    PartialGameGenKind::Both,
+                );
+            }
+
+            new_partial_game.info.recalculate_present();
+            if new_partial_game.info.active_player
+                != self.partial_game.info.active_player
+            {
+                if let Some(false) = is_illegal(self.game, &new_partial_game) {
+                    return Some((ms, new_partial_game));
+                }
+            }
+        }
+
+        None
     }
 }
 
@@ -376,46 +409,33 @@ impl<'a> Iterator for GenLegalMovesetIter<'a> {
                 return None;
             }
 
-            while self.first_pass && self.iter_tampered {
+            if self.first_pass {
+                if let Some(perm) = std::mem::replace(&mut self.non_physical_moves, None) {
+                    match self.yield_perm(perm) {
+                        Some(res) => {
+                            self.sigma += start.elapsed();
+                            break res
+                        }
+                        None => {},
+                    }
+                }
                 self.inc();
-            }
-
-            if let Some(iter) = &mut self.non_physical_iter {
-                self.iter_tampered = true;
-                if let Some(mut perm) = iter.next() {
-                    let mut moves = self.physical_moves.clone();
-                    moves.append(&mut perm);
-
-                    if let Ok(ms) = Moveset::new(moves, &self.partial_game.info) {
-                        let mut new_partial_game = PartialGame::empty(self.partial_game.info.clone(), Some(self.partial_game));
-
-                        // Generate the remaining boards
-                        for i in 0..ms.moves().len() {
-                            let mv = &ms.moves()[i];
-
-                            mv.generate_partial_game(
-                                self.game,
-                                self.partial_game,
-                                &mut new_partial_game,
-                                PartialGameGenKind::Both,
-                            );
-                        }
-
-                        new_partial_game.info.recalculate_present();
-                        if new_partial_game.info.active_player
-                            != self.partial_game.info.active_player
-                        {
-                            if let Some(false) = is_illegal(self.game, &new_partial_game) {
+            } else {
+                if let Some(iter) = &mut self.non_physical_iter {
+                    if let Some(perm) = iter.next() {
+                        match self.yield_perm(perm) {
+                            Some(res) => {
                                 self.sigma += start.elapsed();
-                                break (ms, new_partial_game);
+                                break res
                             }
+                            None => {},
                         }
+                    } else {
+                        self.inc();
                     }
                 } else {
                     self.inc();
                 }
-            } else {
-                self.inc();
             }
         })
     }
