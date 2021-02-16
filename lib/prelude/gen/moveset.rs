@@ -214,6 +214,15 @@ impl<'a> Iterator for PermMovesetIter<'a> {
     }
 }
 
+// Length of `GenLegalMovesetIter::attackers` at which a trim is triggered
+const ATTACKERS_THRESHOLD: usize = 100;
+
+// Length to trim `GenLegalMovesetIter::attackers` to when a trim is triggered
+const ATTACKERS_PREFERED_LEN: usize = 20;
+
+// Number of trims after which it is considered unnecessary to record any more attackers
+const ATTACKERS_MAX_TRIM: usize = 20;
+
 /**
     An iterator, similar to GenMovesetIter, which only yields legal movesets.
     It does its best to look for legal movesets as fast a possible. To help it, you can put the non-check boards first.
@@ -239,6 +248,10 @@ pub struct GenLegalMovesetIter<'a> {
     physical_moves: Vec<Move>,
     non_physical_iter: Option<itertools::structs::Permutations<std::vec::IntoIter<Move>>>,
     non_physical_moves: Option<Vec<Move>>,
+
+    // Attacker cache
+    attackers: Vec<(Coords, usize)>,
+    attackers_trim_count: usize,
 }
 
 impl<'a> GenLegalMovesetIter<'a> {
@@ -279,6 +292,9 @@ impl<'a> GenLegalMovesetIter<'a> {
             physical_moves: vec![],
             non_physical_iter: None,
             non_physical_moves: None,
+
+            attackers: Vec::with_capacity(ATTACKERS_THRESHOLD),
+            attackers_trim_count: 0,
         }
     }
 
@@ -383,10 +399,30 @@ impl<'a> GenLegalMovesetIter<'a> {
             if new_partial_game.info.active_player
                 != self.partial_game.info.active_player
             {
+                // Quick glance at whether or not one of the known attackers is checking us
+                for (attacker, value) in &mut self.attackers {
+                    if let Tile::Piece(piece) = new_partial_game.get_with_game(self.game, *attacker) {
+                        if piece.white == new_partial_game.info.active_player {
+                            let piece_position = PiecePosition::new(piece, *attacker);
+
+                            for mv in piece_position.generate_moves(self.game, &new_partial_game).unwrap() {
+                                if let Some(target) = mv.to.0 {
+                                    if target.is_royal() && target.white != new_partial_game.info.active_player {
+                                        *value += 1;
+                                        return None
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Thorough check verification
                 match is_illegal(self.game, &new_partial_game) {
                     Some((false, _)) => return Some((ms, new_partial_game)),
-                    Some((true, _mv)) => {
-                        // TODO
+                    Some((true, None)) => {}
+                    Some((true, Some(mv))) => {
+                        self.insert_attacker(mv.from.1);
                     }
                     None => return None
                 }
@@ -394,6 +430,35 @@ impl<'a> GenLegalMovesetIter<'a> {
         }
 
         None
+    }
+
+    #[inline]
+    fn insert_attacker(&mut self, coords: Coords) {
+        // Skip trimming and updating the array after a set number of trims
+        if self.attackers_trim_count >= ATTACKERS_MAX_TRIM {
+            return
+        }
+        if self.attackers.len() > 0 {
+            for attacker in &mut self.attackers {
+                if attacker.0 == coords {
+                    attacker.1 += 1;
+                    return
+                }
+            }
+        }
+        self.attackers.push((coords, 1));
+
+        // Too many attackers: trimming
+        if self.attackers.len() >= ATTACKERS_THRESHOLD {
+            self.attackers.sort_unstable_by(
+                #[inline]
+                |a: &(Coords, usize), b: &(Coords, usize)| -> std::cmp::Ordering {
+                    b.1.partial_cmp(&a.1).unwrap()
+                }
+            );
+            self.attackers.truncate(ATTACKERS_PREFERED_LEN);
+            self.attackers_trim_count += 1;
+        }
     }
 }
 
