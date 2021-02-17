@@ -3,6 +3,11 @@ use itertools::Itertools;
 use std::convert::TryFrom;
 use std::time::{Duration, Instant};
 
+/**
+    An iterator that yields all of the valid movesets.
+    Some (most) of them will not shift the present, some will be illegal, etc.
+    All of the movesets are however valid, which means that the moveset can be executed, but not submitted.
+**/
 #[derive(Clone)]
 pub struct GenMovesetIter<'a, I>
 where
@@ -15,8 +20,22 @@ where
     done: bool,
 }
 
-// From BoardOr as GenMoves
+// From a set of boards or the position
 impl<'a> GenMovesetIter<'a, BoardIter<'a>> {
+    // TODO: rename `new` to `with_boards` and uncomment the following:
+    // pub fn new(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Self {
+    //     Self {
+    //         _game: game,
+    //         partial_game,
+    //         states: vec![None; boards.len()],
+    //         boards: partial_game
+    //             .own_boards(game)
+    //             .filter_map(|board| CacheMoves::try_from((board, game, partial_game)).ok())
+    //             .collect(),
+    //         done: false,
+    //     }
+    // }
+
     /** Creates a new GenMovesetIter from a set of boards. **/
     pub fn new(boards: Vec<&'a Board>, game: &'a Game, partial_game: &'a PartialGame<'a>) -> Self {
         Self {
@@ -69,7 +88,7 @@ where
 
 pub type GenMovesetPreFilter<'a> = GenMovesetIter<'a, FilterLegalMove<'a, BoardIter<'a>>>;
 
-// TODO: turn this into a proper, legal moveset generator (deprecating that of utils.rs)
+// TODO: deprecate this
 /** Creates a new GenMovesetIter with the moves pre-filtered. **/
 pub fn generate_movesets_prefilter<'a>(
     boards: Vec<&'a Board>,
@@ -163,6 +182,7 @@ where
     }
 }
 
+/// Maps ℕ ∪ {∅} to ℕ, with f(∅) = 0 and f(n) = succ(n)
 fn inc_option_usize(x: Option<usize>) -> usize {
     match x {
         None => 0,
@@ -170,6 +190,8 @@ fn inc_option_usize(x: Option<usize>) -> usize {
     }
 }
 
+/// Permutes moves within a moveset; returned by `GenMovesetIter`.
+/// If you wish to list all movesets, you should `Iterator::flatten` `GenMovesetIter`.
 #[derive(Clone)]
 pub struct PermMovesetIter<'a> {
     pub physical: Vec<Move>,
@@ -214,18 +236,28 @@ impl<'a> Iterator for PermMovesetIter<'a> {
     }
 }
 
-// Length of `GenLegalMovesetIter::attackers` at which a trim is triggered
+/// Length of `GenLegalMovesetIter::attackers` at which a trim is triggered
 const ATTACKERS_THRESHOLD: usize = 100;
 
-// Length to trim `GenLegalMovesetIter::attackers` to when a trim is triggered
+/// Length to trim `GenLegalMovesetIter::attackers` to when a trim is triggered
 const ATTACKERS_PREFERED_LEN: usize = 20;
 
-// Number of trims after which it is considered unnecessary to record any more attackers
+/// Number of trims after which it is considered unnecessary to record any more attackers
 const ATTACKERS_MAX_TRIM: usize = 20;
 
 /**
     An iterator, similar to GenMovesetIter, which only yields legal movesets.
-    It does its best to look for legal movesets as fast a possible. To help it, you can put the non-check boards first.
+    It does its best to look for legal movesets as fast a possible.
+
+    You should prefer using this rather than `GenMovesetIter` if you are only interested by the legal movesets, as `GenLegalMovesetIter`
+    implements checkmate-specific optimizations to the search.
+
+    It implements the following optimizations:
+
+    - Permutation-free first pass (better performances in some worst-case non-mate scenarios)
+    - Attacker pool (between 10% and 70% speedup, average 50%); can be customized by changing the values of the `ATTACKERS_*` constants
+    - Board caching and minimal number of clones
+    - Lazy move, moveset, permutation and checking move generation
 **/
 #[derive(Clone)]
 pub struct GenLegalMovesetIter<'a> {
@@ -255,6 +287,9 @@ pub struct GenLegalMovesetIter<'a> {
 }
 
 impl<'a> GenLegalMovesetIter<'a> {
+    /**
+        Creates a new instance of GenLegalMovesetIter.
+    **/
     pub fn new(
         game: &'a Game,
         partial_game: &'a PartialGame<'a>,
@@ -375,10 +410,15 @@ impl<'a> GenLegalMovesetIter<'a> {
         self.sigma += start.elapsed();
     }
 
+    /** Whether or not the iterator stopped yielding because it timed out. **/
     pub fn timed_out(&self) -> bool {
         self.sigma >= self.max_duration
     }
 
+    /**
+        Takes a permutation, assembles the set of moves and boards, updates `attackers` if need be.
+        Returns `Some((moveset, position))` if `apply(G, moveset)` is legal, `None` otherwise.
+    **/
     #[inline]
     fn yield_perm(&mut self, perm: Vec<(usize, usize)>) -> Option<(Moveset, PartialGame<'a>)> {
         let mut moves = Vec::with_capacity(self.physical_moves.len() + perm.len());
@@ -386,12 +426,12 @@ impl<'a> GenLegalMovesetIter<'a> {
 
         for &(index, state) in &self.physical_moves {
             moves.push(self.boards[index].get_cached(state).unwrap());
-            boards.push(self.boards[index].get_cached_board(state).unwrap());
+            boards.push(self.boards[index].get_board_cached(state).unwrap());
         }
 
         for (index, state) in perm {
             moves.push(self.boards[index].get_cached(state).unwrap());
-            boards.push(self.boards[index].get_cached_board(state).unwrap());
+            boards.push(self.boards[index].get_board_cached(state).unwrap());
         }
 
         if let Ok(ms) = Moveset::new(moves, &self.partial_game.info) {
@@ -458,6 +498,9 @@ impl<'a> GenLegalMovesetIter<'a> {
         None
     }
 
+    /**
+        Updates `attackers`, given the coordinates of such an attacker.
+    **/
     #[inline]
     fn insert_attacker(&mut self, coords: Coords) {
         // Skip trimming and updating the array after a set number of trims
@@ -491,6 +534,10 @@ impl<'a> GenLegalMovesetIter<'a> {
 impl<'a> Iterator for GenLegalMovesetIter<'a> {
     type Item = (Moveset, PartialGame<'a>);
 
+    /**
+        Yields the next legal moveset, if any. If `None` is yielded, check whether or not it was because of a timeout,
+        using `GenLegalMovesetIter::timed_out`!
+    **/
     fn next(&mut self) -> Option<Self::Item> {
         let start = Instant::now();
 

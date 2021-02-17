@@ -1,6 +1,7 @@
 use super::*;
 
 /** A combination of a piece and its coordinates, used to generate a piece's moves.
+    Unless you are implementing a new fairy piece, you should call `PiecePosition::generate_moves` to generate a piece's moves
     This structure implements the `GenMoves` trait, and thus lets you generate moves using a `PiecePosition` instance,
     a `Game` state and a `PartialGame` state.
 
@@ -64,7 +65,7 @@ fn forward(a: Coords, b: Coords, color: bool) -> Coords {
 }
 
 impl PawnIter {
-    /** Creates a new PawnIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
+    /** Creates a new PawnIter; unless you are implementing a new fairy piece, you should call `PiecePosition::generate_moves` to generate a piece's moves **/
     pub fn new<'a>(
         piece: PiecePosition,
         game: &'a Game,
@@ -161,7 +162,7 @@ pub struct RangingPieceIter<'a> {
 }
 
 impl<'a> RangingPieceIter<'a> {
-    /** Creates a new RangingPieceIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
+    /** Creates a new RangingPieceIter; unless you are implementing a new fairy piece, you should call `PiecePosition::generate_moves` to generate a piece's moves **/
     #[inline]
     pub fn new(
         piece: PiecePosition,
@@ -263,7 +264,7 @@ pub struct OneStepPieceIter<'a> {
 }
 
 impl<'a> OneStepPieceIter<'a> {
-    /** Creates a new OneStepPieceIter; unless you are implementing a new fairy piece, you should use `PiecePosition::generate_moves` **/
+    /** Creates a new OneStepPieceIter; unless you are implementing a new fairy piece, you should call `PiecePosition::generate_moves` to generate a piece's moves **/
     #[inline]
     pub fn new(
         piece: PiecePosition,
@@ -315,7 +316,7 @@ impl<'a> Iterator for OneStepPieceIter<'a> {
     }
 }
 
-/** Iterator yielding the special movements of a king, castling. **/
+/** Iterator yielding the special movements of a king (short castle and long castle). **/
 #[derive(Clone)]
 pub struct KingIter<'a> {
     pub castling_direction: u8,
@@ -423,7 +424,10 @@ impl<'a> Iterator for KingIter<'a> {
     }
 }
 
-/** Iterator combining the different move kinds of all of the pieces. **/
+/**
+    Iterator combining the different move kinds of all of the pieces.
+    If your custom piece doesn't follow a usual move pattern, then you'll have to add your own value in this enum.
+**/
 #[derive(Clone)]
 pub enum PieceMoveIter<'a> {
     Pawn(PawnIter),
@@ -453,6 +457,22 @@ impl<'a> GenMoves<'a> for PiecePosition {
     /**
         Generates the moves for a single piece, given a partial game state and its complementary game state.
         You should be using this function if you wish to generate the moves of a piece.
+
+        ## Example
+
+        ```
+        let game: &Game;
+        let partial_game: &PartialGame;
+        // Fill in game and partial_game here
+
+        let position = Coords(0, 0, 3, 1); // (0T1w)d1
+        let piece = partial_game.get_with_game(game, position);
+        let piece_position = PiecePosition::new(piece.piece().unwrap(), position);
+
+        for mv in piece_position.generate_moves(game, partial_game) {
+            println!("{}", mv);
+        }
+        ```
     **/
     fn generate_moves_flag(
         self,

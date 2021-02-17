@@ -3,6 +3,7 @@ use rand::seq::SliceRandom;
 use std::time::{Duration, Instant};
 
 // Legality checker
+// Note: this module is deprecated in favor of GenLegalMovesetIter
 
 /**
     Iterator returned by `list_legal_movesets`.

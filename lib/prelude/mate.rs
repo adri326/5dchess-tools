@@ -8,11 +8,17 @@ use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Mate {
+    /// The position is checkmate: the current player cannot make any moveset and is in check
     Checkmate,
+    /// The position is stalemate: the current player cannot make any moveset and isn't in check
     Stalemate,
+    /// Error: an error occured while generating moves
     Error,
+    /// Timed out while looking for checkmate: the current player is in check and no moveset was found in a timely manner
     TimeoutCheckmate,
+    /// Timed out while looking for stalemate: the current player isn't in check and no moveset was found in a timely manner
     TimeoutStalemate,
+    /// None: the current player can make a moveset
     None(Moveset),
 }
 
@@ -20,13 +26,47 @@ macro_rules! unwrap_mate {
     ( $x:expr ) => {
         match $x {
             Some(x) => x,
+            // TODO: uncomment the following line
+            // None => return Mate::Error
             None => panic!(),
         }
     };
 }
 
 /**
-    Checks whether or not the current position is checkmate, stalemate or none of those.
+    Checks whether or not the current position is checkmate, stalemate or neither.
+    It first tries to make simple branching moves if the current player has branching priority.
+    If there is a considerable number of timelines (default is 3), then it will pre-order moves.
+
+    ## Example
+
+    ```
+    let game: &Game;
+    let partial_game: &PartialGame;
+
+    // Fill in game and partial_game here
+
+    match is_mate(game, partial_game, Some(Duration::new(10, 0))) {
+        Mate::None(ms) => {
+            println!("Not mate! Player can play {}", ms);
+        }
+        Mate::Checkmate => {
+            println!("Checkmate!");
+        }
+        Mate::Stalemate => {
+            println!("Stalemate!");
+        }
+        Mate::Error => {
+            panic!("Error while looking for checkmate!");
+        }
+        Mate::TimeoutCheckmate => {
+            println!("Timed out while looking for checkmate: probably checkmate.");
+        }
+        Mate::TimeoutStalemate => {
+            println!("Timed out while looking for stalemate: probably stalemate.");
+        }
+    }
+    ```
 **/
 pub fn is_mate<'a>(
     game: &'a Game,
@@ -107,6 +147,8 @@ pub fn is_mate<'a>(
 
     let moves = if n_timelines > 2 {
         // Build the three danger maps
+
+        // TODO: look at moveset impossibility (corollary 6)
         let mut danger: HashSet<Coords> = HashSet::with_capacity(64 * own_boards.len());
 
         for board in idle_boards.opponent_boards(game) {
@@ -248,8 +290,10 @@ pub fn is_mate<'a>(
     }
 }
 
+/// Internal enum used by `is_mate` to determine that a position is mate.
+/// It works as an iterator that is passed to CacheMoves and put into GenMovesetIter
 enum CacheIterOrVec<'a> {
-    Iter(std::iter::Fuse<FilterLegalMove<'a, BoardIter<'a>>>),
+    Iter(FilterLegalMove<'a, BoardIter<'a>>),
     Vec(FilterLegalMove<'a, std::vec::IntoIter<Move>>),
 }
 
@@ -264,6 +308,7 @@ impl<'a> Iterator for CacheIterOrVec<'a> {
     }
 }
 
+/// Turns a CacheMoves<FilterLegalMove> into a CacheMoves<Timed<CacheIterOrVec::Iter>>, keeping the cache of the former
 fn transfer_cache<'a>(
     iter: CacheMoves<FilterLegalMove<'a, BoardIter<'a>>>,
     duration: Duration,
@@ -271,12 +316,13 @@ fn transfer_cache<'a>(
 ) -> CacheMoves<Timed<CacheIterOrVec<'a>>> {
     let (iter, cache, done) = iter.into_raw_parts();
     CacheMoves::from_raw_parts(
-        Timed::with_start(CacheIterOrVec::Iter(iter), Some(start), duration).fuse(),
+        Timed::with_start(CacheIterOrVec::Iter(iter), Some(start), duration),
         cache,
         done,
     )
 }
 
+/// Turns a CacheMoves<FilterLegalMove> into a CacheMoves<Timed<CacheIterOrVec::Iter>>, discarding the cache of the former and using a new one instead
 fn with_new_cache<'a>(
     iter: CacheMoves<FilterLegalMove<'a, BoardIter<'a>>>,
     cache: Vec<Move>,
@@ -285,12 +331,13 @@ fn with_new_cache<'a>(
 ) -> CacheMoves<Timed<CacheIterOrVec<'a>>> {
     let (iter, _cache, done) = iter.into_raw_parts();
     CacheMoves::from_raw_parts(
-        Timed::with_start(CacheIterOrVec::Iter(iter), Some(start), duration).fuse(),
+        Timed::with_start(CacheIterOrVec::Iter(iter), Some(start), duration),
         cache,
         done,
     )
 }
 
+/// Turns a Vec<Move> into a CacheMoves<Timed<CacheIterOrVec::Vec>>
 fn from_vec<'a>(
     vec: Vec<Move>,
     game: &'a Game,

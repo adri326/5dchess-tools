@@ -3,7 +3,7 @@ use super::*;
 /**
     Yields moves for every pieces on a board.
     The type of the items is `Option<Move>`; `BoardIter` is a wrapper around `BoardIterSub`, which
-    does a specialized `filter_map`.
+    does a specialized `filter_map` to turn these into `Move` items.
 **/
 #[derive(Clone)]
 pub struct BoardIterSub<'a> {
@@ -18,6 +18,7 @@ pub struct BoardIterSub<'a> {
 impl<'a> Iterator for BoardIterSub<'a> {
     type Item = Option<Move>;
 
+    /// If the current piece iterator is empty, finds the next piece to iterate upon and returns Some(None). Otherwise, yields the move.
     fn next(&mut self) -> Option<Option<Move>> {
         if self.index >= self.board.width() * self.board.height() {
             return None;

@@ -38,8 +38,6 @@ pub use moveset::{generate_movesets_prefilter, GenMovesetIter, GenMovesetPreFilt
     An enum containing the different flags used by `GenMoves::generate_moves_flag.`
     Each flag allows you to only yield a subset of the moves, except for `Any`.
     See the documentation for each of them for more details.
-
-    If you wish to add your own flag, consider contacting the repository owner.
 **/
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum GenMovesFlag {
@@ -56,6 +54,7 @@ pub enum GenMovesFlag {
     Check,
 }
 
+// It used to be an interesting idea, for custom boards and such, but now it probably needs to be moved to separate functions, like `generate_moves_board(...)`, `generate_moves_piece(...)`
 /**
     A trait representing the ability for an object (a board, a move cache, a piece, etc.) to generate a list of moves, as an iterator.
 **/
