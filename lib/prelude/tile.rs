@@ -1,4 +1,4 @@
-use super::Piece;
+use super::{Piece, BitBoardMask, PIECE_MASKS};
 
 /** Holds the state of a coordinate's pointed tile. Such a tile may either be:
     - a piece (`Tile::Piece(...)`)
@@ -82,6 +82,16 @@ impl Tile {
     #[inline]
     pub fn map<X, F: Fn(Piece) -> X>(&self, f: F) -> Option<X> {
         self.piece().map(f)
+    }
+
+    /** Returns the bitboard mask for that tile. **/
+    #[inline]
+    pub fn bitboard_mask(&self) -> &'static BitBoardMask {
+        match self {
+            Tile::Piece(piece) => piece.bitboard_mask(),
+            Tile::Blank => &PIECE_MASKS[0],
+            Tile::Void => &PIECE_MASKS[1],
+        }
     }
 }
 

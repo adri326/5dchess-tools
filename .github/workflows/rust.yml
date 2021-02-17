@@ -28,33 +28,19 @@ jobs:
     - name: Prepare tests
       run: ./prepare-tests.sh
       if: ${{ env.CI_SKIP == 'false' }}
-
-  build:
-    runs-on: ubuntu-latest
-    needs: prepare
-    name: Build (default features)
-    steps:
-    - uses: mstachniuk/ci-skip@v1
-    - name: Build
+    - name: Build (default features)
       run: |
         cargo build --verbose
         cargo build --tests --verbose --release
       if: ${{ env.CI_SKIP == 'false' }}
-    - name: Run tests
+    - name: Run tests (default features)
       run: cargo test --verbose --release
       if: ${{ env.CI_SKIP == 'false' }}
-
-  build-no-castling:
-    runs-on: ubuntu-latest
-    needs: prepare
-    name: Build (no castling)
-    steps:
-    - uses: mstachniuk/ci-skip@v1
-    - name: Build
+    - name: Build (no castling)
       run: |
         cargo build --verbose --no-default-features
         cargo build --tests --verbose --release --no-default-features
       if: ${{ env.CI_SKIP == 'false' }}
-    - name: Run tests
+    - name: Run tests (no castling)
       run: cargo test --verbose --release --no-default-features
       if: ${{ env.CI_SKIP == 'false' }}

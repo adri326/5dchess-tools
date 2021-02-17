@@ -104,8 +104,6 @@ impl Move {
                 // Calculate indices
                 let from_index = (self.from.1).2 as usize
                 + (self.from.1).3 as usize * new_board.width() as usize;
-                let to_index = (self.to.1).2 as usize
-                    + (self.to.1).3 as usize * new_board.width() as usize;
 
                 if !self.is_jump() {
                     // Update target board pieces and handle promotion
@@ -114,15 +112,13 @@ impl Move {
                         // this doesn't affect the base game, but could affect
                         // customized pieces. If this is a problem to you, then
                         // replace the `false` with a `true`.
-                        new_board.pieces[to_index] =
-                            Tile::Piece(Piece::new(PieceKind::Queen, white, false));
+                        new_board.set(((self.to.1).2, (self.to.1).3), Tile::Piece(Piece::new(PieceKind::Queen, white, false)))?;
                     } else {
-                        new_board.pieces[to_index] =
-                            set_moved(new_board.pieces[from_index], true);
+                        new_board.set(((self.to.1).2, (self.to.1).3), set_moved(new_board.pieces[from_index], true))?;
                     }
                 }
 
-                new_board.pieces[from_index] = Tile::Blank;
+                new_board.set(((self.from.1).2, (self.from.1).3), Tile::Blank)?;
 
                 if !self.is_jump()
                     && self.from.0.can_kickstart()
@@ -147,21 +143,18 @@ impl Move {
                 let mut new_board: Board = partial_game
                     .get_board_with_game(game, self.from.1.non_physical())?
                     .clone();
-                let (ex, ey) = new_board.en_passant?;
+                let (ex, ey) = new_board.en_passant?; // TODO: fix this?
                 new_board.en_passant = None;
                 new_board.t += 1;
 
                 // Generate the indices
                 let from_index = (self.from.1).2 as usize
                     + (self.from.1).3 as usize * new_board.width() as usize;
-                let to_index =
-                    (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
-                let capture_index = ex as usize + ey as usize * new_board.width() as usize;
 
                 // Replace pieces
-                new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
-                new_board.pieces[from_index] = Tile::Blank;
-                new_board.pieces[capture_index] = Tile::Blank;
+                new_board.set(((self.to.1).2, (self.to.1).3), set_moved(new_board.pieces[from_index], true))?;
+                new_board.set(((self.from.1).2, (self.from.1).3), Tile::Blank)?;
+                new_board.set((ex, ey), Tile::Blank)?;
 
                 new_board
             },
@@ -216,20 +209,16 @@ impl Move {
                     + rook_position.1 as usize * new_board.width() as usize;
                 let from_index = (self.from.1).2 as usize
                     + (self.from.1).3 as usize * new_board.width() as usize;
-                let to_index =
-                    (self.to.1).2 as usize + (self.to.1).3 as usize * new_board.width() as usize;
 
                 // Update pieces
-                new_board.pieces[to_index] = set_moved(new_board.pieces[from_index], true);
-                new_board.pieces[from_index] = Tile::Blank;
+                new_board.set(((self.to.1).2, (self.to.1).3), set_moved(new_board.pieces[from_index], true))?;
+                new_board.set(((self.from.1).2, (self.from.1).3), Tile::Blank)?;
                 if direction {
-                    new_board.pieces[from_index - 1] =
-                        set_moved(new_board.pieces[rook_index], true);
+                    new_board.set(((self.from.1).2 - 1, (self.from.1).3), set_moved(new_board.pieces[rook_index], true))?;
                 } else {
-                    new_board.pieces[from_index + 1] =
-                        set_moved(new_board.pieces[rook_index], true);
+                    new_board.set(((self.from.1).2 + 1, (self.from.1).3), set_moved(new_board.pieces[rook_index], true))?;
                 }
-                new_board.pieces[rook_index] = Tile::Blank;
+                new_board.set(rook_position, Tile::Blank)?;
 
                 new_board
             }
@@ -256,20 +245,15 @@ impl Move {
 
                 new_board.t += 1;
 
-                let to_index = (self.to.1).2 as usize
-                    + (self.to.1).3 as usize * new_board.width() as usize;
-
                 // Update target board pieces and handle promotion
                 if self.kind == MoveKind::Promotion {
                     // NOTE: a promoted piece is considered to be unmoved;
                     // this doesn't affect the base game, but could affect
                     // customized pieces. If this is a problem to you, then
                     // replace the `false` with a `true`.
-                    new_board.pieces[to_index] =
-                        Tile::Piece(Piece::new(PieceKind::Queen, white, false));
+                    new_board.set(((self.to.1).2, (self.to.1).3), Tile::Piece(Piece::new(PieceKind::Queen, white, false)))?;
                 } else {
-                    new_board.pieces[to_index] =
-                        set_moved(Tile::Piece(self.from.0), true);
+                    new_board.set(((self.to.1).2, (self.to.1).3), set_moved(Tile::Piece(self.from.0), true))?;
                 }
 
                 new_board.en_passant = None;

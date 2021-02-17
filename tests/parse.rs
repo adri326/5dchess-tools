@@ -30,6 +30,32 @@ pub fn test_parse_standard() {
                 .unwrap_or(true));
         }
     }
+
+    let bitboards = game.get_board((0, 0)).unwrap().bitboards;
+    assert_eq!(bitboards.white_royal, 1u128 << 4);
+    assert_eq!(bitboards.black_royal, 1u128 << (7 * 8 + 4));
+    assert_eq!(bitboards.white[0], 0x000000000000ff00);
+    assert_eq!(bitboards.black[0], 0x00ff000000000000);
+    assert_eq!(bitboards.white[1], 0x0000000000000000);
+    assert_eq!(bitboards.black[1], 0x0000000000000000);
+    assert_eq!(bitboards.white[2], 1u128 << 4);
+    assert_eq!(bitboards.black[2], 1u128 << (7 * 8 + 4));
+    assert_eq!(bitboards.white[3], 1u128 << 4);
+    assert_eq!(bitboards.black[3], 1u128 << (7 * 8 + 4));
+    assert_eq!(bitboards.white[4], 1u128 << 4);
+    assert_eq!(bitboards.black[4], 1u128 << (7 * 8 + 4));
+    assert_eq!(bitboards.white[5], 1u128 << 4);
+    assert_eq!(bitboards.black[5], 1u128 << (7 * 8 + 4));
+    assert_eq!(bitboards.white[6], 1u128 | (1u128 << 3) | (1u128 << 7));
+    assert_eq!(bitboards.black[6], (1u128 | (1u128 << 3) | (1u128 << 7)) << (7 * 8));
+    assert_eq!(bitboards.white[7], (1u128 << 2) | (1u128 << 3) | (1u128 << 5));
+    assert_eq!(bitboards.black[7], ((1u128 << 2) | (1u128 << 3) | (1u128 << 5)) << (7 * 8));
+    assert_eq!(bitboards.white[8], 1u128 << 3);
+    assert_eq!(bitboards.black[8], 1u128 << (7 * 8 + 3));
+    assert_eq!(bitboards.white[9], 1u128 << 3);
+    assert_eq!(bitboards.black[9], 1u128 << (7 * 8 + 3));
+    assert_eq!(bitboards.white[10], (1u128 << 1) | (1u128 << 6));
+    assert_eq!(bitboards.black[10], ((1u128 << 1) | (1u128 << 6)) << (7 * 8));
 }
 
 #[test]
