@@ -65,6 +65,11 @@ pub fn is_legal_move_optional<'a>(
 
 fn filter_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
     for board in partial_game.opponent_boards(game) {
+        // Uncomment HERE to see the performances go poof:
+
+        // if let Some(_) = threats_within_board(board) {
+        //     return Some(false)
+        // }
         for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
             match mv.to.0 {
                 Some(piece) => {
@@ -83,6 +88,9 @@ fn filter_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -
 // Must be given a partial game with only the target board!
 fn filter_non_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
     for board in partial_game.iter_shallow() {
+        // if let Some(_) = is_threatened_bitboard_sub(game, partial_game, board) {
+        //     return Some(false)
+        // }
         for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
             match mv.to.0 {
                 Some(piece) => {

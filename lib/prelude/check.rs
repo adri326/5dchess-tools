@@ -152,7 +152,18 @@ pub fn is_threatened_bitboard<'a>(game: &'a Game, partial_game: &'a PartialGame<
     None
 }
 
-fn is_threatened_bitboard_sub<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>, board: &'a Board) -> Option<(bool, Option<Move>)> {
+/// Similar to `is_illegal`, but using bitboards instead of GenMoves
+pub fn is_illegal_bitboard<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<(bool, Option<Move>)> {
+    for board in partial_game.own_boards(game) {
+        if let Some(res) = is_threatened_bitboard_sub(game, partial_game, board) {
+            return Some(res)
+        }
+    }
+
+    None
+}
+
+pub fn is_threatened_bitboard_sub<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>, board: &'a Board) -> Option<(bool, Option<Move>)> {
     if let Some((from_x, from_y, to_x, to_y)) = threats_within_board(board) {
         return Some((true, Move::new(game, partial_game, Coords(board.l(), board.t(), from_x, from_y), Coords(board.l(), board.t(), to_x, to_y))));
     }
@@ -344,7 +355,7 @@ macro_rules! leaper_within_board {
 /// Uses bitboards to calculate the spatial threats in a board
 // *I wish our minds were better at this*
 #[inline]
-fn threats_within_board(board: &Board) -> Option<(Physical, Physical, Physical, Physical)> {
+pub fn threats_within_board(board: &Board) -> Option<(Physical, Physical, Physical, Physical)> {
     let royal = if board.white() {
         board.bitboards.black_royal
     } else {
