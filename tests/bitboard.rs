@@ -128,21 +128,45 @@ fn test_random_positions_sub(game: &Game, path: &str) {
     let partial_game = no_partial_game(game);
     let idle = generate_idle_boards(game, &partial_game).unwrap();
 
+    match (is_threatened_bitboard(game, &idle), is_threatened(game, &idle)) {
+        (Some((true, _)), Some((true, _))) => {
+            // Ok
+        }
+        (Some((false, _)), Some((false, _))) => {
+            // Ok
+        }
+        (Some((true, res)), Some((false, _))) => {
+            assert!(false, "is_threatened_bitboard found a move but is_threatened didn't!\n=> {:?}\n@ {}", res, path);
+        }
+        (Some((false, _)), Some((true, res))) => {
+            assert!(false, "is_threatened found a move but is_threatened_bitboard didn't!\n=> {:?}\n@ {}", res, path);
+        }
+        x => panic!("Error while looking for threatening moves: {:?}\n@ {}", x, path),
+    }
+
     for board in idle.opponent_boards(game) {
-        match (is_threatened_bitboard(game, &idle), is_threatened(game, &idle)) {
-            (Some((true, _)), Some((true, _))) => {
-                // Ok
+        let mut physical_checking_moves: Vec<Move> = Vec::new();
+
+        for mv in board.generate_moves_flag(game, &idle, GenMovesFlag::Check).unwrap() {
+            match mv.to.0 {
+                Some(piece) => {
+                    if piece.is_royal() && piece.white == partial_game.info.active_player && mv.to.1.non_physical() == mv.from.1.non_physical() {
+                        physical_checking_moves.push(mv);
+                    }
+                }
+                None => {}
             }
-            (Some((false, _)), Some((false, _))) => {
-                // Ok
+        }
+
+        if let Some((from_x, from_y, to_x, to_y)) = threats_within_board(board) {
+            let mv = Move::new(game, &idle, Coords(board.l(), board.t(), from_x, from_y), Coords(board.l(), board.t(), to_x, to_y)).unwrap();
+            if physical_checking_moves.iter().find(|x| **x == mv).is_none() {
+                assert!(false, "threats_within_board found a threat that wasn't found by generate_moves_flag: {:?}\n@ {}", mv, path);
             }
-            (Some((true, res)), Some((false, _))) => {
-                assert!(false, "is_threatened_bitboard found a move but is_threatened didn't!\n=> {:?}\n@ {}", res, path);
+        } else {
+            if physical_checking_moves.len() > 0 {
+                assert!(false, "threats_within_board found no threat when generate_moves_flag found some: {:?}\n@ {}", physical_checking_moves[0], path);
             }
-            (Some((false, _)), Some((true, res))) => {
-                assert!(false, "is_threatened found a move but is_threatened_bitboard didn't!\n=> {:?}\n@ {}", res, path);
-            }
-            x => panic!("Error while looking for threatening moves: {:?}\n@ {}", x, path),
         }
     }
 }
