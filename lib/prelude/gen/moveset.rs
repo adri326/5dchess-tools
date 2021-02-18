@@ -484,7 +484,7 @@ impl<'a> GenLegalMovesetIter<'a> {
                 }
 
                 // Thorough check verification
-                match is_illegal(self.game, &new_partial_game) {
+                match is_illegal_bitboard(self.game, &new_partial_game) {
                     Some((false, _)) => return Some((ms, new_partial_game)),
                     Some((true, None)) => {}
                     Some((true, Some(mv))) => {

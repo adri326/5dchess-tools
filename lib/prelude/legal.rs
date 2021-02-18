@@ -68,20 +68,20 @@ fn filter_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -
     for board in partial_game.opponent_boards(game) {
         // Uncomment HERE to see the performances go poof:
 
-        // if let Some(_) = is_threatened_bitboard_sub(game, partial_game, board) {
-        //     return Some(false)
-        // }
-
-        for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
-            match mv.to.0 {
-                Some(piece) => {
-                    if piece.is_royal() && piece.white == partial_game.info.active_player {
-                        return Some(false)
-                    }
-                }
-                None => {}
-            }
+        if let Some(_) = is_threatened_bitboard_sub(game, partial_game, board) {
+            return Some(false)
         }
+
+        // for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
+        //     match mv.to.0 {
+        //         Some(piece) => {
+        //             if piece.is_royal() && piece.white == partial_game.info.active_player {
+        //                 return Some(false)
+        //             }
+        //         }
+        //         None => {}
+        //     }
+        // }
     }
 
     Some(true)
@@ -90,24 +90,24 @@ fn filter_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -
 // Must be given a partial game with only the target board!
 fn filter_non_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<bool> {
     for board in partial_game.iter_shallow() {
-        // if let Some(_) = threats_within_board(board) {
-        //     return Some(false)
-        // }
-
-        for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
-            match mv.to.0 {
-                Some(piece) => {
-                    if
-                        piece.is_royal()
-                        && piece.white == partial_game.info.active_player
-                        && mv.to.1.non_physical() == mv.from.1.non_physical()
-                    {
-                        return Some(false)
-                    }
-                }
-                None => {}
-            }
+        if let Some(_) = threats_within_board(board) {
+            return Some(false)
         }
+
+        // for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
+        //     match mv.to.0 {
+        //         Some(piece) => {
+        //             if
+        //                 piece.is_royal()
+        //                 && piece.white == partial_game.info.active_player
+        //                 && mv.to.1.non_physical() == mv.from.1.non_physical()
+        //             {
+        //                 return Some(false)
+        //             }
+        //         }
+        //         None => {}
+        //     }
+        // }
     }
 
     Some(true)
