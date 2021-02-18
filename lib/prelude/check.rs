@@ -80,12 +80,240 @@ pub fn is_in_check<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Opt
     }
 }
 
-pub fn is_threatened_bitboard<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<(bool, Option<Move>)> {
-    for board in partial_game.opponent_boards(game) {
-        if let Some((from_x, from_y, to_x, to_y)) = threats_within_board(board) {
-            return Some((true, Move::new(game, partial_game, Coords(board.l(), board.t(), from_x, from_y), Coords(board.l(), board.t(), to_x, to_y))));
+#[macro_use]
+mod macros {
+    macro_rules! cast_rider_threats {
+        ( $game:expr, $partial_game:expr, $board:expr, [$(($dl:expr, $dt:expr)),* $(,)?], $gonals:tt ) => {
+            $(
+                cast_rider_threats_sub!($game, $partial_game, $board, $dl, $dt, $gonals);
+            )*
         }
     }
+
+    macro_rules! cast_rider_threats_sub {
+        ( $game:expr, $partial_game:expr, $board:expr, $dl:expr, $dt:expr, [$(($index:expr, $dx:expr, $dy:expr)),* $(,)?] ) => {
+            let mut tmp = if $board.white() {
+                [$(
+                    ($board.bitboards.white[$index] as BitBoardPrimitive, $dx as Physical, $dy as Physical)
+                ),*]
+            } else {
+                [$(
+                    ($board.bitboards.black[$index] as BitBoardPrimitive, $dx as Physical, $dy as Physical)
+                ),*]
+            };
+
+            if let Some((from_x, from_y, to)) = cast_rider_threats($game, $partial_game, $board.l(), $board.t(), $dl, $dt * 2, &mut tmp) {
+                return Some((
+                    true,
+                    Move::new($game, $partial_game, Coords($board.l(), $board.t(), from_x, from_y), to),
+                ));
+            }
+        }
+    }
+
+    macro_rules! cast_leaper_threats {
+        ( $game:expr, $partial_game:expr, $board:expr, [$(($dl:expr, $dt:expr)),* $(,)?], $gonals:tt ) => {
+            $(
+                cast_leaper_threats_sub!($game, $partial_game, $board, $dl, $dt, $gonals);
+            )*
+        }
+    }
+
+    macro_rules! cast_leaper_threats_sub {
+        ( $game:expr, $partial_game:expr, $board:expr, $dl:expr, $dt:expr, [$(($index:expr, $dx:expr, $dy:expr)),* $(,)?] ) => {
+            let mut tmp = if $board.white() {
+                [$(
+                    ($board.bitboards.white[$index] as BitBoardPrimitive, $dx as Physical, $dy as Physical)
+                ),*]
+            } else {
+                [$(
+                    ($board.bitboards.black[$index] as BitBoardPrimitive, $dx as Physical, $dy as Physical)
+                ),*]
+            };
+
+            if let Some((from_x, from_y, to)) = cast_leaper_threats($game, $partial_game, $board.l() + $dl, $board.t() + $dt * 2, &mut tmp) {
+                return Some((
+                    true,
+                    Move::new($game, $partial_game, Coords($board.l(), $board.t(), from_x, from_y), to),
+                ));
+            }
+        }
+    }
+}
+
+/// Similar to `is_threatened`, but using bitboards instead of GenMoves
+pub fn is_threatened_bitboard<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<(bool, Option<Move>)> {
+    for board in partial_game.opponent_boards(game) {
+        if let Some(res) = is_threatened_bitboard_sub(game, partial_game, board) {
+            return Some(res)
+        }
+    }
+
+    None
+}
+
+fn is_threatened_bitboard_sub<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>, board: &'a Board) -> Option<(bool, Option<Move>)> {
+    if let Some((from_x, from_y, to_x, to_y)) = threats_within_board(board) {
+        return Some((true, Move::new(game, partial_game, Coords(board.l(), board.t(), from_x, from_y), Coords(board.l(), board.t(), to_x, to_y))));
+    }
+
+    // Haha, you thought you were safe from number walls here?
+
+    if board.white() {
+        cast_leaper_threats!(game, partial_game, board, [
+            (-1, -1),
+            (-1, 1),
+        ], [
+            // Pawn
+            (0, 0, 0),
+        ]);
+        cast_leaper_threats!(game, partial_game, board, [
+            (-1, 0),
+        ], [
+            // Brawn
+            (1, -1, 0),
+            (1, 1, 0),
+            (1, 0, 1),
+        ]);
+        cast_leaper_threats!(game, partial_game, board, [
+            (0, -1),
+        ], [
+            // Brawn
+            (1, 0, 1),
+        ]);
+    } else {
+        cast_leaper_threats!(game, partial_game, board, [
+            (1, -1),
+            (1, 1),
+        ], [
+            // Pawn
+            (0, 0, 0),
+        ]);
+        cast_leaper_threats!(game, partial_game, board, [
+            (1, 0),
+        ], [
+            // Brawn
+            (1, -1, 0),
+            (1, 1, 0),
+            (1, 0, -1),
+        ]);
+        cast_leaper_threats!(game, partial_game, board, [
+            (0, -1),
+        ], [
+            // Brawn
+            (1, 0, -1),
+        ]);
+    }
+
+    cast_leaper_threats!(game, partial_game, board, [
+        (0, -1),
+        (1, 0),
+        (-1, 0),
+    ], [
+        // Wazir
+        (2, 0, 0),
+        // Ferz
+        (3, 1, 0),
+        (3, -1, 0),
+        (3, 0, 1),
+        (3, 0, -1),
+        // Rhino
+        (4, 1, 1),
+        (4, 1, -1),
+        (4, -1, 1),
+        (4, -1, -1),
+        // Knight
+        (10, -2, 0),
+        (10, 2, 0),
+        (10, 0, -2),
+        (10, 0, 2),
+    ]);
+
+    cast_leaper_threats!(game, partial_game, board, [
+        (1, 1),
+        (1, -1),
+        (-1, 1),
+        (-1, -1)
+    ], [
+        // Ferz
+        (3, 0, 0),
+        // Rhino
+        (4, 1, 0),
+        (4, -1, 0),
+        (4, 0, 1),
+        (4, 0, -1),
+        // Wolf
+        (5, 1, 1),
+        (5, 1, -1),
+        (5, -1, 1),
+        (5, -1, -1),
+    ]);
+
+    cast_leaper_threats!(game, partial_game, board, [
+        (0, -2),
+        (2, 0),
+        (-2, 0),
+    ], [
+        // Knight
+        (10, -1, 0),
+        (10, 1, 0),
+        (10, 0, -1),
+        (10, 0, 1),
+    ]);
+
+    cast_leaper_threats!(game, partial_game, board, [
+        (1, 2),
+        (1, -2),
+        (-1, 2),
+        (-1, -2),
+        (2, 1),
+        (2, -1),
+        (-2, 1),
+        (-2, -1),
+    ], [
+        // Knight
+        (10, 0, 0),
+    ]);
+
+    cast_rider_threats!(game, partial_game, board, [
+        (0, -1),
+        (1, 0),
+        (-1, 0),
+    ], [
+        // Rook
+        (6, 0, 0),
+        // Bishop
+        (7, 1, 0),
+        (7, -1, 0),
+        (7, 0, 1),
+        (7, 0, -1),
+        // Unicorn
+        (8, 1, 1),
+        (8, 1, -1),
+        (8, -1, 1),
+        (8, -1, -1),
+    ]);
+
+    cast_rider_threats!(game, partial_game, board, [
+        (1, 1),
+        (1, -1),
+        (-1, 1),
+        (-1, -1),
+    ], [
+        // Bishop
+        (7, 0, 0),
+        // Unicorn
+        (8, 1, 0),
+        (8, -1, 0),
+        (8, 0, 1),
+        (8, 0, -1),
+        // Dragon
+        (9, 1, 1),
+        (9, 1, -1),
+        (9, -1, 1),
+        (9, -1, -1),
+    ]);
+
     None
 }
 
@@ -109,17 +337,6 @@ macro_rules! leaper_within_board {
             let ex = (index % $board.width() as u32) as i8;
             let ey = (index / $board.height() as u32) as i8;
             return Some((ex - $dx, ey - $dy, ex, ey))
-        }
-    }
-}
-
-macro_rules! attack_within_board {
-    ( $board:expr, $attacks:expr, $dx:expr, $dy:expr, $n:expr ) => {
-        if $attacks != 0 {
-            let index = $attacks.trailing_zeros();
-            let ex = (index % $board.width() as u32) as Physical;
-            let ey = (index / $board.height() as u32) as Physical;
-            return Some((ex - $dx * $n, ey - $dx * $n, ex, ey))
         }
     }
 }
@@ -198,8 +415,13 @@ fn threats_within_board(board: &Board) -> Option<(Physical, Physical, Physical, 
 
     for n in 1..=(MAX_BITBOARD_WIDTH as Physical) {
         for o in 0..N_RIDERS {
+            // println!("==> {:#066b} / ({}:{}) / ({}:{})", bitboards[o], RIDERS[o].1, RIDERS[o].2, board.l(), board.t());
             bitboards[o] = bitboard_shift(bitboards[o], RIDERS[o].1, RIDERS[o].2, board.width(), board.height()) & movable;
             attacks[o] = bitboards[o] & royal;
+            // println!("... {:#066b}", bitboards[o]);
+            // println!("... {:#066b}", movable);
+            // println!("... {:#066b}", royal);
+            // println!("... {:#066b}", attacks[o]);
         }
 
         let mut zero: bool = true;
@@ -221,4 +443,114 @@ fn threats_within_board(board: &Board) -> Option<(Physical, Physical, Physical, 
     }
 
     None
+}
+
+#[inline]
+fn cast_rider_threats<'a>(
+    game: &'a Game,
+    partial_game: &'a PartialGame<'a>,
+    mut l: Layer,
+    mut t: Time,
+    dl: Layer,
+    dt: Time,
+    bitboards: &mut [(BitBoardPrimitive, Physical, Physical)]
+) -> Option<(Physical, Physical, Coords)> {
+    let mut n: usize = 0;
+    loop {
+        n += 1;
+        l += dl;
+        t += dt;
+
+        match partial_game.get_board_with_game(game, (l, t)) {
+            Some(board) => {
+                let movable = if board.white() {
+                    board.bitboards.white_movable
+                } else {
+                    board.bitboards.black_movable
+                };
+
+                let royal = if board.white() {
+                    board.bitboards.black_royal
+                } else {
+                    board.bitboards.white_royal
+                };
+
+                let mut zero = true;
+                for (bb, dx, dy) in &mut *bitboards {
+                    // println!("==> {:#066b} / ({}:{}) / ({}:{})", *bb, *dx, *dy, l, t);
+                    *bb = bitboard_shift(*bb, *dx, *dy, board.width(), board.height()) & movable;
+                    // println!("... {:#066b}", *bb);
+                    let attack = *bb & royal;
+                    // println!("... {:#066b}", movable);
+                    // println!("... {:#066b}", royal);
+                    // println!("... {:#066b}", attack);
+                    // println!("");
+                    if attack != 0 {
+                        let index = attack.trailing_zeros();
+                        let ex = (index % board.width() as u32) as Physical;
+                        let ey = (index / board.width() as u32) as Physical;
+                        let sx = ex - *dx * n as Physical;
+                        let sy = ey - *dy * n as Physical;
+                        return Some((sx, sy, Coords(l, t, ex, ey)))
+                    }
+                    if *bb != 0 {
+                        zero = false;
+                    }
+                }
+
+                if zero {
+                    break None
+                }
+            },
+            None => break None,
+        }
+    }
+}
+
+
+#[inline]
+fn cast_leaper_threats<'a>(
+    game: &'a Game,
+    partial_game: &'a PartialGame<'a>,
+    l: Layer,
+    t: Time,
+    bitboards: &mut [(BitBoardPrimitive, Physical, Physical)]
+) -> Option<(Physical, Physical, Coords)> {
+
+    match partial_game.get_board_with_game(game, (l, t)) {
+        Some(board) => {
+            let movable = if board.white() {
+                board.bitboards.white_movable
+            } else {
+                board.bitboards.black_movable
+            };
+
+            let royal = if board.white() {
+                board.bitboards.black_royal
+            } else {
+                board.bitboards.white_royal
+            };
+
+            for (bb, dx, dy) in &mut *bitboards {
+                // println!("==> {:#066b} / ({}:{}) / ({}:{})", *bb, *dx, *dy, l, t);
+                *bb = bitboard_shift(*bb, *dx, *dy, board.width(), board.height()) & movable;
+                // println!("... {:#066b}", *bb);
+                let attack = *bb & royal;
+                // println!("... {:#066b}", movable);
+                // println!("... {:#066b}", royal);
+                // println!("... {:#066b}", attack);
+                // println!("");
+                if attack != 0 {
+                    let index = attack.trailing_zeros();
+                    let ex = (index % board.width() as u32) as Physical;
+                    let ey = (index / board.width() as u32) as Physical;
+                    let sx = ex - *dx as Physical;
+                    let sy = ey - *dy as Physical;
+                    return Some((sx, sy, Coords(l, t, ex, ey)))
+                }
+            }
+            None
+        },
+        None => None,
+    }
 }

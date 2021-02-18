@@ -315,17 +315,17 @@ lazy_static! {
                 white_movable: false,
                 black: [false; N_BITBOARDS],
                 black_royal: false,
-                black_movable: true,
+                black_movable: k.1 > 0,
             };
 
             // Black
             res[i + 2] = BitBoardMask {
                 white: [false; N_BITBOARDS],
                 white_royal: false,
-                white_movable: false,
+                white_movable: k.1 > 0,
                 black: transformed_kernel,
                 black_royal: k.1 > 0,
-                black_movable: true,
+                black_movable: false,
             };
         }
 

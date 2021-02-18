@@ -72,3 +72,30 @@ fn test_knight_check() {
 
     assert_eq!(is_threatened_bitboard(&game, &idle), Some((true, Move::new(&game, &idle, Coords(0, 7, 5, 2), Coords(0, 7, 4, 0)))));
 }
+
+#[test]
+fn test_bishop_time_check() {
+    let game = read_and_parse("tests/games/bitboard/bishop-timecheck.json");
+    let partial_game = no_partial_game(&game);
+    let idle = generate_idle_boards(&game, &partial_game).unwrap();
+
+    assert_eq!(is_threatened_bitboard(&game, &idle), Some((true, Move::new(&game, &idle, Coords(0, 11, 4, 5), Coords(0, 1, 4, 0)))));
+}
+
+#[test]
+fn test_unicorn_time_check() {
+    let game = read_and_parse("tests/games/bitboard/unicorn-timecheck.json");
+    let partial_game = no_partial_game(&game);
+    let idle = generate_idle_boards(&game, &partial_game).unwrap();
+
+    assert_eq!(is_threatened_bitboard(&game, &idle), Some((true, Move::new(&game, &idle, Coords(0, 9, 0, 4), Coords(0, 1, 4, 0)))));
+}
+
+#[test]
+fn test_unicorn_dimension_check() {
+    let game = read_and_parse("tests/games/bitboard/unicorn-dimension-check.json");
+    let partial_game = no_partial_game(&game);
+    let idle = generate_idle_boards(&game, &partial_game).unwrap();
+
+    assert_eq!(is_threatened_bitboard(&game, &idle), Some((true, Move::new(&game, &idle, Coords(-1, 7, 7, 3), Coords(2, 7, 4, 0)))));
+}
