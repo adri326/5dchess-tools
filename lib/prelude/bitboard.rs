@@ -26,7 +26,15 @@ pub const N_BITBOARDS: usize = 11;
 
 /**
     Contains the bitboards for the different piece kinds of each player.
-    They are named after their respective, basic piece movements
+    They are named after their respective, basic piece movements.
+
+    Note that bitboards go from left to right and from bottom to top; with a 3x3 bitboard:
+
+    ```
+    789
+    456
+    123
+    ```
 **/
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct BitBoards {
@@ -57,6 +65,7 @@ impl BitBoards {
 
     /// Assumes that `pieces` fits!
     pub fn from_pieces(pieces: &Vec<Tile>) -> Self {
+        RSHIFT_MASK[0];
         let mut white = [0; N_BITBOARDS];
         let mut white_royal = 0;
         let mut white_movable = 0;
@@ -144,6 +153,116 @@ impl Default for BitBoardMask {
     }
 }
 
+/** Gets the right mask for the given board width and Δx
+    You should apply this mask before bitshifting your bitboard, as to prevent pieces to wrap around the width of the board; for instance:
+
+    ```
+    x = 0b0100101000000100:
+    0010
+    0101
+    0000
+    0010
+    ```
+
+    A naive rshift gives us:
+
+    ```
+    x<<1 = 0b1001010000001000:
+    1001
+    0010
+    0000
+    0001
+    ```
+
+    Whereas, if we apply this mask:
+
+    ```
+    (x & get_bitboard_mask(4, 1)) << 1 = 0b1000010000001000:
+    0001
+    0010
+    0000
+    0001
+    ```
+
+    Assumes that 0 ≤ width < MAX_BITBOARD_WIDTH and -width ≤ Δx ≤ width.
+**/
+#[inline]
+pub fn get_bitboard_mask(width: Physical, dx: Physical) -> BitBoardPrimitive {
+    if dx > 0 {
+        LSHIFT_MASK[(width as usize - 1) * MAX_BITBOARD_WIDTH + dx as usize]
+    } else {
+        RSHIFT_MASK[(width as usize - 1) * MAX_BITBOARD_WIDTH + (-dx) as usize]
+    }
+}
+
+/**
+    Shifts a bitboard by a given Δx and Δy, also applying the correct mask.
+
+    ## Example
+
+    ```
+    x = 0b0100101000000100:
+    0010
+    0101
+    0000
+    0010
+    ```
+
+    ```
+    bitboard_shift(x, -1, 0, 4, 4) = 0b0010010100000010:
+    0100
+    1010
+    0000
+    0100
+    ```
+
+    ```
+    bitboard_shift(x, 1, 0, 4, 4) = 0b1000010000001000:
+    0001
+    0010
+    0000
+    0001
+    ```
+
+    ```
+    bitboard_shift(x, 0, 1, 4, 4) = 0b1010000001000000:
+    0101
+    0000
+    0010
+    0000
+    ```
+
+    ```
+    bitboard_shift(x, 0, -1, 4, 4) = 0b0000010010100000:
+    0000
+    0010
+    0101
+    0000
+    ```
+**/
+#[inline]
+pub fn bitboard_shift(mut bitboard: BitBoardPrimitive, dx: Physical, dy: Physical, width: Physical, height: Physical) -> BitBoardPrimitive {
+    if dx > 0 {
+        bitboard &= LSHIFT_MASK[(width as usize - 1) * MAX_BITBOARD_WIDTH + dx as usize];
+        bitboard <<= dx as usize;
+    } else {
+        bitboard &= RSHIFT_MASK[(width as usize - 1) * MAX_BITBOARD_WIDTH + (-dx) as usize];
+        bitboard >>= (-dx) as usize;
+    }
+
+    if dy > 0 {
+        bitboard <<= (dy as usize) * (width as usize)
+    } else {
+        bitboard >>= ((-dy) as usize) * (width as usize)
+    }
+
+    bitboard & ((1 << (width * height)) - 1)
+}
+
+#[cfg(bitboard128)]
+pub const MAX_BITBOARD_WIDTH: usize = 11;
+#[cfg(not(bitboard128))]
+pub const MAX_BITBOARD_WIDTH: usize = 8;
 
 lazy_static! {
     pub static ref PIECE_MASKS: [BitBoardMask; 2 * N_PIECES + 2] = {
@@ -193,6 +312,43 @@ lazy_static! {
                 black_royal: k.1 > 0,
                 black_movable: true,
             };
+        }
+
+        res
+    };
+
+    // The length needs a +1 to allow for `width = MAX_BITBOARD_WIDTH`, `shift = width`
+    pub static ref RSHIFT_MASK: [BitBoardPrimitive; MAX_BITBOARD_WIDTH * MAX_BITBOARD_WIDTH + 1] = {
+        let mut res = [0; MAX_BITBOARD_WIDTH * MAX_BITBOARD_WIDTH + 1];
+
+        for width in 1..=MAX_BITBOARD_WIDTH {
+            for shift in 0..width {
+                let mut kernel: BitBoardPrimitive = (1 << width) - (1 << shift);
+                let mut mask = kernel;
+                while kernel > 0 {
+                    kernel <<= width;
+                    mask |= kernel;
+                }
+                res[(width - 1) * MAX_BITBOARD_WIDTH + shift] = mask;
+            }
+        }
+
+        res
+    };
+
+    pub static ref LSHIFT_MASK: [BitBoardPrimitive; MAX_BITBOARD_WIDTH * MAX_BITBOARD_WIDTH + 1] = {
+        let mut res = [0; MAX_BITBOARD_WIDTH * MAX_BITBOARD_WIDTH + 1];
+
+        for width in 1..=MAX_BITBOARD_WIDTH {
+            for shift in 0..width {
+                let mut kernel: BitBoardPrimitive = (1 << (width - shift)) - 1;
+                let mut mask = kernel;
+                while kernel > 0 {
+                    kernel <<= width;
+                    mask |= kernel;
+                }
+                res[(width - 1) * MAX_BITBOARD_WIDTH + shift] = mask;
+            }
         }
 
         res
