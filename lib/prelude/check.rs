@@ -79,3 +79,146 @@ pub fn is_in_check<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Opt
         None
     }
 }
+
+pub fn is_threatened_bitboard<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -> Option<(bool, Option<Move>)> {
+    for board in partial_game.opponent_boards(game) {
+        if let Some((from_x, from_y, to_x, to_y)) = threats_within_board(board) {
+            return Some((true, Move::new(game, partial_game, Coords(board.l(), board.t(), from_x, from_y), Coords(board.l(), board.t(), to_x, to_y))));
+        }
+    }
+    None
+}
+
+macro_rules! leaper_within_board {
+    ( $board:expr, $index:expr, $royal:expr, $dx:expr, $dy:expr ) => {
+        // println!("{:#066b}", $bitboard);
+        let tmp = bitboard_shift(
+            if $board.white() {
+                $board.bitboards.white[$index]
+            } else {
+                $board.bitboards.black[$index]
+            },
+            $dx,
+            $dy,
+            $board.width(),
+            $board.height()
+        ) & $royal;
+        // println!("{:#066b}", tmp);
+        if tmp != 0 {
+            let index = tmp.trailing_zeros();
+            let ex = (index % $board.width() as u32) as i8;
+            let ey = (index / $board.height() as u32) as i8;
+            return Some((ex - $dx, ey - $dy, ex, ey))
+        }
+    }
+}
+
+macro_rules! attack_within_board {
+    ( $board:expr, $attacks:expr, $dx:expr, $dy:expr, $n:expr ) => {
+        if $attacks != 0 {
+            let index = $attacks.trailing_zeros();
+            let ex = (index % $board.width() as u32) as Physical;
+            let ey = (index / $board.height() as u32) as Physical;
+            return Some((ex - $dx * $n, ey - $dx * $n, ex, ey))
+        }
+    }
+}
+
+/// Uses bitboards to calculate the spatial threats in a board
+// *I wish our minds were better at this*
+#[inline]
+fn threats_within_board(board: &Board) -> Option<(Physical, Physical, Physical, Physical)> {
+    let royal = if board.white() {
+        board.bitboards.black_royal
+    } else {
+        board.bitboards.white_royal
+    };
+
+    let movable = if board.white() {
+        board.bitboards.white_movable
+    } else {
+        board.bitboards.black_movable
+    };
+
+    if board.white() {
+        leaper_within_board!(board, 0, royal, 1, 1);
+        leaper_within_board!(board, 0, royal, -1, 1);
+    } else {
+        leaper_within_board!(board, 0, royal, 1, -1);
+        leaper_within_board!(board, 0, royal, -1, -1);
+    }
+
+    // Wazir
+    leaper_within_board!(board, 2, royal, 0, 1);
+    leaper_within_board!(board, 2, royal, 0, -1);
+    leaper_within_board!(board, 2, royal, 1, 0);
+    leaper_within_board!(board, 2, royal, -1, 0);
+
+    // Ferz
+    leaper_within_board!(board, 3, royal, 1, 1);
+    leaper_within_board!(board, 3, royal, 1, -1);
+    leaper_within_board!(board, 3, royal, -1, 1);
+    leaper_within_board!(board, 3, royal, -1, -1);
+
+    // Knight
+    leaper_within_board!(board, 10, royal, 2, 1);
+    leaper_within_board!(board, 10, royal, 2, -1);
+    leaper_within_board!(board, 10, royal, -2, 1);
+    leaper_within_board!(board, 10, royal, -2, -1);
+    leaper_within_board!(board, 10, royal, 1, 2);
+    leaper_within_board!(board, 10, royal, 1, -2);
+    leaper_within_board!(board, 10, royal, -1, 2);
+    leaper_within_board!(board, 10, royal, -1, -2);
+
+    // Rider pieces
+    const N_RIDERS: usize = 8;
+    const RIDERS: [(usize, Physical, Physical); N_RIDERS] = [
+        (6, -1, 0),
+        (6, 1, 0),
+        (6, 0, 1),
+        (6, 0, -1),
+        (7, -1, 1),
+        (7, -1, -1),
+        (7, 1, 1),
+        (7, 1, -1),
+    ];
+
+    let mut bitboards: [BitBoardPrimitive; N_RIDERS] = [0; N_RIDERS];
+    let mut attacks: [BitBoardPrimitive; N_RIDERS] = [0; N_RIDERS];
+
+    if board.white() {
+        for n in 0..N_RIDERS {
+            bitboards[n] = board.bitboards.white[RIDERS[n].0];
+        }
+    } else {
+        for n in 0..N_RIDERS {
+            bitboards[n] = board.bitboards.black[RIDERS[n].0];
+        }
+    }
+
+    for n in 1..=(MAX_BITBOARD_WIDTH as Physical) {
+        for o in 0..N_RIDERS {
+            bitboards[o] = bitboard_shift(bitboards[o], RIDERS[o].1, RIDERS[o].2, board.width(), board.height()) & movable;
+            attacks[o] = bitboards[o] & royal;
+        }
+
+        let mut zero: bool = true;
+        for o in 0..N_RIDERS {
+            if attacks[o] != 0 {
+                let index = attacks[o].trailing_zeros();
+                let ex = (index % board.width() as u32) as Physical;
+                let ey = (index / board.height() as u32) as Physical;
+                return Some((ex - RIDERS[o].1 * n, ey - RIDERS[o].2 * n, ex, ey))
+            }
+            if bitboards[o] != 0 {
+                zero = false;
+            }
+        }
+
+        if zero {
+            break
+        }
+    }
+
+    None
+}

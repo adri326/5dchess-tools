@@ -1,0 +1,7 @@
+[Board "Standard"]
+[Mode "5D"]
+1. e4 / d5
+2. exd5 / Qd7
+3. c4 / Qe6
+
+{Not a rook check per se, but the underlying algorithm doesn't make a difference between either}

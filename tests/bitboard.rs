@@ -1,4 +1,5 @@
 use chess5dlib::prelude::*;
+use chess5dlib::parse::test::read_and_parse;
 
 #[test]
 fn test_shift_masks() {
@@ -34,4 +35,40 @@ fn test_shift_masks() {
     assert_eq!(bitboard_shift(bitboard_shift(x, 0, 1, 4, 4), 1, 0, 4, 4), bitboard_shift(x, 1, 1, 4, 4));
     assert_eq!(bitboard_shift(bitboard_shift(x, 0, 1, 4, 4), -2, 0, 4, 4), bitboard_shift(x, -2, 1, 4, 4));
     assert_eq!(bitboard_shift(bitboard_shift(x, 2, 0, 4, 4), 0, -1, 4, 4), bitboard_shift(x, 2, -1, 4, 4));
+}
+
+#[test]
+fn test_pawn_check() {
+    let game = read_and_parse("tests/games/bitboard/pawn-check.json");
+    let partial_game = no_partial_game(&game);
+    let idle = generate_idle_boards(&game, &partial_game).unwrap();
+
+    assert_eq!(is_threatened_bitboard(&game, &idle), Some((true, Move::new(&game, &idle, Coords(0, 9, 5, 1), Coords(0, 9, 4, 0)))));
+}
+
+#[test]
+fn test_queen_check() {
+    let game = read_and_parse("tests/games/bitboard/queen-check.json");
+    let partial_game = no_partial_game(&game);
+    let idle = generate_idle_boards(&game, &partial_game).unwrap();
+
+    assert_eq!(is_threatened_bitboard(&game, &idle), Some((true, Move::new(&game, &idle, Coords(0, 5, 7, 3), Coords(0, 5, 4, 0)))));
+}
+
+#[test]
+fn test_rook_check() {
+    let game = read_and_parse("tests/games/bitboard/rook-check.json");
+    let partial_game = no_partial_game(&game);
+    let idle = generate_idle_boards(&game, &partial_game).unwrap();
+
+    assert_eq!(is_threatened_bitboard(&game, &idle), Some((true, Move::new(&game, &idle, Coords(0, 7, 4, 5), Coords(0, 7, 4, 0)))));
+}
+
+#[test]
+fn test_knight_check() {
+    let game = read_and_parse("tests/games/bitboard/knight-check.json");
+    let partial_game = no_partial_game(&game);
+    let idle = generate_idle_boards(&game, &partial_game).unwrap();
+
+    assert_eq!(is_threatened_bitboard(&game, &idle), Some((true, Move::new(&game, &idle, Coords(0, 7, 5, 2), Coords(0, 7, 4, 0)))));
 }

@@ -242,21 +242,36 @@ pub fn get_bitboard_mask(width: Physical, dx: Physical) -> BitBoardPrimitive {
 **/
 #[inline]
 pub fn bitboard_shift(mut bitboard: BitBoardPrimitive, dx: Physical, dy: Physical, width: Physical, height: Physical) -> BitBoardPrimitive {
+    let width = width as usize;
+    let height = height as usize;
+
     if dx > 0 {
-        bitboard &= LSHIFT_MASK[(width as usize - 1) * MAX_BITBOARD_WIDTH + dx as usize];
+        bitboard &= LSHIFT_MASK[(width - 1) * MAX_BITBOARD_WIDTH + dx as usize];
         bitboard <<= dx as usize;
     } else {
-        bitboard &= RSHIFT_MASK[(width as usize - 1) * MAX_BITBOARD_WIDTH + (-dx) as usize];
+        bitboard &= RSHIFT_MASK[(width - 1) * MAX_BITBOARD_WIDTH + (-dx) as usize];
         bitboard >>= (-dx) as usize;
     }
 
     if dy > 0 {
-        bitboard <<= (dy as usize) * (width as usize)
+        bitboard <<= (dy as usize) * (width)
     } else {
-        bitboard >>= ((-dy) as usize) * (width as usize)
+        bitboard >>= ((-dy) as usize) * (width)
     }
 
-    bitboard & ((1 << (width * height)) - 1)
+    if cfg!(bitboard128) {
+        if width * height == 128 {
+            bitboard
+        } else {
+            bitboard & ((1 << (width * height)) - 1)
+        }
+    } else {
+        if width * height == 64 {
+            bitboard
+        } else {
+            bitboard & ((1 << (width * height)) - 1)
+        }
+    }
 }
 
 #[cfg(bitboard128)]
