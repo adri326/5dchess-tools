@@ -5,6 +5,9 @@ pub type Physical = i8;
 pub mod board;
 pub use board::*;
 
+pub mod bitboard;
+pub use bitboard::*;
+
 pub mod check;
 pub use check::*;
 
