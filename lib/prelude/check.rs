@@ -149,7 +149,7 @@ pub fn is_threatened_bitboard<'a>(game: &'a Game, partial_game: &'a PartialGame<
         }
     }
 
-    None
+    Some((false, None))
 }
 
 /// Similar to `is_illegal`, but using bitboards instead of GenMoves
@@ -160,7 +160,7 @@ pub fn is_illegal_bitboard<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>
         }
     }
 
-    None
+    Some((false, None))
 }
 
 pub fn is_threatened_bitboard_sub<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>, board: &'a Board) -> Option<(bool, Option<Move>)> {

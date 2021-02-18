@@ -1,5 +1,8 @@
 use chess5dlib::prelude::*;
-use chess5dlib::parse::test::read_and_parse;
+use chess5dlib::parse::test::{read_and_parse, read_and_parse_opt};
+use std::fs::read_dir;
+use std::path::Path;
+use rand::prelude::SliceRandom;
 
 #[test]
 fn test_shift_masks() {
@@ -98,4 +101,48 @@ fn test_unicorn_dimension_check() {
     let idle = generate_idle_boards(&game, &partial_game).unwrap();
 
     assert_eq!(is_threatened_bitboard(&game, &idle), Some((true, Move::new(&game, &idle, Coords(-1, 7, 7, 3), Coords(2, 7, 4, 0)))));
+}
+
+#[test]
+fn test_random_positions() {
+    let dir = read_dir(Path::new("./converted-db/standard/none"));
+    assert!(dir.is_ok(), "Can't open `./converted-db/standard/none`");
+    let mut dir: Vec<_> = dir.unwrap().filter_map(|entry| entry.ok()).collect();
+
+    let mut rng = rand::thread_rng();
+
+    dir.shuffle(&mut rng);
+
+    for entry in dir.iter().take(1000) {
+        if let Some(ext) = entry.path().as_path().extension() {
+            if ext == "json" {
+                if let Some(game) = read_and_parse_opt(&entry.path().to_str().unwrap()) {
+                    test_random_positions_sub(&game, &entry.path().to_str().unwrap());
+                }
+            }
+        }
+    }
+}
+
+fn test_random_positions_sub(game: &Game, path: &str) {
+    let partial_game = no_partial_game(game);
+    let idle = generate_idle_boards(game, &partial_game).unwrap();
+
+    for board in idle.opponent_boards(game) {
+        match (is_threatened_bitboard(game, &idle), is_threatened(game, &idle)) {
+            (Some((true, _)), Some((true, _))) => {
+                // Ok
+            }
+            (Some((false, _)), Some((false, _))) => {
+                // Ok
+            }
+            (Some((true, res)), Some((false, _))) => {
+                assert!(false, "is_threatened_bitboard found a move but is_threatened didn't!\n=> {:?}\n@ {}", res, path);
+            }
+            (Some((false, _)), Some((true, res))) => {
+                assert!(false, "is_threatened found a move but is_threatened_bitboard didn't!\n=> {:?}\n@ {}", res, path);
+            }
+            x => panic!("Error while looking for threatening moves: {:?}\n@ {}", x, path),
+        }
+    }
 }

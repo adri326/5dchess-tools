@@ -40,6 +40,7 @@ fn compare_methods<F1, F2, M>(
             }
             None
         })
+        .take(200)
         .collect();
 
     assert!(games.len() > 100);
