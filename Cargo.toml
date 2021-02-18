@@ -9,6 +9,7 @@ edition = "2018"
 [features]
 default = ["castling"]
 castling = []
+bitboard128 = []
 
 [lib]
 name = "chess5dlib"
