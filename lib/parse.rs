@@ -3,7 +3,6 @@ use crate::prelude::{
 };
 use crate::traversal::bubble_down_mut;
 use serde::Deserialize;
-use std::collections::HashMap;
 
 /// Represents a game state
 #[derive(Debug, Deserialize)]
@@ -65,7 +64,14 @@ pub fn parse(raw: &str) -> Option<Game> {
         })
         .collect();
 
-    let mut boards: HashMap<(Layer, Time), Board> = HashMap::new();
+
+    let mut res = Game::new(
+        game_raw.width as Physical,
+        game_raw.height as Physical,
+        even_timelines,
+        timelines_white,
+        timelines_black,
+    );
 
     for timeline in game_raw.timelines.iter() {
         let layer: Layer = de_layer(timeline.index, even_timelines);
@@ -80,18 +86,9 @@ pub fn parse(raw: &str) -> Option<Game> {
 
             let board: Board =
                 Board::new(game_raw.width, game_raw.height, layer, time, pieces, None);
-            boards.insert((layer, time), board);
+            res.insert_board(board);
         }
     }
-
-    let mut res = Game::new(
-        game_raw.width as Physical,
-        game_raw.height as Physical,
-        even_timelines,
-        timelines_white,
-        timelines_black,
-    );
-    res.boards = boards;
 
     // Fill in the "moved" field of the pieces
     for layer in game_raw

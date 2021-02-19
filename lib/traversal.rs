@@ -32,7 +32,7 @@ pub fn bubble_down_mut<'a, F, T>(
     T: Clone,
     F: (Fn(&mut Board, (Layer, Time), T) -> T) + Copy,
 {
-    let new_state = match game.boards.get_mut(&coords) {
+    let new_state = match game.get_board_mut(coords) {
         Some(board) => function(board, coords, initial_state),
         None => return,
     };
@@ -83,7 +83,7 @@ where
     T: Clone,
     F: (Fn(&Board, (Layer, Time), T) -> T) + Copy,
 {
-    let new_state = match game.boards.get(&coords) {
+    let new_state = match game.get_board(coords) {
         Some(board) => function(board, coords, initial_state),
         None => return,
     };
@@ -146,7 +146,7 @@ where
 {
     let mut state = initial_state;
 
-    while let Some(board) = game.boards.get_mut(&coords) {
+    while let Some(board) = game.get_board_mut(coords) {
         state = function(board, coords, state);
 
         if let Some(starts_from) = game.info.get_timeline(coords.0).unwrap().starts_from {
@@ -201,7 +201,7 @@ where
 {
     let mut state = initial_state;
 
-    while let Some(board) = game.boards.get(&coords) {
+    while let Some(board) = game.get_board(coords) {
         state = function(board, coords, state);
 
         if let Some(starts_from) = game.info.get_timeline(coords.0).unwrap().starts_from {

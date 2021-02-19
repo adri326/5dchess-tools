@@ -18,8 +18,8 @@ pub fn test_parse_standard() {
     );
     let game = game.unwrap();
 
-    assert!(game.boards.len() == 1);
-    assert!(game.boards.get(&(0, 0)).is_some());
+    assert!(game.iter_boards().count() == 1);
+    assert!(game.get_board((0, 0)).is_some());
 
     // Check that every piece on the starting board hasn't moved
     for x in 0..(8 as Physical) {
@@ -73,8 +73,8 @@ pub fn test_parse_standard_t0() {
     );
     let game = game.unwrap();
 
-    assert_eq!(game.boards.len(), 2);
-    assert!(game.boards.get(&(0, 0)).is_some());
+    assert_eq!(game.iter_boards().count(), 2);
+    assert!(game.get_board((0, 0)).is_some());
 
     // Check that every piece on the starting board hasn't moved
     for x in 0..(8 as Physical) {
@@ -105,9 +105,9 @@ pub fn test_parse_standard_d4() {
     );
     let game = game.unwrap();
 
-    assert!(game.boards.len() == 2);
-    assert!(game.boards.get(&(0, 0)).is_some());
-    assert!(game.boards.get(&(0, 1)).is_some());
+    assert!(game.iter_boards().count() == 2);
+    assert!(game.get_board((0, 0)).is_some());
+    assert!(game.get_board((0, 1)).is_some());
 
     // Check that every piece on the starting board hasn't moved
     for x in 0..(8 as Physical) {
