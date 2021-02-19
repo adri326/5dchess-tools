@@ -1,5 +1,12 @@
 #[allow(unused_imports)]
-use chess5dlib::{parse::*, prelude::*, utils::*};
+use chess5dlib::{
+    prelude::*,
+    utils::*,
+    check::*,
+    gen::*,
+    mate::*,
+    parse::*,
+};
 use rand::Rng;
 use scoped_threadpool::Pool;
 use std::fs::read_dir;

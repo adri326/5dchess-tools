@@ -1,5 +1,7 @@
 use chess5dlib::parse::test::read_and_parse;
-use chess5dlib::prelude::*;
+use chess5dlib::{
+    prelude::*,
+};
 use std::convert::TryFrom;
 
 #[test]

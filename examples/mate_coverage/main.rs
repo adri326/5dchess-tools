@@ -1,6 +1,10 @@
 use chess5dlib::parse::test::read_and_parse_opt;
-use chess5dlib::*;
-use chess5dlib::utils::list_legal_movesets;
+use chess5dlib::{
+    prelude::*,
+    utils::*,
+    gen::*,
+    mate::*,
+};
 use rand::{Rng, prelude::SliceRandom};
 use std::fs::read_dir;
 use std::time::{Duration, Instant};

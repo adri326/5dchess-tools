@@ -1,4 +1,5 @@
 use super::*;
+use crate::check::*;
 use itertools::Itertools;
 use std::convert::TryFrom;
 use std::time::{Duration, Instant};

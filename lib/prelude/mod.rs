@@ -8,17 +8,11 @@ pub use board::*;
 pub mod bitboard;
 pub use bitboard::*;
 
-pub mod check;
-pub use check::*;
-
 pub mod coords;
 pub use coords::*;
 
 pub mod game;
 pub use game::*;
-
-pub mod gen;
-pub use gen::*;
 
 pub mod info;
 pub use info::*;
@@ -32,9 +26,6 @@ pub use movement::*;
 pub mod partial_game;
 pub use partial_game::*;
 
-pub mod legal;
-pub use legal::*;
-
 pub mod goal;
 pub use goal::*;
 
@@ -43,6 +34,3 @@ pub use tile::*;
 
 pub mod time;
 pub use time::*;
-
-pub mod mate;
-pub use mate::*;

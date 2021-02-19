@@ -1,4 +1,6 @@
 use crate::*;
+use crate::gen::*;
+use crate::check::*;
 use rand::seq::SliceRandom;
 use std::time::{Duration, Instant};
 

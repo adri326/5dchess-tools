@@ -1,4 +1,5 @@
-use super::*;
+use crate::*;
+use crate::gen::*;
 
 /**
     Generates idle boards. Idle boards are defined as such:

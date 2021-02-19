@@ -1,4 +1,6 @@
-use super::*;
+use crate::*;
+use crate::gen::*;
+use super::threat::*;
 use std::collections::HashMap;
 
 pub fn is_legal_move<'a>(

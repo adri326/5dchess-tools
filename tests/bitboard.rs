@@ -1,4 +1,8 @@
-use chess5dlib::prelude::*;
+use chess5dlib::{
+    prelude::*,
+    check::*,
+    gen::*,
+};
 use chess5dlib::parse::test::{read_and_parse, read_and_parse_opt};
 use std::fs::read_dir;
 use std::path::Path;

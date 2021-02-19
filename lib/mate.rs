@@ -1,4 +1,6 @@
-use super::*;
+use crate::*;
+use crate::gen::*;
+use crate::check::*;
 use std::collections::{HashSet};
 use std::time::{Duration, Instant};
 

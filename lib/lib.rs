@@ -14,3 +14,6 @@ pub mod goals;
 pub mod parse;
 pub mod traversal;
 pub mod utils;
+pub mod gen;
+pub mod check;
+pub mod mate;
