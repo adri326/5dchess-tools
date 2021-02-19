@@ -484,7 +484,12 @@ impl<'a> GenLegalMovesetIter<'a> {
                 }
 
                 // Thorough check verification
-                match is_illegal_bitboard(self.game, &new_partial_game) {
+                let illegal = if self.game.width <= MAX_BITBOARD_WIDTH as Physical {
+                    is_illegal_bitboard(self.game, &new_partial_game)
+                } else {
+                    is_illegal(self.game, &new_partial_game)
+                };
+                match illegal {
                     Some((false, _)) => return Some((ms, new_partial_game)),
                     Some((true, None)) => {}
                     Some((true, Some(mv))) => {
