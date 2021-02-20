@@ -99,6 +99,7 @@ impl Move {
                     .get_board_with_game(game, self.from.1.non_physical())?
                     .clone();
 
+                new_board.set_castle(None);
                 new_board.t += 1;
 
                 // Calculate indices
@@ -144,6 +145,7 @@ impl Move {
                     .get_board_with_game(game, self.from.1.non_physical())?
                     .clone();
                 let (ex, ey) = new_board.en_passant?; // TODO: fix this?
+                new_board.set_castle(None);
                 new_board.en_passant = None;
                 new_board.t += 1;
 
@@ -211,6 +213,17 @@ impl Move {
                     + (self.from.1).3 as usize * new_board.width() as usize;
 
                 // Update pieces
+                if direction { // Left
+                    new_board.set_castle(Some((
+                        (self.to.1).2 + 1, (self.to.1).3,
+                        (self.to.1).2 + 2, (self.to.1).3
+                    )));
+                } else { // Right
+                    new_board.set_castle(Some((
+                        (self.to.1).2 - 1, (self.to.1).3,
+                        (self.to.1).2 - 2, (self.to.1).3
+                    )));
+                }
                 new_board.set(((self.to.1).2, (self.to.1).3), set_moved(new_board.pieces[from_index], true))?;
                 new_board.set(((self.from.1).2, (self.from.1).3), Tile::Blank)?;
                 if direction {
@@ -242,6 +255,7 @@ impl Move {
                 let mut new_board: Board = partial_game
                     .get_board_with_game(game, self.to.1.non_physical())?
                     .clone();
+                new_board.set_castle(None);
 
                 new_board.t += 1;
 

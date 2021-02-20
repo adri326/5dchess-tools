@@ -76,6 +76,16 @@ fn filter_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a>) -
     } else {
         for board in partial_game.opponent_boards(game) {
             for mv in board.generate_moves_flag(game, partial_game, GenMovesFlag::Check)? {
+                if cfg!(castling) {
+                    if mv.to.1.non_physical() == board.non_physical() {
+                        if let Some((x1, y1, x2, y2)) = board.castle {
+                            if (mv.to.1).2 == x1 && (mv.to.1).3 == y1 || (mv.to.1).2 == x2 && (mv.to.1).3 == y2 {
+                                return Some(false)
+                            }
+                        }
+                    }
+                }
+
                 match mv.to.0 {
                     Some(piece) => {
                         if piece.is_royal() && piece.white == partial_game.info.active_player {

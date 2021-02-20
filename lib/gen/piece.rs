@@ -196,23 +196,43 @@ impl<'a> Iterator for RangingPieceIter<'a> {
 
         let res = if self.flag == GenMovesFlag::Check {
             loop {
+                // IMPORTANT: remember to set next_cardinality to true if there is no next move!
                 self.distance += 1;
                 let n_coords = self.coords + Coords::from(cardinality) * (self.distance as isize);
 
-                match self.partial_game.get_with_game(self.game, n_coords) {
-                    Tile::Void => {
-                        next_cardinality = true;
-                        break None;
-                    }
-                    Tile::Blank => {}
-                    Tile::Piece(p) => {
-                        next_cardinality = true;
-                        if p.white != self.piece.white {
-                            break Move::new(self.game, self.partial_game, self.coords, n_coords);
-                        } else {
-                            break None;
+                if let Some(board) = self.partial_game.get_board_with_game(self.game, n_coords.non_physical()) {
+                    if cfg!(castling) {
+                        match board.castle {
+                            Some((x1, y1, x2, y2)) => {
+                                if
+                                    n_coords.2 == x1 && n_coords.3 == y1
+                                    || n_coords.3 == x2 && n_coords.3 == y2
+                                {
+                                    break Move::new(self.game, self.partial_game, self.coords, n_coords);
+                                }
+                            }
+                            None => {},
                         }
                     }
+
+                    match board.get(n_coords.physical()) {
+                        Tile::Void => {
+                            next_cardinality = true;
+                            break None;
+                        }
+                        Tile::Blank => {}
+                        Tile::Piece(p) => {
+                            next_cardinality = true;
+                            if p.white != self.piece.white {
+                                break Move::new(self.game, self.partial_game, self.coords, n_coords);
+                            } else {
+                                break None;
+                            }
+                        }
+                    }
+                } else {
+                    next_cardinality = true;
+                    break None
                 }
             }
         } else {

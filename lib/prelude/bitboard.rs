@@ -36,7 +36,7 @@ pub const N_BITBOARDS: usize = 11;
     123
     ```
 **/
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct BitBoards {
     // White's pieces
     pub white: [BitBoardPrimitive; N_BITBOARDS],
@@ -47,6 +47,8 @@ pub struct BitBoards {
     pub black: [BitBoardPrimitive; N_BITBOARDS],
     pub black_royal: BitBoardPrimitive,
     pub black_movable: BitBoardPrimitive,
+
+    pub castle: BitBoardPrimitive,
 }
 
 impl BitBoards {
@@ -94,6 +96,19 @@ impl BitBoards {
             black,
             black_royal,
             black_movable,
+
+            castle: 0,
+        }
+    }
+
+    pub fn set_castle(&mut self, castle: Option<(u32, u32)>) {
+        match castle {
+            Some((i1, i2)) => {
+                self.castle = (1 << i1) | (1 << i2);
+            }
+            None => {
+                self.castle = 0;
+            }
         }
     }
 }
@@ -109,7 +124,9 @@ impl Default for BitBoards {
             // Black's pieces
             black: [0; N_BITBOARDS],
             black_royal: 0,
+
             black_movable: !0,
+            castle: 0,
         }
     }
 }
@@ -121,6 +138,7 @@ pub const VOID_BITBOARDS: BitBoards = BitBoards {
     black: [0; N_BITBOARDS],
     black_royal: 0,
     black_movable: 0,
+    castle: 0,
 };
 
 /// Contains the state of a piece, to then be put into a bitboard

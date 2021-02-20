@@ -17,6 +17,7 @@ pub fn generate_idle_boards<'a>(
             let mut n_board = board.clone();
             n_board.t += 1;
             n_board.en_passant = None;
+            n_board.set_castle(None);
             new_partial_game.insert(n_board);
             new_partial_game
                 .info
@@ -460,11 +461,21 @@ pub fn is_threatened_bitboard_board<'a>(
 // *I wish our minds were better at this*
 #[inline]
 pub fn threats_within_board(board: &Board) -> Option<(Physical, Physical, Physical, Physical)> {
+
     let royal = if board.white() {
-        board.bitboards.black_royal
+        if cfg!(castling) {
+            board.bitboards.black_royal | board.bitboards.castle
+        } else {
+            board.bitboards.black_royal
+        }
     } else {
-        board.bitboards.white_royal
+        if cfg!(castling) {
+            board.bitboards.white_royal | board.bitboards.castle
+        } else {
+            board.bitboards.white_royal
+        }
     };
+    println!("{:#066b}", royal);
 
     let movable = if board.white() {
         board.bitboards.white_movable
@@ -536,8 +547,9 @@ pub fn threats_within_board(board: &Board) -> Option<(Physical, Physical, Physic
                 RIDERS[o].2,
                 board.width(),
                 board.height(),
-            ) & movable;
+            );
             attacks[o] = bitboards[o] & royal;
+            bitboards[o] &= movable;
         }
 
         let mut zero: bool = true;

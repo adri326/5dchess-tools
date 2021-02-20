@@ -45,6 +45,41 @@ fn test_shift_masks() {
 }
 
 #[test]
+#[cfg(castling)]
+fn test_white_castle() {
+    let game = read_and_parse("tests/games/bitboard/white-castle.json");
+
+    let board = game.get_board((0, 7)).unwrap();
+    assert_eq!(board.bitboards.castle, 0b110000);
+    assert!(board.castle == Some((5, 0, 4, 0)) || board.castle == Some((4, 0, 5, 0)));
+
+    let partial_game = no_partial_game(&game);
+    let mv = Move::new(&game, &partial_game, Coords(0, 7, 3, 5), Coords(0, 7, 7, 1)).expect("Couldn't make Bxh2");
+    let ms = Moveset::new(vec![mv], &partial_game.info).expect("Couldn't make a moveset around Bxh2");
+    let new_partial_game = ms.generate_partial_game(&game, &partial_game).expect("Couldn't generate boards for Bxh2");
+
+    let new_board = new_partial_game.get_board((0, 8)).unwrap();
+    assert_eq!(new_board.castle, None);
+    assert_eq!(new_board.bitboards.castle, 0);
+
+    let game = read_and_parse("tests/games/bitboard/white-castle-illegal.json");
+    let board = game.get_board((0, 7)).unwrap();
+    let partial_game = no_partial_game(&game);
+    match threats_within_board(&board) {
+        Some((sx, sy, ex, ey)) => {
+            assert_eq!(sx, 3);
+            assert_eq!(sy, 1);
+            assert_eq!(ex, 4);
+            assert_eq!(ey, 0);
+            // assert_eq!(mv, Move::new(&game, &partial_game, Coords(0, 7, 3, 1), Coords(0, 7, 4, 0)));
+        }
+        None => {
+            panic!("threats_within_board should have found a move preventing white from castling!");
+        }
+    }
+}
+
+#[test]
 fn test_pawn_check() {
     let game = read_and_parse("tests/games/bitboard/pawn-check.json");
     let partial_game = no_partial_game(&game);

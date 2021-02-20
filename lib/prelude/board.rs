@@ -13,6 +13,7 @@ pub struct Board {
     height: Physical,
     pub pieces: Vec<Tile>,
     pub en_passant: Option<(Physical, Physical)>,
+    pub castle: Option<(Physical, Physical, Physical, Physical)>,
     pub bitboards: BitBoards,
     fits_bitboards: bool,
 }
@@ -53,6 +54,7 @@ impl Board {
         t: Time,
         pieces: Vec<Tile>,
         en_passant: Option<(Physical, Physical)>,
+        castle: Option<(Physical, Physical, Physical, Physical)>,
     ) -> Self {
         // TODO: use `BitBoardPrimitive::BITS` once it becomes stabilized
         let fits_bitboards = if cfg!(bitboard128) {
@@ -62,7 +64,15 @@ impl Board {
         };
 
         let bitboards = if fits_bitboards {
-            BitBoards::from_pieces(&pieces)
+            let mut res = BitBoards::from_pieces(&pieces);
+            if let Some((x1, y1, x2, y2)) = castle {
+                println!("{} {} {} {}", x1, y1, x2, y2);
+                res.set_castle(Some((
+                    x1 as u32 + y1 as u32 * width as u32,
+                    x2 as u32 + y2 as u32 * width as u32
+                )));
+            }
+            res
         } else {
             BitBoards::default()
         };
@@ -76,6 +86,7 @@ impl Board {
             en_passant,
             bitboards,
             fits_bitboards,
+            castle,
         }
     }
 
@@ -89,6 +100,12 @@ impl Board {
     #[inline]
     pub fn t(&self) -> Time {
         self.t
+    }
+
+    /** Returns the timeline and time coordinates of the board. **/
+    #[inline]
+    pub fn non_physical(&self) -> (Layer, Time) {
+        (self.l, self.t)
     }
 
     /** Returns the width of the board. **/
@@ -113,6 +130,26 @@ impl Board {
     #[inline]
     pub fn set_en_passant(&mut self, en_passant: Option<(Physical, Physical)>) {
         self.en_passant = en_passant
+    }
+
+    #[inline]
+    pub fn castle(&self) -> Option<(Physical, Physical, Physical, Physical)> {
+        self.castle
+    }
+
+    #[inline]
+    pub fn set_castle(&mut self, castle: Option<(Physical, Physical, Physical, Physical)>) {
+        self.castle = castle;
+        if self.fits_bitboards {
+            if let Some((x1, y1, x2, y2)) = castle {
+                self.bitboards.set_castle(Some((
+                    x1 as u32 + y1 as u32 * self.width as u32,
+                    x2 as u32 + y2 as u32 * self.width as u32
+                )));
+            } else {
+                self.bitboards.set_castle(None);
+            }
+        }
     }
 
     /** Get the piece at (x, y); return Tile::Void if the coordinates aren't within the board. **/

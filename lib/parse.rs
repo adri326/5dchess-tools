@@ -85,7 +85,7 @@ pub fn parse(raw: &str) -> Option<Game> {
                 .collect();
 
             let board: Board =
-                Board::new(game_raw.width, game_raw.height, layer, time, pieces, None);
+                Board::new(game_raw.width, game_raw.height, layer, time, pieces, None, None);
             res.insert_board(board);
         }
     }
@@ -114,7 +114,8 @@ pub fn parse(raw: &str) -> Option<Game> {
                     p.moved = false;
                     Tile::Piece(p)
                 }
-                x => x,
+                Tile::Blank => Tile::Blank,
+                Tile::Void => panic!("Void in board!"),
             };
             initial_state.push(piece);
         }
@@ -155,6 +156,24 @@ pub fn parse(raw: &str) -> Option<Game> {
                                         if previous_board.get((x, y + 1)).is_empty() {
                                             board.set_en_passant(Some((x, y + 1)))
                                         }
+                                    }
+                                }
+
+                                // If it is a king-like piece, fill in the castle field
+                                if piece.can_castle() {
+                                    // Left
+                                    if
+                                        x > 1
+                                        && !cmp_pieces(previous_board.get((x - 1, y)), board.get((x - 1, y)))
+                                        && !cmp_pieces(previous_board.get((x - 2, y)), board.get((x - 2, y)))
+                                    {
+                                        board.set_castle(Some((x - 1, y, x - 2, y)));
+                                    } else if
+                                        x < game_raw.width - 2
+                                        && !cmp_pieces(previous_board.get((x + 1, y)), board.get((x + 1, y)))
+                                        && !cmp_pieces(previous_board.get((x + 2, y)), board.get((x + 2, y)))
+                                    {
+                                        board.set_castle(Some((x + 1, y, x + 2, y)));
                                     }
                                 }
 
@@ -224,6 +243,7 @@ pub fn cmp_pieces(left: Tile, right: Tile) -> bool {
     match (left, right) {
         (Tile::Piece(l), Tile::Piece(r)) => l.kind == r.kind && l.white == r.white,
         (Tile::Blank, Tile::Blank) => true,
+        (Tile::Void, _) | (_, Tile::Void) => panic!("Void in board!"),
         _ => false,
     }
 }
