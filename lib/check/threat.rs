@@ -5,6 +5,28 @@ use crate::gen::*;
     Generates idle boards. Idle boards are defined as such:
     - take the present, active, playable boards owned by the current player
     - copy them and add them to the end of their timeline, effectively passing them to the opponent
+
+    ## Example
+
+    ```
+    let game: Game;
+    let partial_game: PartialGame;
+    // Fill in game and partial_game here
+
+    let idle = generate_idle_boards(&game, &partial_game);
+    // `idle` now contains the passed-along boards
+    let check = is_threatened(&game, &idle).unwrap().0;
+    ```
+
+    This example can be shortened to the following:
+
+    ```
+    let game: Game;
+    let partial_game: PartialGame;
+    // Fill in game and partial_game here
+
+    let check = is_in_check(&game, &partial_game).unwrap().0;
+    ```
 **/
 pub fn generate_idle_boards<'a>(
     game: &'a Game,
@@ -475,7 +497,6 @@ pub fn threats_within_board(board: &Board) -> Option<(Physical, Physical, Physic
             board.bitboards.white_royal
         }
     };
-    println!("{:#066b}", royal);
 
     let movable = if board.white() {
         board.bitboards.white_movable

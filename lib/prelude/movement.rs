@@ -64,8 +64,37 @@ impl Move {
         Some(Self { from, to, kind })
     }
 
+    /**
+        Creates a new move, given that you provide the starting position and piece, the end position and piece and the move kind.
+        You may want to use `with_piece` if you do not have the move kind at hand.
+    **/
     #[inline]
     pub fn from_raw(from: (Piece, Coords), to: (Option<Piece>, Coords), kind: MoveKind) -> Self {
+        Self { from, to, kind }
+    }
+
+    /**
+        Creates a new move, given that you provide the starting position and piece and the end position and piece.
+        The move kind will be automatically deduced from the game and the coordinates.
+        You most likely want to use this function instead of `Move::new` if you already know the required information,
+        as to minimize the number of lookups that need to be done.
+    **/
+    #[inline]
+    pub fn with_piece(game: &Game, from: (Piece, Coords), to: (Option<Piece>, Coords)) -> Self {
+        let mut kind = MoveKind::Normal;
+
+        if from.0.can_enpassant() && to.0.is_none() && (from.1).2 != (to.1).2 {
+            kind = MoveKind::EnPassant;
+        } else if from.0.can_promote()
+            && ((to.1).3 == 0 && (from.1).3 != 0
+                || (to.1).3 == game.height - 1 && (from.1).3 != game.height - 1)
+        {
+            kind = MoveKind::Promotion;
+        } else if from.0.can_castle() && ((from.1).2 == (to.1).2 + 2 || (from.1).2 + 2 == (to.1).2)
+        {
+            kind = MoveKind::Castle;
+        }
+
         Self { from, to, kind }
     }
 

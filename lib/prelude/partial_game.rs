@@ -303,9 +303,10 @@ impl<'a> PartialGame<'a> {
 
     #[inline]
     pub fn get_with_game<'b>(&'b self, game: &'b Game, coords: Coords) -> Tile {
-        self.get_board_with_game(game, coords.non_physical())
-            .map(|b| b.get(coords.physical()))
-            .into()
+        match self.get_board_with_game(game, coords.non_physical()) {
+            Some(board) => board.get(coords.physical()),
+            None => Tile::Void,
+        }
     }
 
     #[inline]

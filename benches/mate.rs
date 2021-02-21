@@ -1,6 +1,8 @@
 use chess5dlib::parse::test::read_and_parse;
 use chess5dlib::prelude::*;
 use chess5dlib::utils::*;
+use chess5dlib::gen::*;
+use chess5dlib::mate::*;
 use criterion::measurement::Measurement;
 use criterion::{
     criterion_group, criterion_main, BatchSize, BenchmarkGroup, BenchmarkId, Criterion,

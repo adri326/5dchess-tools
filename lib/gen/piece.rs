@@ -182,15 +182,8 @@ impl<'a> RangingPieceIter<'a> {
             flag,
         }
     }
-}
 
-impl<'a> Iterator for RangingPieceIter<'a> {
-    type Item = Move;
-
-    fn next(&mut self) -> Option<Move> {
-        if self.cardinalities.len() <= self.cardinalities_index {
-            return None;
-        }
+    fn try_next(&mut self) -> Option<Move> {
         let cardinality = self.cardinalities[self.cardinalities_index];
         let mut next_cardinality = false;
 
@@ -224,9 +217,11 @@ impl<'a> Iterator for RangingPieceIter<'a> {
                         Tile::Piece(p) => {
                             next_cardinality = true;
                             if p.white != self.piece.white {
-                                break Move::new(self.game, self.partial_game, self.coords, n_coords);
+                                // Replace the following by Move::new if a ranging piece can promote
+                                // break Move::new(self.game, self.partial_game, self.coords, n_coords)
+                                break Some(Move::from_raw((self.piece, self.coords), (Some(p), n_coords), MoveKind::Normal))
                             } else {
-                                break None;
+                                break None
                             }
                         }
                     }
@@ -244,11 +239,17 @@ impl<'a> Iterator for RangingPieceIter<'a> {
                     next_cardinality = true;
                     None
                 }
-                Tile::Blank => Move::new(self.game, self.partial_game, self.coords, n_coords),
+                Tile::Blank => {
+                    // Replace the following by Move::new if a ranging piece can promote
+                    // Move::new(self.game, self.partial_game, self.coords, n_coords)
+                    Some(Move::from_raw((self.piece, self.coords), (None, n_coords), MoveKind::Normal))
+                }
                 Tile::Piece(p) => {
                     next_cardinality = true;
                     if p.white != self.piece.white {
-                        Move::new(self.game, self.partial_game, self.coords, n_coords)
+                        // Replace the following by Move::new if a ranging piece can promote
+                        // Move::new(self.game, self.partial_game, self.coords, n_coords)
+                        Some(Move::from_raw((self.piece, self.coords), (Some(p), n_coords), MoveKind::Normal))
                     } else {
                         None
                     }
@@ -261,16 +262,32 @@ impl<'a> Iterator for RangingPieceIter<'a> {
             self.cardinalities_index += 1;
         }
 
-        if res.is_some() {
-            return res;
-        }
-
-        // Weird thing to enable TCR
-        self.next()
+        res
     }
 }
 
-/** Iterator that yields the moves of a piece that cannot make ranging moves (ie. knights, royal kings).
+impl<'a> Iterator for RangingPieceIter<'a> {
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Move> {
+        if self.cardinalities.len() <= self.cardinalities_index {
+            return None;
+        }
+
+        loop {
+            match self.try_next() {
+                Some(res) => return Some(res),
+                None => {
+                    if self.cardinalities.len() <= self.cardinalities_index {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Iterator that yields the moves of a leaper piece (eg. knights, royal kings).
     This iterator is created by `PiecePosition::generate_moves`.
 **/
 #[derive(Clone)]
@@ -301,6 +318,28 @@ impl<'a> OneStepPieceIter<'a> {
             cardinalities_index: 0,
         }
     }
+
+    fn try_next(&mut self) -> Option<Move> {
+        self.cardinalities_index += 1;
+
+        let cardinality = self.cardinalities[self.cardinalities_index - 1];
+
+        let n_coords = self.coords + Coords::from(cardinality);
+
+        let res = match self.partial_game.get_with_game(self.game, n_coords) {
+            Tile::Void => None,
+            Tile::Blank => Some(Move::with_piece(self.game, (self.piece, self.coords), (None, n_coords))),
+            Tile::Piece(p) => {
+                if p.white != self.piece.white {
+                    Some(Move::with_piece(self.game, (self.piece, self.coords), (Some(p), n_coords)))
+                } else {
+                    None
+                }
+            }
+        };
+
+        res
+    }
 }
 
 impl<'a> Iterator for OneStepPieceIter<'a> {
@@ -310,29 +349,17 @@ impl<'a> Iterator for OneStepPieceIter<'a> {
         if self.cardinalities.len() <= self.cardinalities_index {
             return None;
         }
-        self.cardinalities_index += 1;
 
-        let cardinality = self.cardinalities[self.cardinalities_index - 1];
-
-        let n_coords = self.coords + Coords::from(cardinality);
-
-        let res = match self.partial_game.get_with_game(self.game, n_coords) {
-            Tile::Void => None,
-            Tile::Blank => Move::new(self.game, self.partial_game, self.coords, n_coords),
-            Tile::Piece(p) => {
-                if p.white != self.piece.white {
-                    Move::new(self.game, self.partial_game, self.coords, n_coords)
-                } else {
-                    None
+        loop {
+            match self.try_next() {
+                Some(res) => return Some(res),
+                None => {
+                    if self.cardinalities.len() <= self.cardinalities_index {
+                        return None;
+                    }
                 }
             }
-        };
-
-        // Weird thing to enable TCR
-        if res.is_some() {
-            return res;
         }
-        self.next()
     }
 }
 
