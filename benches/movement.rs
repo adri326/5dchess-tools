@@ -1,6 +1,7 @@
 use chess5dlib::parse::test::read_and_parse;
 use chess5dlib::prelude::*;
-use chess5dlib::utils::*;
+use chess5dlib::gen::*;
+use chess5dlib::check::*;
 use criterion::measurement::Measurement;
 use criterion::{
     criterion_group, criterion_main, BatchSize, BenchmarkGroup, BenchmarkId, Criterion,
@@ -240,49 +241,6 @@ fn bench_moveset_is_illegal<M: Measurement>(
     });
 }
 
-fn bench_list_legal_movesets<M: Measurement>(
-    group: &mut BenchmarkGroup<M>,
-    game: &Game,
-    name: &str,
-) {
-    let partial_game = no_partial_game(&game);
-
-    let own_boards: Vec<&Board> = partial_game.own_boards(game).collect();
-    let mut sigma = 0;
-    let mut delta = Duration::new(0, 0);
-
-    group.bench_with_input(
-        BenchmarkId::new("list_legal_movesets", name),
-        game,
-        |b, game| {
-            let mut iter = list_legal_movesets(&game, &partial_game, None);
-            b.iter(|| {
-                let start = Instant::now();
-                match iter.next() {
-                    Some(_) => {
-                        sigma += 1;
-                        delta += start.elapsed();
-                    }
-                    None => {
-                        iter = list_legal_movesets(&game, &partial_game, None);
-                    }
-                }
-            })
-        },
-    );
-
-    if sigma > 0 {
-        println!("Timelines: {}", game.info.len_timelines());
-        println!("Boards to play on: {}", own_boards.len());
-        println!("Time (s, filtered): {}", delta.as_millis() as f64 / 1000.0);
-        println!("Movesets (filtered): {}", sigma);
-        println!(
-            "Moveset / ms (filtered): {}",
-            sigma as f64 / delta.as_millis() as f64
-        );
-    }
-}
-
 pub fn bench_moveset<M: Measurement>(c: &mut Criterion<M>) {
     {
         let mut moveset_group = c.benchmark_group("Moveset");
@@ -313,28 +271,6 @@ pub fn bench_moveset<M: Measurement>(c: &mut Criterion<M>) {
             let name = format!("{} Timelines", x);
             let game = read_and_parse(&path);
             bench_moveset_is_illegal::<M>(&mut moveset_group, &game, &name);
-        }
-    }
-
-    {
-        let mut moveset_group = c.benchmark_group("list_legal_movesets");
-        moveset_group.significance_level(0.1);
-        moveset_group.sample_size(500);
-        moveset_group
-            .warm_up_time(Duration::new(10, 0))
-            .measurement_time(Duration::new(10, 0));
-        let game = read_and_parse("tests/games/standard-d4d5.json");
-        bench_list_legal_movesets::<M>(&mut moveset_group, &game, "Simple");
-        let game = read_and_parse("tests/games/standard-complex.json");
-        bench_list_legal_movesets::<M>(&mut moveset_group, &game, "Complex");
-        let game = read_and_parse("tests/games/standard-complex-2.json");
-        bench_list_legal_movesets::<M>(&mut moveset_group, &game, "Complex 2");
-
-        for x in vec![1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 13].into_iter() {
-            let path = format!("tests/games/inc_timelines/{}.json", x);
-            let name = format!("{} Timelines", x);
-            let game = read_and_parse(&path);
-            bench_list_legal_movesets::<M>(&mut moveset_group, &game, &name);
         }
     }
 

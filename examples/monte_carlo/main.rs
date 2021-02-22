@@ -1,7 +1,7 @@
 extern crate chrono;
 
 use chess5dlib::parse::test::read_and_parse;
-use chess5dlib::utils::*;
+use chess5dlib::random::*;
 use chess5dlib::*;
 use chrono::Utc;
 use rand::Rng;

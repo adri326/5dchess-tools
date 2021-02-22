@@ -1,7 +1,6 @@
 use chess5dlib::parse::test::read_and_parse_opt;
 use chess5dlib::{
     prelude::*,
-    utils::*,
     gen::*,
     mate::*,
 };
@@ -16,9 +15,8 @@ const MAX_TIMELINES: usize = 8;
 
 // bit 0 (2⁰=1): is_mate
 // bit 1 (2¹=2): GenLegalMovesetIter
-// bit 2 (2²=4): list_legal_movesets
 // This means that 7 runs all of the methods and compares their results and 2 only runs GenLegalMovesetIter
-const METHOD: u8 = 7;
+const METHOD: u8 = 3;
 
 // The higher, the more games will be analyzed. Games are randomly sampled from the database without putting them back in the pool, so it will take a lot of games to get a statistically representative number.
 const N_GAMES: usize = 100;
@@ -28,7 +26,7 @@ const SILENT: bool = true;
 
 // The maximum number of seconds that each method may take. The higher, the slower (obviously), but the more valid results may come in.
 // A value between 3 and 10 seconds should include more than 90% of the games (complexity grows exponentially anyways)
-const MAX_SECONDS: usize = 10;
+const MAX_SECONDS: u64 = 10;
 
 fn main() {
     checkmates();
@@ -76,10 +74,6 @@ fn nonmates() {
     let mut sigma2 = Duration::new(0, 0);
     let mut eta2 = Duration::new(0, 0);
 
-    let mut ok3 = 0;
-    let mut sigma3 = Duration::new(0, 0);
-    let mut eta3 = Duration::new(0, 0);
-
     for _ in 0..N_GAMES {
         let game = &games[rng.gen_range(0..games.len())];
         let partial_game = no_partial_game(&game.0);
@@ -88,7 +82,7 @@ fn nonmates() {
             println!("Analyzing game: {} timelines, {} playable boards ...", game.0.info.len_timelines(), partial_game.own_boards(&game.0).count());
         }
         if METHOD & 1 > 0 {
-            match is_mate(&game.0, &partial_game, Some(Duration::new(10, 0))) {
+            match is_mate(&game.0, &partial_game, Some(Duration::new(MAX_SECONDS, 0))) {
                 Mate::None(_ms) => {
                     ok += 1;
                     if !SILENT {
@@ -120,7 +114,7 @@ fn nonmates() {
             }
         }
         if METHOD & 2 > 0 {
-            let mut iter = GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(10, 0)));
+            let mut iter = GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(MAX_SECONDS, 0)));
             match iter.next() {
                 Some((_ms, _pos)) => {
                     ok2 += 1;
@@ -129,30 +123,6 @@ fn nonmates() {
                     }
                     sigma2 += start.elapsed();
                     eta2 += start.elapsed() / game.0.info.len_timelines() as u32;
-                }
-                None => {
-                    if iter.timed_out() {
-                        if !SILENT {
-                            println!("... Game {}, timed out while looking for mate!", game.1);
-                        }
-                    } else {
-                        if !SILENT {
-                            println!("... Game {}, found mate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
-                        }
-                    }
-                }
-            }
-        }
-        if METHOD & 4 > 0 {
-            let mut iter = list_legal_movesets(&game.0, &partial_game, Some(Duration::new(10, 0)));
-            match iter.next() {
-                Some((_ms, _pos)) => {
-                    ok3 += 1;
-                    if !SILENT {
-                        println!("... Game {}, OK! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
-                    }
-                    sigma3 += start.elapsed();
-                    eta3 += start.elapsed() / game.0.info.len_timelines() as u32;
                 }
                 None => {
                     if iter.timed_out() {
@@ -179,12 +149,6 @@ fn nonmates() {
         println!("Ok: {} / {}", ok2, N_GAMES);
         println!("Average time taken: {} μs/position", (sigma2 / ok2).as_nanos() as f64 / 1000.0);
         println!("Average time taken: {} μs/position/timeline", (eta2 / ok2).as_nanos() as f64 / 1000.0);
-    }
-    if METHOD & 4 > 0 {
-        println!("list_legal_movesets() on non-mates:");
-        println!("Ok: {} / {}", ok3, N_GAMES);
-        println!("Average time taken: {} μs/position", (sigma3 / ok3).as_nanos() as f64 / 1000.0);
-        println!("Average time taken: {} μs/position/timeline", (eta3 / ok3).as_nanos() as f64 / 1000.0);
     }
 }
 
@@ -225,10 +189,6 @@ fn checkmates() {
     let mut sigma2 = Duration::new(0, 0);
     let mut eta2 = Duration::new(0, 0);
 
-    let mut ok3 = 0;
-    let mut sigma3 = Duration::new(0, 0);
-    let mut eta3 = Duration::new(0, 0);
-
     for _ in 0..N_GAMES {
         let game = &games[rng.gen_range(0..games.len())];
         let partial_game = no_partial_game(&game.0);
@@ -239,7 +199,7 @@ fn checkmates() {
         }
 
         if METHOD & 1 > 0 {
-            match is_mate(&game.0, &partial_game, Some(Duration::new(10, 0))) {
+            match is_mate(&game.0, &partial_game, Some(Duration::new(MAX_SECONDS, 0))) {
                 Mate::None(ms) => {
                     if !SILENT {
                         println!("... Game {}, found moveset: {}! ({} μs)", game.1, ms, start.elapsed().as_nanos() as f64 / 1000.0);
@@ -271,7 +231,7 @@ fn checkmates() {
             }
         }
         if METHOD & 2 > 0 {
-            let mut iter = GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(10, 0)));
+            let mut iter = GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(MAX_SECONDS, 0)));
             match iter.next() {
                 Some((_ms, _pos)) => {
                     if !SILENT {
@@ -294,30 +254,6 @@ fn checkmates() {
                 }
             }
         }
-        if METHOD & 4 > 0 {
-            let mut iter = list_legal_movesets(&game.0, &partial_game, Some(Duration::new(10, 0)));
-            match iter.next() {
-                Some((_ms, _pos)) => {
-                    if !SILENT {
-                        println!("... Game {}, OK! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
-                    }
-                }
-                None => {
-                    if iter.timed_out() {
-                        if !SILENT {
-                            println!("... Game {}, timed out while looking for mate!", game.1);
-                        }
-                    } else {
-                        if !SILENT {
-                            println!("... Game {}, found mate! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
-                        }
-                        ok3 += 1;
-                        sigma3 += start.elapsed();
-                        eta3 += start.elapsed() / game.0.info.len_timelines() as u32;
-                    }
-                }
-            }
-        }
     }
 
     if METHOD & 1 > 0 {
@@ -332,12 +268,5 @@ fn checkmates() {
         println!("Ok: {} / {}", ok2, N_GAMES);
         println!("Average time taken: {} μs/position", (sigma2 / ok2).as_nanos() as f64 / 1000.0);
         println!("Average time taken: {} μs/position/timeline", (eta2 / ok2).as_nanos() as f64 / 1000.0);
-    }
-
-    if METHOD & 4 > 0 {
-        println!("list_legal_movesets() on checkmates:");
-        println!("Ok: {} / {}", ok3, N_GAMES);
-        println!("Average time taken: {} μs/position", (sigma3 / ok3).as_nanos() as f64 / 1000.0);
-        println!("Average time taken: {} μs/position/timeline", (eta3 / ok3).as_nanos() as f64 / 1000.0);
     }
 }

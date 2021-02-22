@@ -13,7 +13,7 @@ pub use prelude::*;
 pub mod goals;
 pub mod parse;
 pub mod traversal;
-pub mod utils;
+pub mod random;
 pub mod gen;
 pub mod check;
 pub mod mate;

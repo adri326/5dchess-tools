@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use chess5dlib::{
     prelude::*,
-    utils::*,
+    random::*,
     check::*,
     gen::*,
     mate::*,
