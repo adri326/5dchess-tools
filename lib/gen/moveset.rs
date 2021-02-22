@@ -3,6 +3,7 @@ use crate::check::*;
 use itertools::Itertools;
 use std::convert::TryFrom;
 use std::time::{Duration, Instant};
+use std::borrow::Cow;
 
 /**
     An iterator that yields all of the valid movesets.
@@ -264,9 +265,9 @@ const ATTACKERS_MAX_TRIM: usize = 20;
 pub struct GenLegalMovesetIter<'a> {
     // Base state
     game: &'a Game,
-    partial_game: &'a PartialGame<'a>,
+    partial_game: Cow<'a, PartialGame<'a>>,
 
-    done: bool,
+    pub done: bool,
     first_pass: bool,
 
     boards: Vec<CacheMovesBoards<'a, FilterLegalMove<'a, Sigma<BoardIter<'a>>>>>,
@@ -293,27 +294,53 @@ impl<'a> GenLegalMovesetIter<'a> {
     **/
     pub fn new(
         game: &'a Game,
-        partial_game: &'a PartialGame<'a>,
+        partial_game: Cow<'a, PartialGame<'a>>,
         max_duration: Option<Duration>,
     ) -> Self {
         let max_duration = max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1));
         let start = Instant::now();
-        let boards = partial_game
-            .own_boards(game)
-            .filter_map(|board| {
-                Some(CacheMovesBoards::new(
-                    FilterLegalMove::new(
-                        board
-                            .generate_moves(game, partial_game)?
-                            .sigma(max_duration),
-                        game,
-                        partial_game,
-                    ),
-                    game,
-                    partial_game,
-                ))
-            })
-            .collect::<Vec<_>>();
+        let mut boards: Vec<_> = Vec::new();
+
+        match &partial_game {
+            Cow::Borrowed(partial_game) => {
+                for board in partial_game.own_boards(game) {
+                    if let Some(moves) = board.generate_moves(game, partial_game) {
+                        boards.push(CacheMovesBoards::new(
+                            FilterLegalMove::new(
+                                moves.sigma(max_duration),
+                                game,
+                                partial_game,
+                            ),
+                            game,
+                            partial_game,
+                        ));
+                    }
+                }
+            }
+            Cow::Owned(partial_game) => unsafe {
+                // This is sound iff `CacheMoves::consume` guarantees that `res.done == true`, hence the assertion
+                let partial_game: *const PartialGame<'a> = &*partial_game;
+                for board in partial_game.as_ref().unwrap().own_boards(game) {
+                    if let Some(moves) = board.generate_moves(game, &*partial_game) {
+                        let mut res = CacheMovesBoards::new(
+                            FilterLegalMove::new(
+                                moves.sigma(max_duration),
+                                game,
+                                &*partial_game,
+                            ),
+                            game,
+                            &*partial_game,
+                        );
+                        res.consume();
+
+                        assert!(res.done());
+
+                        boards.push(res);
+                    }
+                }
+            }
+        }
+
         let states = vec![None; boards.len()];
 
         Self {
@@ -436,7 +463,14 @@ impl<'a> GenLegalMovesetIter<'a> {
         }
 
         if let Ok(ms) = Moveset::new(moves, &self.partial_game.info) {
-            let mut new_partial_game = PartialGame::empty(self.partial_game.info.clone(), Some(self.partial_game));
+            let mut new_partial_game = match &self.partial_game {
+                Cow::Borrowed(partial_game) => PartialGame::empty(self.partial_game.info.clone(), Some(partial_game)),
+                Cow::Owned(partial_game) => {
+                    let mut res = partial_game.clone();
+                    res.deepen();
+                    res
+                }
+            };
 
             // Generate the remaining boards
             for (mv, (source, target)) in ms.moves().iter().zip(boards.into_iter()) {

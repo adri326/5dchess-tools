@@ -93,7 +93,7 @@ fn test(
     let mut delta = Duration::new(0, 0);
 
     coz::begin!("new");
-    let mut iter = GenLegalMovesetIter::new(game, partial_game, Some(Duration::new(30, 0)));
+    let mut iter = GenLegalMovesetIter::new(game, std::borrow::Cow::Borrowed(partial_game), Some(Duration::new(30, 0)));
     coz::end!("new");
 
     loop {

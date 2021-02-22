@@ -8,6 +8,7 @@ use rand::{Rng, prelude::SliceRandom};
 use std::fs::read_dir;
 use std::time::{Duration, Instant};
 use std::path::Path;
+use std::borrow::Cow;
 
 // Some of the games in the database can be quite wild, so this is to limit the number of total timelines that there are.
 // The best case GenLegalMovesetIter's optimizations would be with between 3 and 5 playable boards and complex, inter-timeline checking scenarios
@@ -114,7 +115,7 @@ fn nonmates() {
             }
         }
         if METHOD & 2 > 0 {
-            let mut iter = GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(MAX_SECONDS, 0)));
+            let mut iter = GenLegalMovesetIter::new(&game.0, Cow::Borrowed(&partial_game), Some(Duration::new(MAX_SECONDS, 0)));
             match iter.next() {
                 Some((_ms, _pos)) => {
                     ok2 += 1;
@@ -231,7 +232,7 @@ fn checkmates() {
             }
         }
         if METHOD & 2 > 0 {
-            let mut iter = GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(MAX_SECONDS, 0)));
+            let mut iter = GenLegalMovesetIter::new(&game.0, Cow::Borrowed(&partial_game), Some(Duration::new(MAX_SECONDS, 0)));
             match iter.next() {
                 Some((_ms, _pos)) => {
                     if !SILENT {

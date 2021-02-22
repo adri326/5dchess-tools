@@ -14,6 +14,7 @@ use std::fs::read_dir;
 use std::hash::Hash;
 use std::path::Path;
 use std::time::Duration;
+use std::borrow::Cow;
 
 // I'm very sorry.
 // - Shad
@@ -197,7 +198,7 @@ fn test_gen_legal_moveset_partial_game() {
 
     let mut yielded = false;
     // let start = std::time::Instant::now();
-    let mut iter = GenLegalMovesetIter::new(&game, &partial_game, Some(Duration::new(2, 0)));
+    let mut iter = GenLegalMovesetIter::new(&game, Cow::Borrowed(&partial_game), Some(Duration::new(2, 0)));
     for (ms, pos) in &mut iter {
         yielded = true;
         let new_pos = ms.generate_partial_game(&game, &partial_game).unwrap();
@@ -236,13 +237,26 @@ fn test_gen_legal_moveset_partial_game() {
         let game = &games[rng.gen_range(0..games.len())];
         let partial_game: PartialGame = PartialGame::from(&game.0);
 
-        for (ms, pos) in GenLegalMovesetIter::new(&game.0, &partial_game, Some(Duration::new(1, 0))) {
+        let mut yielded_borrowed = false;
+        let mut yielded_owned = false;
+
+        for (ms, pos) in GenLegalMovesetIter::new(&game.0, Cow::Borrowed(&partial_game), Some(Duration::new(1, 0))) {
             let new_pos = ms.generate_partial_game(&game.0, &partial_game).expect(&format!("Couldn't create a new partial game from the moveset {:?} ({})", ms, ms));
             assert_eq!(pos, new_pos, "{}", ms);
+            yielded_borrowed = true;
             if let Some((true, _)) = is_illegal(&game.0, &new_pos) {
                 panic!("GenLegalMovesetIter yielded an illegal position on {}: {}", game.1, ms);
             }
         }
+
+        for (ms, pos) in GenLegalMovesetIter::new(&game.0, Cow::Owned(partial_game), Some(Duration::new(1, 0))) {
+            yielded_owned = true;
+            if let Some((true, _)) = is_illegal(&game.0, &pos) {
+                panic!("GenLegalMovesetIter yielded an illegal position on {}: {}", game.1, ms);
+            }
+        }
+
+        assert_eq!(yielded_borrowed, yielded_owned, "Owned and Borrowed variants did not yield the same amount of moves!");
     }
 
 }
