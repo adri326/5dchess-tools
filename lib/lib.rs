@@ -17,3 +17,4 @@ pub mod random;
 pub mod gen;
 pub mod check;
 pub mod mate;
+pub mod tree;
