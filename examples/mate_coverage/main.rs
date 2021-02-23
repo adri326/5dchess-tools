@@ -31,7 +31,7 @@ const MAX_SECONDS: u64 = 10;
 
 fn main() {
     checkmates();
-    nonmates();
+    // nonmates();
 }
 
 // Note: sigma measures the sum of the time taken to prove mate/nonmate, but only for the valid samples
@@ -151,6 +151,11 @@ fn nonmates() {
         println!("Average time taken: {} μs/position", (sigma2 / ok2).as_nanos() as f64 / 1000.0);
         println!("Average time taken: {} μs/position/timeline", (eta2 / ok2).as_nanos() as f64 / 1000.0);
     }
+    if METHOD & 3 == 3 {
+        println!("GenLegalMovesetIter / is_mate() on non-mates:");
+        println!("Average time taken ratio: {}", (sigma / ok).as_nanos() as f64 / (sigma2 / ok2).as_nanos() as f64);
+        println!("Average time taken per timeline ratio: {}", (eta / ok).as_nanos() as f64 / (eta2 / ok2).as_nanos() as f64);
+    }
 }
 
 fn checkmates() {
@@ -269,5 +274,10 @@ fn checkmates() {
         println!("Ok: {} / {}", ok2, N_GAMES);
         println!("Average time taken: {} μs/position", (sigma2 / ok2).as_nanos() as f64 / 1000.0);
         println!("Average time taken: {} μs/position/timeline", (eta2 / ok2).as_nanos() as f64 / 1000.0);
+    }
+    if METHOD & 3 == 3 {
+        println!("GenLegalMovesetIter / is_mate() on checkmates:");
+        println!("Average time taken ratio: {}", (sigma / ok).as_nanos() as f64 / (sigma2 / ok2).as_nanos() as f64);
+        println!("Average time taken per timeline ratio: {}", (eta / ok).as_nanos() as f64 / (eta2 / ok2).as_nanos() as f64);
     }
 }

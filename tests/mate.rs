@@ -294,6 +294,11 @@ fn defended_pawn_checkmate() {
         "Expected no legal movesets to be found; found {:?}",
         mv
     );
+
+    assert_eq!(
+        is_mate(&game, &partial_game, Some(Duration::new(10, 0))),
+        Mate::Checkmate,
+    );
 }
 
 #[test]
@@ -327,6 +332,11 @@ fn standard_checkmate() {
         mv.is_none(),
         "Expected no legal movesets to be found; found {:?}",
         mv
+    );
+
+    assert_eq!(
+        is_mate(&game, &partial_game, Some(Duration::new(10, 0))),
+        Mate::Checkmate,
     );
 }
 
@@ -362,6 +372,11 @@ fn standard_checkmate_2() {
         "Expected no legal movesets to be found; found {:?}",
         mv
     );
+
+    assert_eq!(
+        is_mate(&game, &partial_game, Some(Duration::new(10, 0))),
+        Mate::Checkmate,
+    );
 }
 
 #[test]
@@ -395,6 +410,11 @@ fn standard_checkmate_3() {
         mv.is_none(),
         "Expected no legal movesets to be found; found {:?}",
         mv
+    );
+
+    assert_eq!(
+        is_mate(&game, &partial_game, Some(Duration::new(10, 0))),
+        Mate::Checkmate,
     );
 }
 

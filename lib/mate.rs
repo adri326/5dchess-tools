@@ -111,11 +111,7 @@ pub fn is_mate<'a>(
     }
 
     // The current player may create inactive timeline, look for branching moves that shift the present back
-    if partial_game
-        .info
-        .timeline_advantage(partial_game.info.active_player)
-        > 0
-    {
+    if partial_game.info.timeline_advantage(partial_game.info.active_player) > 0 {
         for own_moves in &mut moves {
             for mv in own_moves {
                 if mv.from.1.non_physical() != mv.to.1.non_physical()
@@ -164,6 +160,9 @@ pub fn is_mate<'a>(
         let mut reconstructed_moves: Vec<CacheMoves<Timed<CacheIterOrVec>>> =
             Vec::with_capacity(moves.len());
 
+        let mut possible_move_white: Vec<bool> = vec![false; partial_game.info.timelines_white.len()];
+        let mut possible_move_black: Vec<bool> = vec![false; partial_game.info.timelines_black.len()];
+
         for (&board, own_moves) in own_boards.iter().zip(moves.into_iter()) {
             let mut promising_moves: Vec<Move> = Vec::with_capacity(own_moves.cache.len());
             let mut other_moves: Vec<Move> = Vec::with_capacity(own_moves.cache.len());
@@ -173,6 +172,20 @@ pub fn is_mate<'a>(
                 // Re-order own_moves
 
                 for mv in &own_moves.cache {
+                    // Update possible_move_* arrays
+                    if mv.from.1.l() >= 0 {
+                        possible_move_white[mv.from.1.l() as usize] = true;
+                    } else {
+                        possible_move_black[(-mv.from.1.l()) as usize - 1] = true;
+                    }
+
+                    if mv.to.1.l() >= 0 {
+                        possible_move_white[mv.to.1.l() as usize] = true;
+                    } else {
+                        possible_move_black[(-mv.to.1.l()) as usize - 1] = true;
+                    }
+
+                    // Push moves to their respective promising/unpromising sets
                     if mv.from.0.is_royal() && danger.contains(&mv.to.1) {
                         unpromising_moves.push(*mv);
                     } else if !mv.from.0.is_royal() && danger.contains(&mv.to.1) {
@@ -184,6 +197,20 @@ pub fn is_mate<'a>(
             } else {
                 // Re-generate own_moves using the danger map
                 for mv in unwrap_mate!(board.generate_moves(game, partial_game)) {
+                    // Update possible_move_* arrays
+                    if mv.from.1.l() >= 0 {
+                        possible_move_white[mv.from.1.l() as usize] = true;
+                    } else {
+                        possible_move_black[(-mv.from.1.l()) as usize - 1] = true;
+                    }
+
+                    if mv.to.1.l() >= 0 {
+                        possible_move_white[mv.to.1.l() as usize] = true;
+                    } else {
+                        possible_move_black[(-mv.to.1.l()) as usize - 1] = true;
+                    }
+
+                    // Push moves to their respective promising/unpromising sets
                     if mv.from.0.is_royal() && danger.contains(&mv.to.1) {
                         unpromising_moves.push(mv);
                     } else if !mv.from.0.is_royal() && danger.contains(&mv.to.1) {
@@ -194,10 +221,32 @@ pub fn is_mate<'a>(
                 }
             }
 
+            // Handle shifting impossibility
+            if partial_game.info.timeline_advantage(partial_game.info.active_player) == 0 {
+                for l in partial_game.info.min_timeline()..=partial_game.info.max_timeline() {
+                    if let Some(tl) = partial_game.info.get_timeline(l) {
+                        if tl.last_board <= partial_game.info.present && partial_game.info.is_active(l) {
+                            if l >= 0 {
+                                if !possible_move_white[l as usize] {
+                                    return Mate::Checkmate
+                                }
+                            } else {
+                                if !possible_move_white[(-l) as usize - 1] {
+                                    return Mate::Checkmate
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // TODO: handle dead timelines
+            }
+
             promising_moves.append(&mut other_moves);
             promising_moves.append(&mut unpromising_moves);
 
             if own_moves.done() {
+                // "recycle" the old iterator
                 reconstructed_moves.push(with_new_cache(
                     own_moves,
                     promising_moves,
@@ -264,7 +313,11 @@ pub fn is_mate<'a>(
                             _ => {}
                         }
                     }
-                    !is_illegal(game, &new_partial_game).unwrap_or((true, None)).0
+                    if game.width <= MAX_BITBOARD_WIDTH as Physical {
+                        !is_illegal_bitboard(game, &new_partial_game).unwrap_or((true, None)).0
+                    } else {
+                        !is_illegal(game, &new_partial_game).unwrap_or((true, None)).0
+                    }
                 }
                 None => false,
             },
