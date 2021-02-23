@@ -12,8 +12,6 @@ pub struct TimelineInfo {
 pub struct Info {
     pub present: Time,
     pub active_player: bool,
-    pub min_timeline: Layer,
-    pub max_timeline: Layer,
     pub even_timelines: bool,
     pub timelines_white: Vec<TimelineInfo>,
     pub timelines_black: Vec<TimelineInfo>,
@@ -74,8 +72,6 @@ impl Info {
         Info {
             present,
             active_player,
-            min_timeline,
-            max_timeline,
             even_timelines,
             timelines_white,
             timelines_black,
@@ -103,8 +99,8 @@ impl Info {
     #[inline]
     pub fn is_active(&self, l: Layer) -> bool {
         let timeline_width = self
-            .max_timeline
-            .min(-self.min_timeline - (if self.even_timelines { 1 } else { 0 }))
+            .max_timeline()
+            .min(-self.min_timeline() - (if self.even_timelines { 1 } else { 0 }))
             + 1;
         if l < 0 {
             if self.even_timelines {

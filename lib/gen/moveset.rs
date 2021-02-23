@@ -462,7 +462,7 @@ impl<'a> GenLegalMovesetIter<'a> {
             boards.push(self.boards[index].get_board_cached(state).unwrap());
         }
 
-        if let Ok(ms) = Moveset::new(moves, &self.partial_game.info) {
+        if let Ok(ms) = Moveset::new_shifting(moves, &self.partial_game.info, true) {
             let mut new_partial_game = match &self.partial_game {
                 Cow::Borrowed(partial_game) => PartialGame::empty(self.partial_game.info.clone(), Some(partial_game)),
                 Cow::Owned(partial_game) => {

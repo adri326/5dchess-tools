@@ -491,6 +491,7 @@ pub enum MovesetValidityErr {
     MoveFromVoid(Move),
     MoveNotFromLast(Move),
     OpponentBoard(Move),
+    DoesntPush(Layer),
 }
 
 /** A set of moves, that is guaranteed to be valid (ie. that could be made).
@@ -512,7 +513,133 @@ impl Moveset {
     /** Creates a new moveset from a set of moves and an info, verifying the requirements of the type. **/
     #[inline]
     pub fn new(moves: Vec<Move>, info: &Info) -> Result<Moveset, MovesetValidityErr> {
-        Self::try_from((moves, info))
+        Self::new_shifting(moves, info, false)
+    }
+
+    /**
+        Creates a new moveset from a set of moves and an info, verifying the requirements of the type and verifying (if `shifts_present` is true)
+        that the present is shifted. You should prefer using this over `Moveset::new()` if you are only looking for shifting movesets.
+    **/
+    pub fn new_shifting(moves: Vec<Move>, info: &Info, shifts_present: bool) -> Result<Moveset, MovesetValidityErr> {
+        if moves.len() == 0 {
+            return Err(MovesetValidityErr::NoMoves);
+        } else if moves.len() > info.len_timelines() {
+            return Err(MovesetValidityErr::TooManyMoves);
+        }
+
+        // Check the validity of the moveset (whether or not it is possible to make the moves; does not look for legality)
+        // Should be O(n)
+
+        let mut timelines_moved_white: Vec<bool> = vec![false; info.timelines_white.len()];
+        let mut timelines_moved_black: Vec<bool> = vec![false; info.timelines_black.len()];
+        let mut branch_back: bool = false;
+        let mut branches: usize = 0;
+
+        for mv in moves.iter() {
+            if mv.from.1.t() & 1 == info.active_player as Time
+                || mv.to.1.t() & 1 == info.active_player as Time
+            {
+                // Opponent's board
+                return Err(MovesetValidityErr::OpponentBoard(*mv));
+            }
+
+            if let Some(tl) = info.get_timeline(mv.from.1.l()) {
+                if mv.from.1.t() != tl.last_board {
+                    // Starting board isn't the last board
+                    return Err(MovesetValidityErr::MoveNotFromLast(*mv));
+                }
+            } else {
+                // Void
+                return Err(MovesetValidityErr::MoveFromVoid(*mv));
+            }
+
+            if
+                mv.from.1.l() < 0 && timelines_moved_black[-mv.from.1.l() as usize - 1]
+                || mv.from.1.l() >= 0 && timelines_moved_white[mv.from.1.l() as usize]
+            {
+                // Already played
+                return Err(MovesetValidityErr::AlreadyPlayed(*mv));
+            }
+
+            if let Some(tl) = info.get_timeline(mv.to.1.l()) {
+                if mv.to.1.t() == tl.last_board {
+                    // (Possibly) non-branching jump
+                    if mv.to.1.l() >= 0 {
+                        // Update branching information
+                        if timelines_moved_white[mv.to.1.l() as usize] {
+                            branches += 1;
+                            branch_back = branch_back || mv.to.1.t() < info.present;
+                        }
+
+                        timelines_moved_white[mv.to.1.l() as usize] = true;
+                    } else {
+                        // Update branching information
+                        if timelines_moved_black[-mv.to.1.l() as usize - 1] {
+                            branches += 1;
+                            branch_back = branch_back || mv.to.1.t() < info.present;
+                        }
+
+                        timelines_moved_black[-mv.to.1.l() as usize - 1] = true;
+                    }
+                } else if mv.to.1.t() > tl.last_board || mv.to.1.t() < tl.first_board {
+                    // Void
+                    return Err(MovesetValidityErr::MoveToVoid(*mv));
+                } else {
+                    // Branching move
+                    branch_back = branch_back || mv.to.1.t() < info.present;
+                    branches += 1;
+                }
+
+                if mv.from.1.l() >= 0 {
+                    timelines_moved_white[mv.from.1.l() as usize] = true;
+                } else {
+                    timelines_moved_black[-mv.from.1.l() as usize - 1] = true;
+                }
+            } else {
+                // Void
+                return Err(MovesetValidityErr::MoveToVoid(*mv));
+            }
+        }
+
+        // If the moveset must be move the present...
+        if shifts_present {
+            // Get the updated min and max timelines
+            let (min, max) = if info.active_player {
+                (
+                    -info.max_timeline() - 1 - branches as Layer,
+                    -info.min_timeline() + if info.even_timelines {0} else {1},
+                )
+            } else {
+                (
+                    -info.max_timeline() - 1,
+                    -info.min_timeline() + if info.even_timelines {0} else {1} + branches as Layer
+                )
+            };
+
+            // If the player can create a new active timeline and branches back
+            if info.timeline_advantage(info.active_player) > 0 && branch_back {
+                return Ok(Moveset { moves })
+            }
+
+            // Look at the now-active timelines and check that the present is pushed forward
+            for l in min..=max {
+                if let Some(tl) = info.get_timeline(l) {
+                    if tl.last_board <= info.present {
+                        if l < 0 {
+                            if !timelines_moved_black[-l as usize - 1] {
+                                return Err(MovesetValidityErr::DoesntPush(l));
+                            }
+                        } else {
+                            if !timelines_moved_white[l as usize] {
+                                return Err(MovesetValidityErr::DoesntPush(l));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(Moveset { moves })
     }
 
     #[inline]
@@ -527,6 +654,7 @@ impl Moveset {
         Because `Moveset`s don't store the `Info` it was validated against, generating a `PartialGame`
         with a different `Info` from the one used when validating the `Moveset` will cause undefined behavior.
     **/
+    #[inline]
     pub fn generate_partial_game<'a>(
         &self,
         game: &'a Game,
@@ -593,69 +721,7 @@ impl TryFrom<(Vec<Move>, &Info)> for Moveset {
 
     /** Creates a new moveset from a set of moves and an info, verifying the requirements of the type. **/
     fn try_from((moves, info): (Vec<Move>, &Info)) -> Result<Moveset, MovesetValidityErr> {
-        if moves.len() == 0 {
-            return Err(MovesetValidityErr::NoMoves);
-        } else if moves.len() > info.len_timelines() {
-            return Err(MovesetValidityErr::TooManyMoves);
-        }
-
-        // Check the validity of the moveset (whether or not it is possible to make the moves; does not look for legality)
-        // Should be O(n)
-
-        let mut timelines_moved_white: Vec<bool> = vec![false; info.timelines_white.len()];
-        let mut timelines_moved_black: Vec<bool> = vec![false; info.timelines_black.len()];
-
-        for mv in moves.iter() {
-            if mv.from.1.t() & 1 == info.active_player as Time
-                || mv.to.1.t() & 1 == info.active_player as Time
-            {
-                // Opponent's board
-                return Err(MovesetValidityErr::OpponentBoard(*mv));
-            }
-
-            if let Some(tl) = info.get_timeline(mv.from.1.l()) {
-                if mv.from.1.t() != tl.last_board {
-                    // Starting board isn't the last board
-                    return Err(MovesetValidityErr::MoveNotFromLast(*mv));
-                }
-            } else {
-                // Void
-                return Err(MovesetValidityErr::MoveFromVoid(*mv));
-            }
-
-            if
-                mv.from.1.l() < 0 && timelines_moved_black[-mv.from.1.l() as usize - 1]
-                || mv.from.1.l() >= 0 && timelines_moved_white[mv.from.1.l() as usize]
-            {
-                // Already played
-                return Err(MovesetValidityErr::AlreadyPlayed(*mv));
-            }
-
-            if let Some(tl) = info.get_timeline(mv.to.1.l()) {
-                if mv.to.1.t() == tl.last_board {
-                    // (Possibly) non-branching jump
-                    if mv.to.1.l() >= 0 {
-                        timelines_moved_white[mv.to.1.l() as usize] = true;
-                    } else {
-                        timelines_moved_black[-mv.to.1.l() as usize - 1] = true;
-                    }
-                } else if mv.to.1.t() > tl.last_board || mv.to.1.t() < tl.first_board {
-                    // Void
-                    return Err(MovesetValidityErr::MoveToVoid(*mv));
-                }
-
-                if mv.from.1.l() >= 0 {
-                    timelines_moved_white[mv.from.1.l() as usize] = true;
-                } else {
-                    timelines_moved_black[-mv.from.1.l() as usize - 1] = true;
-                }
-            } else {
-                // Void
-                return Err(MovesetValidityErr::MoveToVoid(*mv));
-            }
-        }
-
-        Ok(Moveset { moves })
+        Self::new_shifting(moves, info, false)
     }
 }
 

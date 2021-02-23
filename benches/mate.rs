@@ -59,7 +59,7 @@ fn bench_gen_legal_moveset_sub<M: Measurement>(group: &mut BenchmarkGroup<M>, ga
             // delta += start.elapsed();
             // println!("Took {} μs", start.elapsed().as_nanos() as f64 / 1000.0);
 
-            let mut iter = GenLegalMovesetIter::new(game, &partial_game, Some(Duration::new(10, 0)));
+            let mut iter = GenLegalMovesetIter::new(game, std::borrow::Cow::Borrowed(&partial_game), Some(Duration::new(10, 0)));
             match iter.next() {
                 None => {
                     if iter.timed_out() {
