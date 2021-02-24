@@ -19,6 +19,8 @@ fn test_even_timelines() {
         assert!(!info.is_active(-2));
         assert_eq!(info.timeline_advantage(true), 0);
         assert_eq!(info.timeline_advantage(false), 3);
+        assert_eq!(info.timeline_debt(true), 1);
+        assert_eq!(info.timeline_debt(false), 0);
     }
 
     {
@@ -38,6 +40,8 @@ fn test_even_timelines() {
         assert!(!info.is_active(-3));
         assert_eq!(info.timeline_advantage(true), 0);
         assert_eq!(info.timeline_advantage(false), 3);
+        assert_eq!(info.timeline_debt(true), 1);
+        assert_eq!(info.timeline_debt(false), 0);
     }
 
     {
@@ -55,6 +59,8 @@ fn test_even_timelines() {
         assert!(!info.is_active(2));
         assert_eq!(info.timeline_advantage(true), 3);
         assert_eq!(info.timeline_advantage(false), 0);
+        assert_eq!(info.timeline_debt(true), 0);
+        assert_eq!(info.timeline_debt(false), 1);
     }
 
     {
@@ -74,6 +80,8 @@ fn test_even_timelines() {
         assert!(!info.is_active(2));
         assert_eq!(info.timeline_advantage(true), 3);
         assert_eq!(info.timeline_advantage(false), 0);
+        assert_eq!(info.timeline_debt(true), 0);
+        assert_eq!(info.timeline_debt(false), 1);
     }
 }
 

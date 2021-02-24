@@ -177,4 +177,25 @@ impl Info {
             }
         }
     }
+
+    /// Returns the number of inactive timelines that the player `white` created
+    /// Returns 0 if they didn't create any inactive timeline
+    pub fn timeline_debt(&self, white: bool) -> usize {
+        let n_timelines_white = self.timelines_white.len() - 1;
+        let n_timelines_black =
+            self.timelines_black.len() - if self.even_timelines { 1 } else { 0 };
+        if white {
+            if n_timelines_white <= n_timelines_black + 1 {
+                0
+            } else {
+                n_timelines_white - 1 - n_timelines_black
+            }
+        } else {
+            if n_timelines_black <= n_timelines_white + 1 {
+                0
+            } else {
+                n_timelines_black - 1 - n_timelines_white
+            }
+        }
+    }
 }

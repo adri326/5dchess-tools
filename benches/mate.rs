@@ -105,6 +105,9 @@ pub fn bench_checkmate<M: Measurement>(c: &mut Criterion<M>) {
         let game = read_and_parse("tests/games/standard-checkmate-3.json");
         bench_is_mate_sub(&mut moveset_group, &game, "Standard Checkmate 3");
         bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Standard Checkmate 3");
+        let game = read_and_parse("tests/games/dead-timeline.json");
+        bench_is_mate_sub(&mut moveset_group, &game, "Dead Timeline 1");
+        bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Dead Timeline 1");
     }
     {
         let mut moveset_group = c.benchmark_group("Non-mates");
@@ -126,6 +129,9 @@ pub fn bench_checkmate<M: Measurement>(c: &mut Criterion<M>) {
         let game = read_and_parse("tests/games/issue-1.json");
         bench_is_mate_sub(&mut moveset_group, &game, "Issue 1");
         bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Issue 1");
+        let game = read_and_parse("tests/games/dead-timeline-2.json");
+        bench_is_mate_sub(&mut moveset_group, &game, "Dead Timeline 2");
+        bench_gen_legal_moveset_sub(&mut moveset_group, &game, "Dead Timeline 2");
     }
 }
 

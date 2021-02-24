@@ -620,3 +620,29 @@ fn test_issue_1() {
         x => panic!("Expected position tests/games/issue-1.json to be non-mate; got {:?}", x),
     };
 }
+
+#[test]
+fn test_dead_timeline() {
+    let game = read_and_parse("tests/games/dead-timeline.json");
+    let partial_game = no_partial_game(&game);
+
+    match is_mate(&game, &partial_game, Some(std::time::Duration::new(15, 0))) {
+        Mate::Checkmate => {
+            // Ok!
+        },
+        x => panic!("Expected position tests/games/issue-1.json to be checkmate; got {:?}", x),
+    };
+}
+
+#[test]
+fn test_dead_timeline_2() {
+    let game = read_and_parse("tests/games/dead-timeline-2.json");
+    let partial_game = no_partial_game(&game);
+
+    match is_mate(&game, &partial_game, Some(std::time::Duration::new(15, 0))) {
+        Mate::None(_ms) => {
+            // Ok!
+        },
+        x => panic!("Expected position tests/games/dead-timeline-2.json to be non-mate; got {:?}", x),
+    };
+}
