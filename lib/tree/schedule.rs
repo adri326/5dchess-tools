@@ -1,18 +1,10 @@
 use crate::gen::*;
 use crate::prelude::*;
+use super::TreeNode;
 use std::borrow::Cow;
 use std::sync::Arc;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
-
-/**
-    A node in a tree search
-**/
-#[derive(Clone, Debug)]
-pub struct TreeNode {
-    pub partial_game: PartialGame<'static>,
-    pub path: Vec<Moveset>,
-}
 
 /**
     An iterator that splits a given position into a set of "tasks", that you can then use to distribute your tree search across multiple threads.
@@ -38,7 +30,7 @@ pub struct TreeNode {
 pub struct Tasks {
     game: Arc<Game>,
 
-    pool: VecDeque<TreeNode>,
+    pool: VecDeque<TreeNode<'static>>,
     pool_size: usize,
     pool_yielded: usize,
 
@@ -57,7 +49,7 @@ impl Tasks {
         pool_size: usize,
         max_duration: Option<Duration>,
     ) -> Self {
-        let mut pool: VecDeque<TreeNode> = VecDeque::with_capacity(pool_size);
+        let mut pool: VecDeque<TreeNode<'static>> = VecDeque::with_capacity(pool_size);
 
         let root_partial_game = Cow::Owned(no_partial_game(&game));
 
@@ -200,13 +192,13 @@ impl Tasks {
         Returns the next element of the underlying pool.
         You should most likely use `Tasks::next` instead!
     **/
-    pub fn next_cached(&mut self) -> Option<TreeNode> {
+    pub fn next_cached(&mut self) -> Option<TreeNode<'static>> {
         self.pool.pop_front()
     }
 }
 
 impl Iterator for Tasks {
-    type Item = TreeNode;
+    type Item = TreeNode<'static>;
 
     /**
         Returns the next tasks.
@@ -219,11 +211,3 @@ impl Iterator for Tasks {
         self.pool.pop_front()
     }
 }
-
-impl PartialEq for TreeNode {
-    fn eq(&self, other: &Self) -> bool {
-        self.path == other.path
-    }
-}
-
-impl Eq for TreeNode {}

@@ -20,7 +20,7 @@
     }
     ```
 */
-use super::*;
+use crate::prelude::*;
 
 pub mod piece;
 pub use piece::PiecePosition;

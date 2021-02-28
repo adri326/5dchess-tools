@@ -1,0 +1,8 @@
+[Board "custom"]
+[Mode "5D"]
+[Size "5x5"]
+[2p*1k/5/5/5/KR3:0:1:w]
+
+1. Rd1 / Ke4
+2. Re1+ / Kd5
+3. (0T3)Re1>>(0T2)e1~ / (1T2)Ke4>>(0T3)e4
