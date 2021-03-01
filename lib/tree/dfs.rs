@@ -2,21 +2,39 @@ use crate::{
     prelude::*,
     mate::*,
     gen::*,
+    eval::EvalFn,
 };
 use super::*;
 use std::time::{Instant, Duration};
 use std::borrow::Cow;
 
-type Eval = f32;
-
-pub fn dfs<'a>(
+pub fn dfs<'a, F: EvalFn>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
-    mut alpha: Eval,
-    beta: Eval,
     max_duration: Duration,
-) -> Option<(EvalNode, Eval)> {
+    eval_fn: F,
+) -> Option<(EvalNode, F::Output)> {
+    dfs_rec(
+        game,
+        node,
+        depth,
+        F::MIN,
+        -F::MIN,
+        max_duration,
+        eval_fn
+    )
+}
+
+fn dfs_rec<'a, F: EvalFn>(
+    game: &'a Game,
+    node: TreeNode<'a>,
+    depth: usize,
+    mut alpha: F::Output,
+    beta: F::Output,
+    max_duration: Duration,
+    eval_fn: F,
+) -> Option<(EvalNode, F::Output)> {
     if max_duration == Duration::new(0, 0) {
         return None
     }
@@ -25,22 +43,22 @@ pub fn dfs<'a>(
 
     match is_mate(game, &node.partial_game, Some(max_duration)) {
         Mate::Checkmate => {
-            Some((node.into(), f32::NEG_INFINITY))
+            Some((node.into(), F::MIN))
         }
         Mate::Stalemate => {
-            Some((node.into(), 0.0))
+            Some((node.into(), F::DRAW))
         }
         Mate::TimeoutCheckmate | Mate::TimeoutStalemate | Mate::Error => {
             None
         }
-        Mate::None(ms) => {
+        Mate::None(_ms) => {
             if depth == 0 {
-                let score = evaluate_position(game, &node);
+                let score = eval_fn.eval(game, &node)?;
                 // score is expected to return higher for the current player
                 Some((node.into(), score))
             } else {
                 let mut best_node: Option<EvalNode> = None;
-                let mut best_score: Eval = f32::NEG_INFINITY;
+                let mut best_score: F::Output = F::MIN;
 
                 let mut iter = GenLegalMovesetIter::new(game, Cow::Borrowed(&node.partial_game), Some(max_duration));
 
@@ -57,7 +75,7 @@ pub fn dfs<'a>(
                         path: child_path,
                     };
 
-                    let (child_best, child_score) = dfs(game, child_node, depth - 1, -beta, -alpha, max_duration - start.elapsed())?;
+                    let (child_best, child_score) = dfs_rec(game, child_node, depth - 1, -beta, -alpha, max_duration - start.elapsed(), eval_fn)?;
 
                     if -child_score > best_score {
                         best_score = -child_score;
@@ -88,8 +106,4 @@ pub fn dfs<'a>(
             }
         }
     }
-}
-
-fn evaluate_position(game: &Game, node: &TreeNode) -> Eval {
-    0.0
 }

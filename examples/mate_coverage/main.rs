@@ -31,7 +31,7 @@ const MAX_SECONDS: u64 = 10;
 
 fn main() {
     checkmates();
-    // nonmates();
+    nonmates();
 }
 
 // Note: sigma measures the sum of the time taken to prove mate/nonmate, but only for the valid samples

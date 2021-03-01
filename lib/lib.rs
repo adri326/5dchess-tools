@@ -18,3 +18,4 @@ pub mod gen;
 pub mod check;
 pub mod mate;
 pub mod tree;
+pub mod eval;

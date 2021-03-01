@@ -1,8 +1,9 @@
-use chess5dlib::parse::test::{read_and_parse, read_and_parse_opt};
+use chess5dlib::parse::test::{read_and_parse};
 use chess5dlib::{
     prelude::*,
     mate::*,
     tree::*,
+    eval::*,
 };
 use std::time::Duration;
 
@@ -20,7 +21,7 @@ fn test_dfs_rook_tactics_1() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 1, f32::NEG_INFINITY, f32::INFINITY, Duration::new(10, 0));
+    let res = dfs(&game, node, 1, Duration::new(10, 0), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-1!");
     let (node, value) = res.unwrap();
     assert_eq!(node.path.len(), 1);
@@ -60,7 +61,7 @@ fn test_dfs_rook_tactics_2() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 3, f32::NEG_INFINITY, f32::INFINITY, Duration::new(20, 0));
+    let res = dfs(&game, node, 3, Duration::new(20, 0), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-2!");
     let (node, value) = res.unwrap();
     assert_eq!(node.path[0], solution);
@@ -82,7 +83,7 @@ fn test_dfs_standard_1() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 3, f32::NEG_INFINITY, f32::INFINITY, Duration::new(20, 0));
+    let res = dfs(&game, node, 3, Duration::new(20, 0), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on standard-mate-1!");
     let (node, value) = res.unwrap();
     assert_eq!(node.path[0], solution);
@@ -103,7 +104,7 @@ fn test_dfs_rook_tactics_3() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 3, f32::NEG_INFINITY, f32::INFINITY, Duration::new(20, 0));
+    let res = dfs(&game, node, 3, Duration::new(20, 0), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-3!");
     let (node, value) = res.unwrap();
     assert_eq!(node.path[0], solution);
@@ -120,7 +121,7 @@ fn test_dfs_advanced_branching_2() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 1, f32::NEG_INFINITY, f32::INFINITY, Duration::new(20, 0));
+    let res = dfs(&game, node, 1, Duration::new(20, 0), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on advanced-branching-2!");
     let partial_game = no_partial_game(&game);
     let (node, value) = res.unwrap();
