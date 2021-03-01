@@ -6,6 +6,8 @@ use std::sync::Arc;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
+// TODO: have some sort of tree structure to keep track of negamax
+
 /**
     An iterator that splits a given position into a set of "tasks", that you can then use to distribute your tree search across multiple threads.
 
@@ -53,10 +55,10 @@ impl Tasks {
 
         let root_partial_game = Cow::Owned(no_partial_game(&game));
 
-        pool.push_back(TreeNode {
-            partial_game: no_partial_game(&game),
-            path: vec![],
-        });
+        // pool.push_back(TreeNode {
+        //     partial_game: no_partial_game(&game),
+        //     path: vec![],
+        // });
 
         unsafe {
             // SAFETY: we are extracting a &'static reference from game
@@ -114,6 +116,7 @@ impl Tasks {
             if self.gen.done && self.pool_yielded < self.pool_size {
                 match self.pool.pop_front() {
                     Some(head) => {
+                        self.current_path = head.path.clone();
                         unsafe {
                             // SAFETY: we are extracting a &'static reference from self.game
                             // this is safe iff Arc::strong_count(self.game) > 0 remains true while gen is used,

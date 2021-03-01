@@ -4,7 +4,7 @@ use crate::tree::TreeNode;
 pub mod wdl;
 
 pub trait EvalFn : Copy {
-    type Output: PartialOrd + std::ops::Neg<Output=Self::Output> + Copy;
+    type Output: PartialOrd + std::ops::Neg<Output=Self::Output> + Copy + std::fmt::Debug;
 
     const MIN: Self::Output;
     const DRAW: Self::Output;

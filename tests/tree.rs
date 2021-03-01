@@ -6,10 +6,11 @@ use chess5dlib::{
     eval::*,
 };
 use std::time::Duration;
+use std::sync::Arc;
 
 #[test]
 fn test_dfs_rook_tactics_1() {
-    let game = read_and_parse("tests/games/puzzles/rook-tactics-1.json");
+    let game = Arc::new(read_and_parse("tests/games/puzzles/rook-tactics-1.json"));
     let partial_game = no_partial_game(&game);
 
     let solution = Moveset::new(vec![Move::new(&game, &partial_game, Coords(0, 4, 4, 0), Coords(0, 4, 4, 4)).unwrap()], &game.info);
@@ -21,8 +22,9 @@ fn test_dfs_rook_tactics_1() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 1, Duration::new(10, 0), NoEvalFn::new());
+    let res = dfs(&game, node, 1, Some(Duration::new(10, 0)), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-1!");
+    assert_eq!(res, dfs_schedule(Arc::clone(&game), 1, Some(Duration::new(10, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
     assert_eq!(node.path.len(), 1);
     assert_eq!(node.path[0], solution);
@@ -49,7 +51,7 @@ fn test_dfs_rook_tactics_1() {
 
 #[test]
 fn test_dfs_rook_tactics_2() {
-    let game = read_and_parse("tests/games/puzzles/rook-tactics-2.json");
+    let game = Arc::new(read_and_parse("tests/games/puzzles/rook-tactics-2.json"));
     let partial_game = no_partial_game(&game);
 
     let solution = Moveset::new(vec![Move::new(&game, &partial_game, Coords(0, 2, 1, 0), Coords(0, 2, 5, 0)).unwrap()], &game.info);
@@ -61,8 +63,9 @@ fn test_dfs_rook_tactics_2() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 3, Duration::new(20, 0), NoEvalFn::new());
+    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-2!");
+    assert_eq!(res, dfs_schedule(Arc::clone(&game), 3, Some(Duration::new(10, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
     assert_eq!(node.path[0], solution);
     assert_eq!(value, f32::INFINITY);
@@ -71,7 +74,7 @@ fn test_dfs_rook_tactics_2() {
 
 #[test]
 fn test_dfs_standard_1() {
-    let game = read_and_parse("tests/games/puzzles/standard-mate-1.json");
+    let game = Arc::new(read_and_parse("tests/games/puzzles/standard-mate-1.json"));
     let partial_game = no_partial_game(&game);
 
     let solution = Moveset::new(vec![Move::new(&game, &partial_game, Coords(0, 2, 3, 0), Coords(0, 2, 5, 2)).unwrap()], &game.info);
@@ -83,8 +86,9 @@ fn test_dfs_standard_1() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 3, Duration::new(20, 0), NoEvalFn::new());
+    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on standard-mate-1!");
+    assert_eq!(res, dfs_schedule(Arc::clone(&game), 1, Some(Duration::new(10, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
     assert_eq!(node.path[0], solution);
     assert_eq!(value, f32::INFINITY);
@@ -92,7 +96,7 @@ fn test_dfs_standard_1() {
 
 #[test]
 fn test_dfs_rook_tactics_3() {
-    let game = read_and_parse("tests/games/puzzles/rook-tactics-3.json");
+    let game = Arc::new(read_and_parse("tests/games/puzzles/rook-tactics-3.json"));
     let partial_game = no_partial_game(&game);
 
     let solution = Moveset::new(vec![Move::new(&game, &partial_game, Coords(1, 4, 3, 0), Coords(1, 4, 3, 4)).unwrap()], &game.info);
@@ -104,8 +108,9 @@ fn test_dfs_rook_tactics_3() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 3, Duration::new(20, 0), NoEvalFn::new());
+    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-3!");
+    assert_eq!(res, dfs_schedule(Arc::clone(&game), 1, Some(Duration::new(10, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
     assert_eq!(node.path[0], solution);
     assert_eq!(value, f32::INFINITY);
@@ -121,7 +126,7 @@ fn test_dfs_advanced_branching_2() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 1, Duration::new(20, 0), NoEvalFn::new());
+    let res = dfs(&game, node, 1, Some(Duration::new(20, 0)), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on advanced-branching-2!");
     let partial_game = no_partial_game(&game);
     let (node, value) = res.unwrap();
