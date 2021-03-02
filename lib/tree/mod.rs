@@ -1,7 +1,7 @@
 //! Tree search algorithms and utilities
 
 pub mod schedule;
-pub use schedule::{Tasks, DEFAULT_POOL_SIZE};
+pub use schedule::{Tasks};
 
 pub mod dfs;
 pub use dfs::*;

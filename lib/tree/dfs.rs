@@ -2,7 +2,7 @@ use crate::{
     prelude::*,
     mate::*,
     gen::*,
-    eval::EvalFn,
+    eval::{EvalFn, Eval},
 };
 use super::*;
 use std::time::{Instant, Duration};
@@ -16,12 +16,12 @@ pub fn dfs_schedule<F: EvalFn>(
     max_duration: Option<Duration>,
     eval_fn: F,
     pool_size: usize,
-) -> Option<(EvalNode, F::Output)> {
-    let mut best_node: Option<EvalNode> = None;
-    let mut best_score: F::Output = F::MIN;
-    let start = Instant::now();
+) -> Option<(EvalNode, Eval)> {
+    // let start = Instant::now();
 
-    for task in Tasks::new(Arc::clone(&game), pool_size, max_duration) {
+    let mut tasks = Tasks::new(Arc::clone(&game), pool_size, max_duration);
+
+    for (task, handle) in &mut tasks {
         let invert_score = task.path.len() % 2 != 0;
         let (node, value) = if task.path.len() > depth {
             let score = eval_fn.eval(&game, &task)?;
@@ -32,22 +32,19 @@ pub fn dfs_schedule<F: EvalFn>(
             dfs(&game, task, depth, max_duration, eval_fn)?
         };
 
-        let value = if invert_score { -value } else { value };
+        // println!("{:?} {:?}", node, value);
 
-        if value > best_score {
-            best_node = Some(node);
-            best_score = value;
+        handle.report(value);
 
-            if best_score == -F::MIN {
-                break
-            }
+        if value == f32::INFINITY && node.path.len() == 1 {
+            break
         }
     }
 
-    match best_node {
-        None => None,
-        Some(x) => Some((x, best_score)),
-    }
+    // println!("{:?}", tasks.tree);
+    tasks.update_tree();
+    // println!("{:?}", tasks.tree);
+    tasks.best_move()
 }
 
 pub fn dfs<'a, F: EvalFn>(
@@ -56,13 +53,13 @@ pub fn dfs<'a, F: EvalFn>(
     depth: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
-) -> Option<(EvalNode, F::Output)> {
+) -> Option<(EvalNode, Eval)> {
     dfs_rec(
         game,
         node,
         depth,
-        F::MIN,
-        -F::MIN,
+        f32::NEG_INFINITY,
+        f32::INFINITY,
         max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
         eval_fn
     )
@@ -72,11 +69,11 @@ fn dfs_rec<'a, F: EvalFn>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
-    mut alpha: F::Output,
-    beta: F::Output,
+    mut alpha: Eval,
+    beta: Eval,
     max_duration: Duration,
     eval_fn: F,
-) -> Option<(EvalNode, F::Output)> {
+) -> Option<(EvalNode, Eval)> {
     if max_duration == Duration::new(0, 0) {
         return None
     }
@@ -85,10 +82,10 @@ fn dfs_rec<'a, F: EvalFn>(
 
     match is_mate(game, &node.partial_game, Some(max_duration)) {
         Mate::Checkmate => {
-            Some((node.into(), F::MIN))
+            Some((node.into(), f32::NEG_INFINITY))
         }
         Mate::Stalemate => {
-            Some((node.into(), F::DRAW))
+            Some((node.into(), 0.0))
         }
         Mate::TimeoutCheckmate | Mate::TimeoutStalemate | Mate::Error => {
             None
@@ -100,7 +97,7 @@ fn dfs_rec<'a, F: EvalFn>(
                 Some((node.into(), score))
             } else {
                 let mut best_node: Option<EvalNode> = None;
-                let mut best_score: F::Output = F::MIN;
+                let mut best_score: Eval = f32::NEG_INFINITY;
 
                 let mut iter = GenLegalMovesetIter::new(game, Cow::Borrowed(&node.partial_game), Some(max_duration));
 
@@ -128,7 +125,7 @@ fn dfs_rec<'a, F: EvalFn>(
                         alpha = best_score;
                     }
 
-                    if alpha >= beta || alpha == -F::MIN {
+                    if alpha >= beta || alpha == f32::INFINITY {
                         break
                     }
                 }
