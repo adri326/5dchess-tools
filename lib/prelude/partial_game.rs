@@ -1,11 +1,10 @@
 use super::*;
-use std::collections::hash_map::{HashMap, Values};
 use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum PartialGameStorage {
     Shallow(Vec<Option<Board>>, Vec<Option<Board>>),
-    Deep(HashMap<(Layer, Time), Board>),
+    Deep(BoardArray),
 }
 
 /** Represents a "partial game state": the game state that a branch of a tree search algorithm needs to store.
@@ -60,44 +59,6 @@ impl<'a> PartialGame<'a> {
         self.boards = boards;
     }
 
-    /** Merges an already-existing PartialGame instance with a set of additional boards and info,
-        yielding a new partial game state with all of the new boards.
-        Use this function if you are using this data structure in a non-recursive way.
-    **/
-    pub fn merge(&self, boards: HashMap<(Layer, Time), Board>, info: Info) -> Self {
-        let mut tmp_boards = match &self.boards {
-            PartialGameStorage::Deep(boards) => boards.clone(),
-            PartialGameStorage::Shallow(boards_white, boards_black) => {
-                let mut res = HashMap::new();
-
-                for board in boards_white {
-                    if let Some(board) = board {
-                        let coords = (board.l(), board.t());
-                        res.insert(coords, board.clone());
-                    }
-                }
-
-                for board in boards_black {
-                    if let Some(board) = board {
-                        let coords = (board.l(), board.t());
-                        res.insert(coords, board.clone());
-                    }
-                }
-
-                res
-            }
-        };
-
-        tmp_boards.extend(boards.into_iter());
-
-        Self {
-            boards: PartialGameStorage::Deep(tmp_boards),
-            info,
-            parent: self.parent,
-        }
-    }
-
-    #[inline]
     pub fn insert(&mut self, board: Board) {
         match &mut self.boards {
             PartialGameStorage::Shallow(boards_white, boards_black) => {
@@ -112,16 +73,7 @@ impl<'a> PartialGame<'a> {
                         boards_white[index] = Some(board);
                     } else {
                         self.deepen();
-                        match &mut self.boards {
-                            PartialGameStorage::Deep(boards) => {
-                                boards.insert((board.l(), board.t()), board);
-                            }
-                            PartialGameStorage::Shallow(_, _) => {
-                                unsafe {
-                                    std::hint::unreachable_unchecked()
-                                }
-                            }
-                        }
+                        self.insert(board);
                     }
                 } else {
                     let index = -board.l() as usize - 1;
@@ -134,21 +86,12 @@ impl<'a> PartialGame<'a> {
                         boards_black[index] = Some(board);
                     } else {
                         self.deepen();
-                        match &mut self.boards {
-                            PartialGameStorage::Deep(boards) => {
-                                boards.insert((board.l(), board.t()), board);
-                            }
-                            PartialGameStorage::Shallow(_, _) => {
-                                unsafe {
-                                    std::hint::unreachable_unchecked()
-                                }
-                            }
-                        }
+                        self.insert(board);
                     }
                 }
             }
             PartialGameStorage::Deep(boards) => {
-                boards.insert((board.l(), board.t()), board);
+                boards.insert_board(board);
             }
         }
     }
@@ -171,7 +114,7 @@ impl<'a> PartialGame<'a> {
             };
 
             for board in parent.iter() {
-                boards.insert((board.l(), board.t()), board.clone());
+                boards.insert_board(board.clone());
             }
 
             PartialGame {
@@ -195,14 +138,12 @@ impl<'a> PartialGame<'a> {
             PartialGameStorage::Deep(_) => return,
         }
 
-        let boards: PartialGameStorage = PartialGameStorage::Deep(HashMap::new());
+        let boards: PartialGameStorage = PartialGameStorage::Deep(BoardArray::empty());
         let boards = std::mem::replace(&mut self.boards, boards);
 
-        let hashmap = match &mut self.boards {
+        let target = match &mut self.boards {
             PartialGameStorage::Shallow(_, _) => {
-                unsafe {
-                    std::hint::unreachable_unchecked()
-                }
+                unreachable!();
             },
             PartialGameStorage::Deep(boards) => boards,
         };
@@ -211,21 +152,17 @@ impl<'a> PartialGame<'a> {
             PartialGameStorage::Shallow(boards_white, boards_black) => {
                 for board in boards_white {
                     if let Some(board) = board {
-                        let coords = (board.l(), board.t());
-                        hashmap.insert(coords, board);
+                        target.insert_board(board);
                     }
                 }
                 for board in boards_black {
                     if let Some(board) = board {
-                        let coords = (board.l(), board.t());
-                        hashmap.insert(coords, board);
+                        target.insert_board(board);
                     }
                 }
             },
             PartialGameStorage::Deep(_) => {
-                unsafe {
-                    std::hint::unreachable_unchecked()
-                }
+                unreachable!();
             }
         }
     }
@@ -278,7 +215,7 @@ impl<'a> PartialGame<'a> {
                 }
             }
             PartialGameStorage::Deep(boards) => {
-                match boards.get(&coords) {
+                match boards.get_board(coords) {
                     Some(b) => Some(b),
                     None => match self.parent {
                         Some(parent) => parent.get_board(coords),
@@ -357,7 +294,7 @@ impl<'a> From<&'_ Game> for PartialGame<'a> {
 
 pub enum PartialGameStorageIter<'a> {
     Shallow(std::iter::Chain<std::slice::Iter<'a, Option<Board>>, std::slice::Iter<'a, Option<Board>>>),
-    Deep(Values<'a, (Layer, Time), Board>)
+    Deep(std::slice::Iter<'a, Option<Board>>)
 }
 
 impl PartialGameStorage {
@@ -368,7 +305,7 @@ impl PartialGameStorage {
                 PartialGameStorageIter::Shallow(boards_white.iter().chain(boards_black.iter()))
             },
             PartialGameStorage::Deep(boards) => {
-                PartialGameStorageIter::Deep(boards.values())
+                PartialGameStorageIter::Deep(boards.iter())
             }
         }
     }
@@ -388,7 +325,14 @@ impl<'a> Iterator for PartialGameStorageIter<'a> {
                 }
                 None
             },
-            PartialGameStorageIter::Deep(iter) => iter.next()
+            PartialGameStorageIter::Deep(iter) => {
+                for b in iter {
+                    if let Some(board) = b {
+                        return Some(board)
+                    }
+                }
+                None
+            }
         }
     }
 }

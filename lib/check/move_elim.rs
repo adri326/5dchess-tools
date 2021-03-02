@@ -1,7 +1,6 @@
 use crate::*;
 use crate::gen::*;
 use super::threat::*;
-use std::collections::HashMap;
 
 pub fn is_legal_move<'a>(
     mv: Move,
@@ -33,7 +32,10 @@ pub fn is_legal_move<'a>(
         }
 
         new_partial_game.parent = Some(partial_game);
-        new_partial_game.set_boards(PartialGameStorage::Deep(HashMap::with_capacity(1)));
+        new_partial_game.set_boards(PartialGameStorage::Shallow(
+            vec![None; new_partial_game.info.timelines_white.len()],
+            vec![None; new_partial_game.info.timelines_black.len()]
+        ));
         mv.generate_partial_game(
             game,
             partial_game,

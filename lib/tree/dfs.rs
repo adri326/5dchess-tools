@@ -22,7 +22,7 @@ pub fn dfs_schedule<F: EvalFn>(
     let mut tasks = Tasks::new(Arc::clone(&game), pool_size, max_duration);
 
     for (task, handle) in &mut tasks {
-        let invert_score = task.path.len() % 2 != 0;
+        // let invert_score = task.path.len() % 2 != 0;
         let (node, value) = if task.path.len() > depth {
             let score = eval_fn.eval(&game, &task)?;
 

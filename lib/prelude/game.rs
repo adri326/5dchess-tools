@@ -4,13 +4,9 @@
 
 use super::*;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Game {
-    // [(0; 0), (-1; 0), (1; 0), ..., (0; 1), (-1; 0), (1; 0), ...]
-    boards: Vec<Option<Board>>,
-    timeline_width: usize,
-    max_time: isize,
-    min_time: isize,
+    pub boards: BoardArray,
     pub width: Physical,
     pub height: Physical,
     pub info: Info,
@@ -25,13 +21,70 @@ impl Game {
         timelines_black: Vec<TimelineInfo>,
     ) -> Self {
         Game {
+            boards: BoardArray::empty(),
+            width,
+            height,
+            info: Info::new(even_timelines, timelines_white, timelines_black),
+        }
+    }
+
+    #[inline]
+    pub fn get_board(&self, (l, t): (Layer, Time)) -> Option<&Board> {
+        self.boards.get_board((l, t))
+    }
+
+    #[inline]
+    pub fn get_board_mut(&mut self, (l, t): (Layer, Time)) -> Option<&mut Board> {
+        self.boards.get_board_mut((l, t))
+    }
+
+    #[inline]
+    pub fn get_board_unchecked(&self, (l, t): (Layer, Time)) -> &Board {
+        self.boards.get_board_unchecked((l, t))
+    }
+
+    #[inline]
+    pub fn get(&self, Coords(l, t, x, y): Coords) -> Tile {
+        self.get_board((l, t)).map(|b| b.get((x, y))).into()
+    }
+
+    #[inline]
+    pub fn get_unchecked(&self, Coords(l, t, x, y): Coords) -> Tile {
+        self.boards.get_board_unchecked((l, t)).get_unchecked((x, y))
+    }
+
+    #[inline]
+    pub fn insert_board(&mut self, board: Board) {
+        self.boards.insert_board(board)
+    }
+
+    #[inline]
+    pub fn iter_boards<'a>(&'a self) -> impl Iterator<Item=((Layer, Time), &'a Board)> {
+        self.boards.iter_boards()
+    }
+
+    #[inline]
+    pub fn iter_boards_mut<'a>(&'a mut self) -> impl Iterator<Item=((Layer, Time), &'a mut Board)> {
+        self.boards.iter_boards_mut()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BoardArray {
+    // [(0; 0), (-1; 0), (1; 0), ..., (0; 1), (-1; 0), (1; 0), ...]
+    boards: Vec<Option<Board>>,
+    timeline_width: usize,
+    max_time: isize,
+    min_time: isize,
+}
+
+impl BoardArray {
+    pub fn empty() -> Self {
+        Self {
             boards: vec![None],
             timeline_width: 0,
             max_time: 0,
             min_time: 0,
-            width,
-            height,
-            info: Info::new(even_timelines, timelines_white, timelines_black),
         }
     }
 
@@ -137,21 +190,6 @@ impl Game {
     }
 
     #[inline]
-    pub fn get(&self, Coords(l, t, x, y): Coords) -> Tile {
-        self.get_board((l, t)).map(|b| b.get((x, y))).into()
-    }
-
-    #[inline]
-    pub fn get_unchecked(&self, Coords(l, t, x, y): Coords) -> Tile {
-        let index = self.get_index_unchecked(l, t);
-
-        match &self.boards[index] {
-            Some(b) => b.get_unchecked((x, y)),
-            None => panic!("No board at {}:{}!", l, t)
-        }
-    }
-
-    #[inline]
     pub fn insert_board(&mut self, board: Board) {
         let l: usize = if board.l() < 0 {
             (-2 * board.l()) as usize + 1
@@ -187,5 +225,9 @@ impl Game {
                 None => None
             }
         })
+    }
+
+    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, Option<Board>> {
+        self.boards.iter()
     }
 }
