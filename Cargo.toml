@@ -39,6 +39,10 @@ harness = false
 name = "mate"
 harness = false
 
+[[bench]]
+name = "tree"
+harness = false
+
 [[example]]
 name = "profiling"
 path = "profiling/main.rs"

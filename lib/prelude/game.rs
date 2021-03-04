@@ -230,4 +230,8 @@ impl BoardArray {
     pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, Option<Board>> {
         self.boards.iter()
     }
+
+    pub fn into_iter(self) -> std::vec::IntoIter<Option<Board>> {
+        self.boards.into_iter()
+    }
 }

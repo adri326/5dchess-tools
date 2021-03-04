@@ -273,6 +273,32 @@ impl<'a> PartialGame<'a> {
             None => None,
         }
     }
+
+    pub fn apply(self, game: &mut Game) {
+        game.info = self.info;
+
+        match self.boards {
+            PartialGameStorage::Shallow(white, black) => {
+                for board in white {
+                    if let Some(board) = board {
+                        game.insert_board(board);
+                    }
+                }
+                for board in black {
+                    if let Some(board) = board {
+                        game.insert_board(board);
+                    }
+                }
+            }
+            PartialGameStorage::Deep(boards) => {
+                for board in boards.into_iter() {
+                    if let Some(board) = board {
+                        game.insert_board(board);
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[inline]

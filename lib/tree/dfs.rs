@@ -17,11 +17,15 @@ pub fn dfs_schedule<F: EvalFn>(
     eval_fn: F,
     pool_size: usize,
 ) -> Option<(EvalNode, Eval)> {
-    // let start = Instant::now();
+    let start = Instant::now();
 
     let mut tasks = Tasks::new(Arc::clone(&game), pool_size, max_duration);
 
     for (task, handle) in &mut tasks {
+        if max_duration.map(|d| d <= start.elapsed()).unwrap_or(false) {
+            return None
+        }
+
         // let invert_score = task.path.len() % 2 != 0;
         let (node, value) = if task.path.len() > depth {
             let score = eval_fn.eval(&game, &task)?;
@@ -29,7 +33,8 @@ pub fn dfs_schedule<F: EvalFn>(
             (task.into(), score)
         } else {
             let depth = depth - task.path.len();
-            dfs(&game, task, depth, max_duration, eval_fn)?
+            // println!("{:?} {:?}", task.path, start.elapsed());
+            dfs(&game, task, depth, max_duration.map(|d| d - start.elapsed()), eval_fn)?
         };
 
         // println!("{:?} {:?}", node, value);
