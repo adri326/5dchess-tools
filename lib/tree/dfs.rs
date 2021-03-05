@@ -95,7 +95,7 @@ fn dfs_rec<'a, F: EvalFn>(
         Mate::TimeoutCheckmate | Mate::TimeoutStalemate | Mate::Error => {
             None
         }
-        Mate::None(_ms) => {
+        Mate::None(ms, pos, iter) => {
             if depth == 0 {
                 let score = eval_fn.eval(game, &node)?;
                 // score is expected to return higher for the current player
@@ -104,9 +104,14 @@ fn dfs_rec<'a, F: EvalFn>(
                 let mut best_node: Option<EvalNode> = None;
                 let mut best_score: Eval = f32::NEG_INFINITY;
 
-                let mut iter = GenLegalMovesetIter::new(game, Cow::Borrowed(&node.partial_game), Some(max_duration));
+                let mut iter = match iter {
+                    None => GenLegalMovesetIter::new(game, Cow::Borrowed(&node.partial_game), Some(max_duration)),
+                    Some(i) => i,
+                };
 
-                for (child_ms, child_pos) in &mut iter {
+                let initial_node = vec![(ms, pos)];
+
+                for (child_ms, child_pos) in initial_node.into_iter().chain(&mut iter) {
                     if start.elapsed() > max_duration {
                         return None
                     }

@@ -3,13 +3,14 @@ use crate::gen::*;
 use crate::check::*;
 use std::collections::{HashSet};
 use std::time::{Duration, Instant};
+use std::fmt;
 
 /**
     Status for checkmate detection.
 **/
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Mate {
+#[derive(Clone)]
+pub enum Mate<'a> {
     /// The position is checkmate: the current player cannot make any moveset and is in check
     Checkmate,
     /// The position is stalemate: the current player cannot make any moveset and isn't in check
@@ -21,7 +22,46 @@ pub enum Mate {
     /// Timed out while looking for stalemate: the current player isn't in check and no moveset was found in a timely manner
     TimeoutStalemate,
     /// None: the current player can make a moveset
-    None(Moveset),
+    None(Moveset, PartialGame<'a>, Option<GenLegalMovesetIter<'a>>),
+}
+
+impl<'a> PartialEq for Mate<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Mate::Checkmate, Mate::Checkmate) => true,
+            (Mate::Stalemate, Mate::Stalemate) => true,
+            (Mate::Error, Mate::Error) => true,
+            (Mate::TimeoutCheckmate, Mate::TimeoutCheckmate) => true,
+            (Mate::TimeoutStalemate, Mate::TimeoutStalemate) => true,
+            (Mate::None(x, _, _), Mate::None(y, _, _)) => x == y,
+            _ => false,
+        }
+    }
+}
+
+impl<'a> fmt::Debug for Mate<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Mate::Checkmate => {
+                write!(f, "Mate::Checkmate")
+            }
+            Mate::Stalemate => {
+                write!(f, "Mate::Stalemate")
+            }
+            Mate::Error => {
+                write!(f, "Mate::Error")
+            }
+            Mate::TimeoutCheckmate => {
+                write!(f, "Mate::TimeoutCheckmate")
+            }
+            Mate::TimeoutStalemate => {
+                write!(f, "Mate::TimeoutStalemate")
+            }
+            Mate::None(ms, _pos, iter) => {
+                write!(f, "Mate::None({:?}, _, {})", ms, if iter.is_some() { "Some(<iter>)" } else { "None" })
+            }
+        }
+    }
 }
 
 macro_rules! unwrap_mate {
@@ -74,7 +114,7 @@ pub fn is_mate<'a>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
     max_duration: Option<Duration>,
-) -> Mate {
+) -> Mate<'a> {
     let start = Instant::now();
     let max_duration = max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1));
     let idle_boards = unwrap_mate!(generate_idle_boards(game, partial_game));
@@ -125,7 +165,7 @@ pub fn is_mate<'a>(
                                 ms.generate_partial_game(game, partial_game)
                             {
                                 if !unwrap_mate!(is_illegal(game, &new_partial_game)).0 {
-                                    return Mate::None(ms);
+                                    return Mate::None(ms, new_partial_game, None);
                                 }
                             }
                         }
@@ -331,7 +371,7 @@ pub fn is_mate<'a>(
 
     // Big boy to look for legal moves
     match iter.next() {
-        Some((ms, _pos)) => Mate::None(ms),
+        Some((ms, pos)) => Mate::None(ms, pos, Some(iter)),
         None => {
             if start.elapsed() > max_duration {
                 if attacked_pieces.len() > 0 {

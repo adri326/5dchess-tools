@@ -84,7 +84,7 @@ fn nonmates() {
         }
         if METHOD & 1 > 0 {
             match is_mate(&game.0, &partial_game, Some(Duration::new(MAX_SECONDS, 0))) {
-                Mate::None(_ms) => {
+                Mate::None(_ms, _pos, _iter) => {
                     ok += 1;
                     if !SILENT {
                         println!("... Game {}, OK! ({} μs)", game.1, start.elapsed().as_nanos() as f64 / 1000.0);
@@ -206,7 +206,7 @@ fn checkmates() {
 
         if METHOD & 1 > 0 {
             match is_mate(&game.0, &partial_game, Some(Duration::new(MAX_SECONDS, 0))) {
-                Mate::None(ms) => {
+                Mate::None(ms, _pos, _iter) => {
                     if !SILENT {
                         println!("... Game {}, found moveset: {}! ({} μs)", game.1, ms, start.elapsed().as_nanos() as f64 / 1000.0);
                     }
