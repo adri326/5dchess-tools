@@ -184,10 +184,12 @@ impl Tasks {
                         // SAFETY: it is critical that partial_game.flatten() be called here, so that partial_game.parent == None
                         let partial_game = partial_game.flatten();
                         assert!(partial_game.parent.is_none());
-                        self.pool.push_back((TreeNode {
+                        let branches = partial_game.info.len_timelines() - self.game.info.len_timelines();
+                        self.pool.push_back((TreeNode::new(
                             partial_game,
                             path,
-                        }, self.parent_index));
+                            branches
+                        ), self.parent_index));
                         self.pool_yielded += 1;
                     }
                     None => {

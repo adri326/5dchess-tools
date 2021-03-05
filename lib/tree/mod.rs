@@ -1,4 +1,5 @@
 //! Tree search algorithms and utilities
+use crate::prelude::*;
 
 pub mod schedule;
 pub use schedule::{Tasks};
@@ -11,8 +12,9 @@ pub use dfs::*;
 **/
 #[derive(Clone, Debug)]
 pub struct TreeNode<'a> {
-    pub partial_game: crate::prelude::PartialGame<'a>,
-    pub path: Vec<crate::prelude::Moveset>,
+    pub partial_game: PartialGame<'a>,
+    pub path: Vec<Moveset>,
+    pub branches: usize,
 }
 
 impl<'a> PartialEq for TreeNode<'a> {
@@ -23,12 +25,34 @@ impl<'a> PartialEq for TreeNode<'a> {
 
 impl<'a> Eq for TreeNode<'a> {}
 
+impl<'a> TreeNode<'a> {
+    pub fn new(partial_game: PartialGame<'a>, path: Vec<Moveset>, branches: usize) -> Self {
+        Self {
+            partial_game,
+            path,
+            branches,
+        }
+    }
+
+    pub fn extend(parent: &TreeNode<'a>, moveset: Moveset, partial_game: PartialGame<'a>) -> Self {
+        let mut new_path = parent.path.clone();
+        new_path.push(moveset);
+        let branches = parent.branches + partial_game.info.len_timelines() - parent.partial_game.info.len_timelines();
+
+        Self {
+            partial_game,
+            path: new_path,
+            branches,
+        }
+    }
+}
+
 /**
     A node in a tree search
 **/
 #[derive(Clone, Debug)]
 pub struct EvalNode {
-    pub path: Vec<crate::prelude::Moveset>,
+    pub path: Vec<Moveset>,
 }
 
 impl PartialEq for EvalNode {

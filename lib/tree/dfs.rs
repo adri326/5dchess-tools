@@ -116,13 +116,7 @@ fn dfs_rec<'a, F: EvalFn>(
                         return None
                     }
 
-                    let mut child_path = node.path.clone();
-                    child_path.push(child_ms);
-
-                    let child_node = TreeNode {
-                        partial_game: child_pos,
-                        path: child_path,
-                    };
+                    let child_node = TreeNode::extend(&node, child_ms, child_pos);
 
                     let (child_best, child_score) = dfs_rec(game, child_node, depth - 1, -beta, -alpha, max_duration - start.elapsed(), eval_fn)?;
 
