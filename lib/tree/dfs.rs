@@ -34,7 +34,7 @@ pub fn dfs_schedule<F: EvalFn>(
         } else {
             let depth = depth - task.path.len();
             // println!("{:?} {:?}", task.path, start.elapsed());
-            dfs(&game, task, depth, max_duration.map(|d| d - start.elapsed()), eval_fn)?
+            dfs(&game, task, depth, max_duration.map(|d| d - start.elapsed()), eval_fn, |_| true)?
         };
 
         // println!("{:?} {:?}", node, value);
@@ -52,10 +52,32 @@ pub fn dfs_schedule<F: EvalFn>(
     tasks.best_move()
 }
 
-pub fn dfs<'a, F: EvalFn>(
+pub fn dfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
+    max_duration: Option<Duration>,
+    eval_fn: F,
+    condition: C,
+) -> Option<(EvalNode, Eval)> {
+    dfs_rec(
+        game,
+        node,
+        depth,
+        f32::NEG_INFINITY,
+        f32::INFINITY,
+        max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
+        eval_fn,
+        condition,
+    )
+}
+
+
+pub fn dfs_bl<'a, F: EvalFn>(
+    game: &'a Game,
+    node: TreeNode<'a>,
+    depth: usize,
+    max_branches: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
 ) -> Option<(EvalNode, Eval)> {
@@ -66,11 +88,12 @@ pub fn dfs<'a, F: EvalFn>(
         f32::NEG_INFINITY,
         f32::INFINITY,
         max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
-        eval_fn
+        eval_fn,
+        move |node| node.branches <= max_branches,
     )
 }
 
-fn dfs_rec<'a, F: EvalFn>(
+fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
@@ -78,6 +101,7 @@ fn dfs_rec<'a, F: EvalFn>(
     beta: Eval,
     max_duration: Duration,
     eval_fn: F,
+    condition: C,
 ) -> Option<(EvalNode, Eval)> {
     if max_duration == Duration::new(0, 0) {
         return None
@@ -118,19 +142,30 @@ fn dfs_rec<'a, F: EvalFn>(
 
                     let child_node = TreeNode::extend(&node, child_ms, child_pos);
 
-                    let (child_best, child_score) = dfs_rec(game, child_node, depth - 1, -beta, -alpha, max_duration.checked_sub(start.elapsed())?, eval_fn)?;
+                    if condition(&child_node) {
+                        let (child_best, child_score) = dfs_rec(
+                            game,
+                            child_node,
+                            depth - 1,
+                            -beta,
+                            -alpha,
+                            max_duration.checked_sub(start.elapsed())?,
+                            eval_fn,
+                            condition
+                        )?;
 
-                    if -child_score > best_score {
-                        best_score = -child_score;
-                        best_node = Some(child_best);
-                    }
+                        if -child_score > best_score {
+                            best_score = -child_score;
+                            best_node = Some(child_best);
+                        }
 
-                    if best_score > alpha {
-                        alpha = best_score;
-                    }
+                        if best_score > alpha {
+                            alpha = best_score;
+                        }
 
-                    if alpha >= beta || alpha == f32::INFINITY {
-                        break
+                        if alpha >= beta || alpha == f32::INFINITY {
+                            break
+                        }
                     }
                 }
 

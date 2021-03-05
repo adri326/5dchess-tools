@@ -12,8 +12,14 @@ use criterion::{
 use std::time::{Duration, Instant};
 use std::sync::Arc;
 
-fn bench_dfs<M: Measurement>(group: &mut BenchmarkGroup<M>, game: Arc<Game>, depth: usize, name: &str) {
-    group.bench_with_input(BenchmarkId::new(name, format!("dfs, d={}", depth)), &game, |b, game| {
+fn bench_dfs<M: Measurement>(
+    group: &mut BenchmarkGroup<M>,
+    game: Arc<Game>,
+    depth: usize,
+    max_branches: usize,
+    name: &str
+) {
+    group.bench_with_input(BenchmarkId::new(name, format!("dfs, d={}, bl={}", depth, max_branches)), &game, |b, game| {
         let mut tasks = Tasks::new(Arc::clone(&game), 256, Some(Duration::new(10, 0)));
         b.iter_batched(|| {
             match tasks.next() {
@@ -30,10 +36,11 @@ fn bench_dfs<M: Measurement>(group: &mut BenchmarkGroup<M>, game: Arc<Game>, dep
                 (node.into(), score)
             } else {
                 let depth = depth - node.path.len();
-                dfs(
+                dfs_bl(
                     &game,
                     node,
                     depth,
+                    max_branches,
                     Some(Duration::new(10, 0)),
                     NoEvalFn::new(),
                 ).expect("dfs timed out!")
@@ -50,16 +57,39 @@ pub fn bench_tree<M: Measurement>(c: &mut Criterion<M>) {
         moveset_group
             .warm_up_time(Duration::new(10, 0))
             .measurement_time(Duration::new(60, 0))
-            .sample_size(10);
+            .sample_size(100);
 
         let game = Arc::new(read_and_parse("tests/games/standard-check.json"));
-        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, "Standard Check 1");
-        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, "Standard Check 1");
-        // bench_dfs(&mut moveset_group, Arc::clone(&game), 3, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, 0, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, 0, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 3, 0, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 4, 0, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 5, 0, "Standard Check 1");
+
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, 1, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, 1, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 3, 1, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 4, 1, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 5, 1, "Standard Check 1");
+
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, 2, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, 2, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 3, 2, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 4, 2, "Standard Check 1");
+
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, 3, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, 3, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 3, 3, "Standard Check 1");
+
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, 4, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, 4, "Standard Check 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 3, 4, "Standard Check 1");
 
         let game = Arc::new(read_and_parse("tests/games/tree/slow-1.json"));
-        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, "Slow 1");
-        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, "Slow 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, 0, "Slow 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, 0, "Slow 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, 1, "Slow 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, 1, "Slow 1");
     }
 }
 
