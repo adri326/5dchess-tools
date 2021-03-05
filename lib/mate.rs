@@ -366,7 +366,7 @@ pub fn is_mate<'a>(
         game,
         std::borrow::Cow::Borrowed(partial_game),
         moves,
-        Some(max_duration - start.elapsed()),
+        Some(max_duration.checked_sub(start.elapsed()).unwrap_or(Duration::new(0, 0))),
     );
 
     // Big boy to look for legal moves

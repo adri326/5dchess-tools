@@ -112,13 +112,13 @@ fn dfs_rec<'a, F: EvalFn>(
                 let initial_node = vec![(ms, pos)];
 
                 for (child_ms, child_pos) in initial_node.into_iter().chain(&mut iter) {
-                    if start.elapsed() > max_duration {
+                    if start.elapsed() >= max_duration {
                         return None
                     }
 
                     let child_node = TreeNode::extend(&node, child_ms, child_pos);
 
-                    let (child_best, child_score) = dfs_rec(game, child_node, depth - 1, -beta, -alpha, max_duration - start.elapsed(), eval_fn)?;
+                    let (child_best, child_score) = dfs_rec(game, child_node, depth - 1, -beta, -alpha, max_duration.checked_sub(start.elapsed())?, eval_fn)?;
 
                     if -child_score > best_score {
                         best_score = -child_score;

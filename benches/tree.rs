@@ -56,6 +56,10 @@ pub fn bench_tree<M: Measurement>(c: &mut Criterion<M>) {
         bench_dfs(&mut moveset_group, Arc::clone(&game), 1, "Standard Check 1");
         bench_dfs(&mut moveset_group, Arc::clone(&game), 2, "Standard Check 1");
         // bench_dfs(&mut moveset_group, Arc::clone(&game), 3, "Standard Check 1");
+
+        let game = Arc::new(read_and_parse("tests/games/tree/slow-1.json"));
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 1, "Slow 1");
+        bench_dfs(&mut moveset_group, Arc::clone(&game), 2, "Slow 1");
     }
 }
 

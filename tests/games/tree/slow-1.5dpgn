@@ -1,0 +1,7 @@
+[Mode "5D"]
+[Board "Standard"]
+
+1. (0T1)Nc3 / (0T1)a6
+2. (0T2)Rb1 / (0T2)a5
+{What follows is which branch took the longest to analyze}
+3. (0T3)Rb1>>(0T2)b1~ / (1T2)a5 (0T3)Nb8>>(0T2)b6~
