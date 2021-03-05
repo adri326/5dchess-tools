@@ -20,9 +20,10 @@ fn test_dfs_rook_tactics_1() {
     let node = TreeNode {
         partial_game,
         path: vec![],
+        branches: 0,
     };
 
-    let res = dfs(&game, node, 1, Some(Duration::new(10, 0)), NoEvalFn::new());
+    let res = dfs(&game, node, 1, Some(Duration::new(10, 0)), NoEvalFn::new(), |_| true);
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-1!");
     assert_eq!(res, dfs_schedule(Arc::clone(&game), 1, Some(Duration::new(10, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
@@ -61,9 +62,10 @@ fn test_dfs_rook_tactics_2() {
     let node = TreeNode {
         partial_game,
         path: vec![],
+        branches: 0,
     };
 
-    let res = dfs(&game, node, 3, Some(Duration::new(30, 0)), NoEvalFn::new());
+    let res = dfs(&game, node, 3, Some(Duration::new(30, 0)), NoEvalFn::new(), |_| true);
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-2!");
     assert_eq!(res, dfs_schedule(Arc::clone(&game), 3, Some(Duration::new(30, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
@@ -84,9 +86,10 @@ fn test_dfs_standard_1() {
     let node = TreeNode {
         partial_game,
         path: vec![],
+        branches: 0,
     };
 
-    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new());
+    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new(), |_| true);
     assert!(res.is_some(), "dfs timed out or errored out on standard-mate-1!");
     assert_eq!(res, dfs_schedule(Arc::clone(&game), 1, Some(Duration::new(10, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
@@ -106,9 +109,10 @@ fn test_dfs_rook_tactics_3() {
     let node = TreeNode {
         partial_game,
         path: vec![],
+        branches: 0,
     };
 
-    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new());
+    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new(), |_| true);
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-3!");
     assert_eq!(res, dfs_schedule(Arc::clone(&game), 1, Some(Duration::new(10, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
@@ -124,9 +128,10 @@ fn test_dfs_advanced_branching_2() {
     let node = TreeNode {
         partial_game,
         path: vec![],
+        branches: 0,
     };
 
-    let res = dfs(&game, node, 1, Some(Duration::new(20, 0)), NoEvalFn::new());
+    let res = dfs(&game, node, 1, Some(Duration::new(20, 0)), NoEvalFn::new(), |_| true);
     assert!(res.is_some(), "dfs timed out or errored out on advanced-branching-2!");
     let partial_game = no_partial_game(&game);
     let (node, value) = res.unwrap();
