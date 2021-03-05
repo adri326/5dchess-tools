@@ -158,7 +158,7 @@ pub fn is_mate<'a>(
         }
 
         // let mut reconstructed_moves: Vec<CacheMoves<Timed<CacheIterOrVec>>> =
-        let mut reconstructed_moves: Vec<Vec<Move>> = Vec::with_capacity(moves.len());
+        let mut reconstructed_moves: Vec<(Vec<Move>, _)> = Vec::with_capacity(moves.len());
 
         let mut possible_move_white: Vec<bool> = vec![false; partial_game.info.timelines_white.len()];
         let mut possible_move_black: Vec<bool> = vec![false; partial_game.info.timelines_black.len()];
@@ -168,10 +168,10 @@ pub fn is_mate<'a>(
             let mut other_moves: Vec<Move> = Vec::with_capacity(own_moves.cache.len());
             let mut unpromising_moves: Vec<Move> = Vec::with_capacity(own_moves.cache.len());
 
-            let (iterator, cache, _) = own_moves.into_raw_parts();
-            // Re-order own_moves
+            let (mut iterator, cache, _) = own_moves.into_raw_parts();
 
-            for mv in cache.into_iter().chain(iterator) {
+            // Re-order own_moves
+            for mv in cache.into_iter().chain(&mut iterator) {
                 // Update possible_move_* arrays
                 if mv.from.1.l() >= 0 {
                     possible_move_white[mv.from.1.l() as usize] = true;
@@ -198,7 +198,7 @@ pub fn is_mate<'a>(
             promising_moves.append(&mut other_moves);
             promising_moves.append(&mut unpromising_moves);
 
-            reconstructed_moves.push(promising_moves);
+            reconstructed_moves.push((promising_moves, iterator));
         }
 
         // Handle shifting impossibility
@@ -249,7 +249,7 @@ pub fn is_mate<'a>(
                 // TODO: pass along death_limit to GenLegalMovesetIter? Moveset::new_shifting is doing a pretty good job though
 
                 if death_limit == 0 {
-                    for moves in &mut reconstructed_moves {
+                    for (moves, _) in &mut reconstructed_moves {
                         moves.retain(|mv| {
                             if let Some(tl) = partial_game.info.get_timeline(mv.to.1.l()) {
                                 mv.to.1.t() == tl.last_board
@@ -263,7 +263,7 @@ pub fn is_mate<'a>(
                 }
 
                 // Ignore spatial moves from inactive timelines
-                for moves in &mut reconstructed_moves {
+                for (moves, _) in &mut reconstructed_moves {
                     moves.retain(|mv| {
                         if partial_game.info.active_player {
                             let min_l = partial_game.info.min_timeline() + debt as Layer - death_limit as Layer;
@@ -279,13 +279,17 @@ pub fn is_mate<'a>(
 
         reconstructed_moves
             .into_iter()
-            .map(|moves| from_vec(moves, max_duration, start))
+            .map(|(moves, previous_iter)| CacheMoves::from_raw_parts(
+                previous_iter,
+                moves,
+                true,
+            ))
             .collect()
     } else {
         // Do nothing
         moves
             .into_iter()
-            .map(|moves| transfer_cache(moves, max_duration, start))
+            // .map(|moves| transfer_cache(moves, max_duration, start))
             .collect()
     };
 
@@ -359,49 +363,4 @@ pub fn is_mate<'a>(
             }
         }
     }
-}
-
-/// Internal enum used by `is_mate` to determine that a position is mate.
-/// It works as an iterator that is passed to CacheMoves and put into GenMovesetIter
-enum CacheIterOrVec<'a> {
-    Iter(FilterLegalMove<'a, BoardIter<'a>>),
-    Vec,
-}
-
-impl<'a> Iterator for CacheIterOrVec<'a> {
-    type Item = Move;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            CacheIterOrVec::Iter(i) => i.next(),
-            CacheIterOrVec::Vec => None,
-        }
-    }
-}
-
-/// Turns a CacheMoves<FilterLegalMove> into a CacheMoves<Timed<CacheIterOrVec::Iter>>, keeping the cache of the former
-fn transfer_cache<'a>(
-    iter: CacheMoves<FilterLegalMove<'a, BoardIter<'a>>>,
-    duration: Duration,
-    start: Instant,
-) -> CacheMoves<Timed<CacheIterOrVec<'a>>> {
-    let (iter, cache, done) = iter.into_raw_parts();
-    CacheMoves::from_raw_parts(
-        Timed::with_start(CacheIterOrVec::Iter(iter), Some(start), duration),
-        cache,
-        done,
-    )
-}
-
-/// Turns a Vec<Move> into a CacheMoves<Timed<CacheIterOrVec::Vec>>
-fn from_vec<'a>(
-    vec: Vec<Move>,
-    duration: Duration,
-    start: Instant,
-) -> CacheMoves<Timed<CacheIterOrVec<'a>>> {
-    CacheMoves::from_raw_parts(
-        Timed::with_start(CacheIterOrVec::Vec, Some(start), duration),
-        vec,
-        true,
-    )
 }
