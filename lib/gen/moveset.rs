@@ -271,7 +271,7 @@ pub struct GenLegalMovesetIter<'a> {
     pub done: bool,
     first_pass: bool,
 
-    boards: Vec<CacheMovesBoards<'a, FilterLegalMove<'a, Sigma<BoardIter<'a>>>>>,
+    boards: Vec<CacheMovesBoards<'a, FilterLegalMove<'a, BoardIter<'a>>>>,
     /// A variable-basis state counter, with a special value (None) for "no move"
     states: Vec<Option<usize>>,
 
@@ -308,7 +308,7 @@ impl<'a> GenLegalMovesetIter<'a> {
                     if let Some(moves) = board.generate_moves(game, partial_game) {
                         boards.push(CacheMovesBoards::new(
                             FilterLegalMove::new(
-                                moves.sigma(max_duration),
+                                moves,
                                 game,
                                 partial_game,
                             ),
@@ -325,7 +325,7 @@ impl<'a> GenLegalMovesetIter<'a> {
                     if let Some(moves) = board.generate_moves(game, &*partial_game) {
                         let mut res = CacheMovesBoards::new(
                             FilterLegalMove::new(
-                                moves.sigma(max_duration),
+                                moves,
                                 game,
                                 &*partial_game,
                             ),
@@ -341,6 +341,39 @@ impl<'a> GenLegalMovesetIter<'a> {
                 }
             }
         }
+
+        let states = vec![None; boards.len()];
+
+        Self {
+            game,
+            partial_game,
+
+            done: false,
+            first_pass: true,
+
+            boards,
+            states,
+
+            sigma: start.elapsed(),
+            max_duration,
+
+            physical_moves: vec![],
+            non_physical_iter: None,
+            non_physical_moves: None,
+
+            attackers: Vec::with_capacity(ATTACKERS_THRESHOLD),
+            attackers_trim_count: 0,
+        }
+    }
+
+    pub fn with_iterators(
+        game: &'a Game,
+        partial_game: Cow<'a, PartialGame<'a>>,
+        boards: Vec<CacheMovesBoards<'a, FilterLegalMove<'a, BoardIter<'a>>>>,
+        max_duration: Option<Duration>,
+    ) -> Self {
+        let max_duration = max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1));
+        let start = Instant::now();
 
         let states = vec![None; boards.len()];
 
