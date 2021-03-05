@@ -63,9 +63,9 @@ fn test_dfs_rook_tactics_2() {
         path: vec![],
     };
 
-    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new());
+    let res = dfs(&game, node, 3, Some(Duration::new(30, 0)), NoEvalFn::new());
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-2!");
-    assert_eq!(res, dfs_schedule(Arc::clone(&game), 3, Some(Duration::new(10, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
+    assert_eq!(res, dfs_schedule(Arc::clone(&game), 3, Some(Duration::new(30, 0)), NoEvalFn::new(), 128), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
     assert_eq!(node.path[0], solution);
     assert_eq!(value, f32::INFINITY);

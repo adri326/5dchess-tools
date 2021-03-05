@@ -152,7 +152,7 @@ fn nonmates() {
         println!("Average time taken: {} μs/position/timeline", (eta2 / ok2).as_nanos() as f64 / 1000.0);
     }
     if METHOD & 3 == 3 {
-        println!("GenLegalMovesetIter / is_mate() on non-mates:");
+        println!("is_mate() / GenLegalMovesetIter on non-mates:");
         println!("Average time taken ratio: {}", (sigma / ok).as_nanos() as f64 / (sigma2 / ok2).as_nanos() as f64);
         println!("Average time taken per timeline ratio: {}", (eta / ok).as_nanos() as f64 / (eta2 / ok2).as_nanos() as f64);
     }
@@ -276,7 +276,7 @@ fn checkmates() {
         println!("Average time taken: {} μs/position/timeline", (eta2 / ok2).as_nanos() as f64 / 1000.0);
     }
     if METHOD & 3 == 3 {
-        println!("GenLegalMovesetIter / is_mate() on checkmates:");
+        println!("is_mate() / GenLegalMovesetIter on checkmates:");
         println!("Average time taken ratio: {}", (sigma / ok).as_nanos() as f64 / (sigma2 / ok2).as_nanos() as f64);
         println!("Average time taken per timeline ratio: {}", (eta / ok).as_nanos() as f64 / (eta2 / ok2).as_nanos() as f64);
     }

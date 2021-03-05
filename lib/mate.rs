@@ -103,11 +103,11 @@ pub fn is_mate<'a>(
     let own_boards: Vec<&Board> = partial_game.own_boards(game).collect();
     let mut moves: Vec<_> = Vec::new();
     for board in own_boards.iter() {
-        moves.push(CacheMoves::new(FilterLegalMove::new(
+        moves.push(CacheMovesBoards::new(FilterLegalMove::new(
             unwrap_mate!(board.generate_moves(game, partial_game)),
             game,
             partial_game,
-        )));
+        ), game, partial_game));
     }
 
     // The current player may create inactive timeline, look for branching moves that shift the present back
@@ -158,20 +158,26 @@ pub fn is_mate<'a>(
         }
 
         // let mut reconstructed_moves: Vec<CacheMoves<Timed<CacheIterOrVec>>> =
-        let mut reconstructed_moves: Vec<(Vec<Move>, _)> = Vec::with_capacity(moves.len());
+        let mut reconstructed_moves: Vec<(Vec<Move>, Vec<(Board, Option<Board>)>, _)> = Vec::with_capacity(moves.len());
 
         let mut possible_move_white: Vec<bool> = vec![false; partial_game.info.timelines_white.len()];
         let mut possible_move_black: Vec<bool> = vec![false; partial_game.info.timelines_black.len()];
 
-        for (&_board, own_moves) in own_boards.iter().zip(moves.into_iter()) {
+        for (&_board, mut own_moves) in own_boards.iter().zip(moves.into_iter()) {
             let mut promising_moves: Vec<Move> = Vec::with_capacity(own_moves.cache.len());
-            let mut other_moves: Vec<Move> = Vec::with_capacity(own_moves.cache.len());
-            let mut unpromising_moves: Vec<Move> = Vec::with_capacity(own_moves.cache.len());
+            let mut promising_boards: Vec<(Board, Option<Board>)> = Vec::with_capacity(own_moves.cache.len());
 
-            let (mut iterator, cache, _) = own_moves.into_raw_parts();
+            let mut other_moves: Vec<Move> = Vec::with_capacity(own_moves.cache.len());
+            let mut other_boards: Vec<(Board, Option<Board>)> = Vec::with_capacity(own_moves.cache.len());
+
+            let mut unpromising_moves: Vec<Move> = Vec::with_capacity(own_moves.cache.len());
+            let mut unpromising_boards: Vec<(Board, Option<Board>)> = Vec::with_capacity(own_moves.cache.len());
+
+            own_moves.consume();
+            let (iterator, moves, boards, _, _, _) = own_moves.into_raw_parts();
 
             // Re-order own_moves
-            for mv in cache.into_iter().chain(&mut iterator) {
+            for (mv, board) in moves.into_iter().zip(boards.into_iter()) {
                 // Update possible_move_* arrays
                 if mv.from.1.l() >= 0 {
                     possible_move_white[mv.from.1.l() as usize] = true;
@@ -188,20 +194,27 @@ pub fn is_mate<'a>(
                 // Push moves to their respective promising/unpromising sets
                 if mv.from.0.is_royal() && danger.contains(&mv.to.1) {
                     unpromising_moves.push(mv);
+                    unpromising_boards.push(board);
                 } else if !mv.from.0.is_royal() && danger.contains(&mv.to.1) {
                     promising_moves.push(mv);
+                    promising_boards.push(board);
                 } else {
                     other_moves.push(mv);
+                    other_boards.push(board);
                 }
             }
 
             promising_moves.append(&mut other_moves);
             promising_moves.append(&mut unpromising_moves);
 
-            reconstructed_moves.push((promising_moves, iterator));
+            promising_boards.append(&mut other_boards);
+            promising_boards.append(&mut unpromising_boards);
+
+            reconstructed_moves.push((promising_moves, promising_boards, iterator));
         }
 
         // Handle shifting impossibility
+        // TODO: add condition that there are no legal branching move
         if partial_game.info.timeline_advantage(partial_game.info.active_player) == 0 {
             for l in partial_game.info.min_timeline()..=partial_game.info.max_timeline() {
                 if let Some(tl) = partial_game.info.get_timeline(l) {
@@ -249,41 +262,57 @@ pub fn is_mate<'a>(
                 // TODO: pass along death_limit to GenLegalMovesetIter? Moveset::new_shifting is doing a pretty good job though
 
                 if death_limit == 0 {
-                    for (moves, _) in &mut reconstructed_moves {
-                        moves.retain(|mv| {
+                    for (moves, boards, _) in &mut reconstructed_moves {
+                        let old_boards = std::mem::replace(boards, Vec::with_capacity(boards.len()));
+                        let old_moves = std::mem::replace(moves, Vec::with_capacity(moves.len()));
+
+                        for (mv, board) in old_moves.into_iter().zip(old_boards.into_iter()) {
                             if let Some(tl) = partial_game.info.get_timeline(mv.to.1.l()) {
-                                mv.to.1.t() == tl.last_board
-                            } else {
-                                false
+                                if mv.to.1.t() == tl.last_board {
+                                    moves.push(mv);
+                                    boards.push(board);
+                                }
                             }
-                        });
+                        }
                     }
 
                     // TODO: recalculate possible_moves_*?
                 }
 
                 // Ignore spatial moves from inactive timelines
-                for (moves, _) in &mut reconstructed_moves {
-                    moves.retain(|mv| {
+                for (moves, boards, _) in &mut reconstructed_moves {
+                    let old_boards = std::mem::replace(boards, Vec::with_capacity(boards.len()));
+                    let old_moves = std::mem::replace(moves, Vec::with_capacity(moves.len()));
+
+                    for (mv, board) in old_moves.into_iter().zip(old_boards.into_iter()) {
                         if partial_game.info.active_player {
                             let min_l = partial_game.info.min_timeline() + debt as Layer - death_limit as Layer;
-                            mv.from.1.non_physical() != mv.to.1.non_physical() || mv.from.1.l() >= min_l
+                            if mv.from.1.non_physical() != mv.to.1.non_physical() || mv.from.1.l() >= min_l {
+                                moves.push(mv);
+                                boards.push(board);
+                            }
                         } else {
                             let max_l = partial_game.info.max_timeline() - debt as Layer + death_limit as Layer;
-                            mv.from.1.non_physical() != mv.to.1.non_physical() || mv.from.1.l() <= max_l
+                            if mv.from.1.non_physical() != mv.to.1.non_physical() || mv.from.1.l() <= max_l {
+                                moves.push(mv);
+                                boards.push(board);
+                            }
                         }
-                    })
+                    }
                 }
             }
         }
 
         reconstructed_moves
             .into_iter()
-            .map(|(moves, previous_iter)| CacheMoves::from_raw_parts(
+            .map(|(moves, boards, previous_iter)| CacheMovesBoards::from_raw_parts((
                 previous_iter,
                 moves,
+                boards,
                 true,
-            ))
+                game,
+                partial_game,
+            )))
             .collect()
     } else {
         // Do nothing
@@ -293,60 +322,16 @@ pub fn is_mate<'a>(
             .collect()
     };
 
-    let iter = Timed::with_start(
-        GenMovesetIter::from_cached_iters(moves, game, partial_game),
-        Some(start),
-        max_duration,
+    let mut iter = GenLegalMovesetIter::with_iterators(
+        game,
+        std::borrow::Cow::Borrowed(partial_game),
+        moves,
+        Some(max_duration - start.elapsed()),
     );
 
     // Big boy to look for legal moves
-    match iter
-        .flatten()
-        .map(|ms| {
-            let res = match ms {
-                Ok(ms) => match ms.generate_partial_game(game, partial_game) {
-                    Some(new_partial_game) => Some((ms, new_partial_game)),
-                    None => None,
-                },
-                Err(_) => None,
-            };
-            res
-        })
-        .filter_timed(
-            |ms| match ms {
-                Some((_ms, new_partial_game)) => {
-                    for &(pos, _physical) in attackers.iter() {
-                        match new_partial_game.get_with_game(game, pos) {
-                            Tile::Piece(p) if p.white != partial_game.info.active_player => {
-                                for mv in unwrap_mate!(PiecePosition::new(p, pos)
-                                    .generate_moves_flag(
-                                        game,
-                                        new_partial_game,
-                                        GenMovesFlag::Check
-                                    ))
-                                {
-                                    if mv.to.0.is_some() && mv.to.0.unwrap().is_royal() {
-                                        return false;
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    if game.width <= MAX_BITBOARD_WIDTH as Physical {
-                        !is_illegal_bitboard(game, &new_partial_game).unwrap_or((true, None)).0
-                    } else {
-                        !is_illegal(game, &new_partial_game).unwrap_or((true, None)).0
-                    }
-                }
-                None => false,
-            },
-            max_duration - start.elapsed(),
-        )
-        .next()
-    {
-        Some(Some((ms, _pos))) => Mate::None(ms),
-        Some(None) => Mate::Error, // Unreachable
+    match iter.next() {
+        Some((ms, _pos)) => Mate::None(ms),
         None => {
             if start.elapsed() > max_duration {
                 if attacked_pieces.len() > 0 {
