@@ -45,26 +45,24 @@ impl TreeHandle {
     use chess5dlib::tree::*;
     use std::time::Duration;
 
-    let game = Arc::new(parse::parse(/* ... */));
+    let game = parse::parse(/* ... */);
 
-    let tasks = Tasks::new(game, 64, Some(Duration::new(10, 0)));
+    let tasks = Tasks::new(&game, 64, Some(Duration::new(10, 0)));
 
     for task in tasks {
         println!("{:?}", task.path); // This line will be, if possible, reached at least 64 times
     }
     ```
 **/
-pub struct Tasks {
-    game: Arc<Game>,
+pub struct Tasks<'a> {
+    game: &'a Game,
 
     // backlog: Vec<TreeNode<'static>>,
     pool: VecDeque<(TreeNode<'static>, Option<usize>)>,
     pool_size: usize,
     pool_yielded: usize,
 
-    // SAFETY: `Tasks::gen` cannot be shared with any other structure that outlives this `Tasks` reference,
-    // unless a reference to `Tasks::game` is also passed along
-    gen: GenLegalMovesetIter<'static>,
+    gen: GenLegalMovesetIter<'a>,
     current_path: Vec<Moveset>,
     parent_index: Option<usize>,
 
@@ -76,9 +74,9 @@ pub struct Tasks {
     recyclable: bool,
 }
 
-impl Tasks {
+impl<'a> Tasks<'a> {
     pub fn new(
-        game: Arc<Game>,
+        game: &'a Game,
         pool_size: usize,
         max_duration: Option<Duration>,
     ) -> Self {
@@ -86,33 +84,23 @@ impl Tasks {
 
         let root_partial_game = Cow::Owned(no_partial_game(&game));
 
-        // pool.push_back(TreeNode {
-        //     partial_game: no_partial_game(&game),
-        //     path: vec![],
-        // });
+        Self {
+            game,
 
-        unsafe {
-            // SAFETY: we are extracting a &'static reference from game
-            // this is safe iff Arc::strong_count(game) > 0 remains true while gen is used,
-            // which is guaranteed by the stored, strong reference within self.game
-            Self {
-                game: Arc::clone(&game),
+            pool,
+            pool_size,
+            pool_yielded: 0,
 
-                pool,
-                pool_size,
-                pool_yielded: 0,
+            gen: GenLegalMovesetIter::new(game, root_partial_game, max_duration),
+            current_path: Vec::new(),
+            parent_index: None,
 
-                gen: GenLegalMovesetIter::new(&*Arc::as_ptr(&game), root_partial_game, max_duration),
-                current_path: Vec::new(),
-                parent_index: None,
+            max_duration: max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
+            sigma: Duration::new(0, 0),
 
-                max_duration: max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
-                sigma: Duration::new(0, 0),
-
-                backlog: vec![],
-                tree: vec![],
-                recyclable: true,
-            }
+            backlog: vec![],
+            tree: vec![],
+            recyclable: true,
         }
     }
 
@@ -133,9 +121,9 @@ impl Tasks {
         use chess5dlib::tree::*;
         use std::time::Duration;
 
-        let game = Arc::new(parse::parse(/* ... */));
+        let game = parse::parse(/* ... */);
 
-        let tasks = Tasks::new(game, 64, Some(Duration::new(10, 0)));
+        let tasks = Tasks::new(&game, 64, Some(Duration::new(10, 0)));
 
         while !tasks.done {
             if tasks.pool_len() == 0 {
@@ -161,16 +149,11 @@ impl Tasks {
                         self.tree.push(TreeHandle(self.tree.len(), Arc::new(Mutex::new(None)), parent_index));
                         self.parent_index = Some(self.tree.len() - 1);
 
-                        unsafe {
-                            // SAFETY: we are extracting a &'static reference from self.game
-                            // this is safe iff Arc::strong_count(self.game) > 0 remains true while gen is used,
-                            // which is guaranteed by the stored, strong reference within self.game
-                            self.gen = GenLegalMovesetIter::new(
-                                &*Arc::as_ptr(&self.game),
-                                Cow::Owned(head.partial_game),
-                                Some(self.max_duration - self.sigma - start.elapsed()),
-                            );
-                        }
+                        self.gen = GenLegalMovesetIter::new(
+                            self.game,
+                            Cow::Owned(head.partial_game),
+                            Some(self.max_duration - self.sigma - start.elapsed()),
+                        );
                     }
                     None => return,
                 }
@@ -206,7 +189,7 @@ impl Tasks {
     /**
         Returns the underlying reference to `Game`.
     **/
-    pub fn game(&self) -> &Arc<Game> {
+    pub fn game(&self) -> &Game {
         &self.game
     }
 
@@ -306,16 +289,15 @@ impl Tasks {
     }
 }
 
-impl Clone for Tasks {
-    fn clone(&self) -> Tasks {
+impl<'a> Clone for Tasks<'a> {
+    fn clone(&self) -> Tasks<'a> {
         Tasks {
-            game: Arc::clone(&self.game),
+            game: self.game,
 
             pool: self.pool.clone(),
             pool_size: self.pool_size,
             pool_yielded: self.pool_yielded,
 
-            // SAFETY: Tasks::game is also passed along above this line
             gen: self.gen.clone(),
             current_path: self.current_path.clone(),
             parent_index: self.parent_index,
@@ -334,7 +316,7 @@ impl Clone for Tasks {
     }
 }
 
-impl Iterator for Tasks {
+impl<'a> Iterator for Tasks<'a> {
     type Item = (TreeNode<'static>, TreeHandle);
 
     /**

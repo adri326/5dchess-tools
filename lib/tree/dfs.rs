@@ -7,11 +7,11 @@ use crate::{
 use super::*;
 use std::time::{Instant, Duration};
 use std::borrow::Cow;
-use std::sync::Arc;
+// use std::sync::Arc;
 
 // TODO: actually make this threaded
 pub fn dfs_schedule<F: EvalFn>(
-    game: Arc<Game>,
+    game: &Game,
     depth: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
@@ -19,7 +19,7 @@ pub fn dfs_schedule<F: EvalFn>(
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
 
-    let mut tasks = Tasks::new(Arc::clone(&game), pool_size, max_duration);
+    let mut tasks = Tasks::new(game, pool_size, max_duration);
 
     for (task, handle) in &mut tasks {
         if max_duration.map(|d| d <= start.elapsed()).unwrap_or(false) {
