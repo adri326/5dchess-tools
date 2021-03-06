@@ -1,5 +1,5 @@
 use crate::{
-    prelude::*,
+    // prelude::*,
     mate::*,
     gen::*,
     eval::{EvalFn, Eval},
@@ -7,49 +7,105 @@ use crate::{
 use super::*;
 use std::time::{Instant, Duration};
 use std::borrow::Cow;
-// use std::sync::Arc;
+use scoped_threadpool::Pool;
+use std::sync::Mutex;
 
-// TODO: actually make this threaded
-pub fn dfs_schedule<F: EvalFn>(
+pub fn dfs_schedule<F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy + Send>(
     game: &Game,
     depth: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
     pool_size: usize,
+    n_threads: u32,
+    condition: C,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
 
-    let mut tasks = Tasks::new(game, pool_size, max_duration);
+    let tasks = Mutex::new(Tasks::new(game, pool_size, max_duration));
+    let mut pool = Pool::new(n_threads);
 
-    for (task, handle) in &mut tasks {
-        if max_duration.map(|d| d <= start.elapsed()).unwrap_or(false) {
-            return None
-        }
+    {
+        let tasks = &tasks;
+        pool.scoped(move |scope| {
+            for _n in 0..n_threads {
+                scope.execute(move || {
+                    loop {
+                        let elem = {
+                            let mut guard = tasks.lock().unwrap();
+                            guard.next()
+                        };
 
-        // let invert_score = task.path.len() % 2 != 0;
-        let (node, value) = if task.path.len() > depth {
-            let score = eval_fn.eval(&game, &task)?;
+                        let (task, handle) = match elem {
+                            Some(t) => t,
+                            None => break
+                        };
 
-            (task.into(), score)
-        } else {
-            let depth = depth - task.path.len();
-            // println!("{:?} {:?}", task.path, start.elapsed());
-            dfs(&game, task, depth, max_duration.map(|d| d - start.elapsed()), eval_fn, |_| true)?
-        };
+                        if max_duration.map(|d| d <= start.elapsed()).unwrap_or(false) {
+                            return
+                        }
 
-        // println!("{:?} {:?}", node, value);
+                        let (node, value) = if task.path.len() > depth {
+                            let score = match eval_fn.eval(&game, &task) {
+                                Some(score) => score,
+                                None => {
+                                    return
+                                }
+                            };
 
-        handle.report(value);
+                            (task.into(), score)
+                        } else {
+                            let depth = depth - task.path.len();
+                            // println!("@{}: {:?} {:?}", _n, task.path, start.elapsed());
+                            match dfs(&game, task, depth, max_duration.map(|d| d - start.elapsed()), eval_fn, condition) {
+                                Some(res) => res,
+                                None => {
+                                    return
+                                }
+                            }
+                        };
 
-        if value == f32::INFINITY && node.path.len() == 1 {
-            break
-        }
+                        handle.report(value);
+
+                        if value == f32::INFINITY && node.path.len() == 1 {
+                            // TODO: block tasks to indirectly stop the other threads?
+                            return
+                        }
+                    }
+                });
+            }
+
+            scope.join_all()
+        });
     }
+
+    let mut tasks = tasks.into_inner().unwrap();
 
     // println!("{:?}", tasks.tree);
     tasks.update_tree();
     // println!("{:?}", tasks.tree);
     tasks.best_move()
+}
+
+
+// TODO: actually make this threaded
+pub fn dfs_bl_schedule<F: EvalFn>(
+    game: &Game,
+    depth: usize,
+    max_branches: usize,
+    max_duration: Option<Duration>,
+    eval_fn: F,
+    pool_size: usize,
+    n_threads: u32,
+) -> Option<(EvalNode, Eval)> {
+    dfs_schedule(
+        game,
+        depth,
+        max_duration,
+        eval_fn,
+        pool_size,
+        n_threads,
+        move |node| node.branches <= max_branches,
+    )
 }
 
 pub fn dfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(

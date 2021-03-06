@@ -256,7 +256,7 @@ fn test_gen_legal_moveset_partial_game() {
             }
         }
 
-        assert_eq!(yielded_borrowed, yielded_owned, "Owned and Borrowed variants did not yield the same amount of moves!");
+        assert_eq!(yielded_borrowed, yielded_owned, "Owned and Borrowed variants did not yield the same amount of moves! {}", game.1);
     }
 
 }

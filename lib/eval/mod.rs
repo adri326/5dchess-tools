@@ -5,7 +5,7 @@ pub mod wdl;
 
 pub type Eval = f32;
 
-pub trait EvalFn : Copy {
+pub trait EvalFn : Copy + Send {
     fn eval<'a>(&self, game: &'a Game, node: &'a TreeNode) -> Option<Eval>;
 }
 
