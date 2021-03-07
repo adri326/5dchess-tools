@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 // Actors would make this *much* easier to implement
 #[derive(Debug)]
-pub struct TreeHandle(usize, Arc<Mutex<Option<Eval>>>, Option<usize>);
+pub struct TreeHandle(usize, Arc<Mutex<Option<Eval>>>, Option<usize>); // handle index, handle value, parent handle index
 
 impl TreeHandle {
     pub fn report(&self, value: Eval) {
@@ -57,21 +57,17 @@ impl TreeHandle {
 pub struct Tasks<'a> {
     game: &'a Game,
 
-    // backlog: Vec<TreeNode<'static>>,
-    pool: VecDeque<(TreeNode<'static>, Option<usize>)>,
+    roots: Vec<TreeNode<'static>>,
+    pool: VecDeque<(TreeNode<'static>, usize)>,
     pool_size: usize,
     pool_yielded: usize,
-
-    gen: GenLegalMovesetIter<'a>,
-    current_path: Vec<Moveset>,
-    parent_index: Option<usize>,
 
     max_duration: Duration,
     sigma: Duration,
 
-    backlog: Vec<TreeNode<'static>>,
     pub tree: Vec<TreeHandle>,
     recyclable: bool,
+    index: usize,
 }
 
 impl<'a> Tasks<'a> {
@@ -80,28 +76,32 @@ impl<'a> Tasks<'a> {
         pool_size: usize,
         max_duration: Option<Duration>,
     ) -> Self {
-        let pool = VecDeque::with_capacity(pool_size);
+        let mut pool = VecDeque::with_capacity(pool_size);
 
-        let root_partial_game = Cow::Owned(no_partial_game(&game));
+        pool.push_back((
+            TreeNode::empty(game),
+            0
+        ));
 
-        Self {
+        let tree = vec![TreeHandle(0, Arc::new(Mutex::new(None)), None)];
+
+        let mut res = Self {
             game,
 
+            roots: vec![],
             pool,
             pool_size,
             pool_yielded: 0,
 
-            gen: GenLegalMovesetIter::new(game, root_partial_game, max_duration),
-            current_path: Vec::new(),
-            parent_index: None,
-
             max_duration: max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
             sigma: Duration::new(0, 0),
 
-            backlog: vec![],
-            tree: vec![],
+            tree,
             recyclable: true,
-        }
+            index: 0,
+        };
+        res.refill_pool();
+        res
     }
 
     /**
@@ -124,62 +124,76 @@ impl<'a> Tasks<'a> {
         let game = parse::parse(/* ... */);
 
         let tasks = Tasks::new(&game, 64, Some(Duration::new(10, 0)));
+        tasks.refill_pool();
 
         while !tasks.done {
-            if tasks.pool_len() == 0 {
-                tasks.refill_pool();
-            } else {
-                println!("{:?}", tasks.next_cached().unwrap().path);
-            }
+            println!("{:?}", tasks.next_cached().unwrap().path);
         }
         ```
+
+        ## Note
+
+        Calling this function on a consumed, non-`recyclable` instance will do nothing and the instance will remain consumed.
     **/
     pub fn refill_pool(&mut self) {
         let start = Instant::now();
-        while self.pool.len() < self.pool_size {
-            if self.gen.done && self.pool_yielded < self.pool_size {
-                match self.pool.pop_front() {
-                    Some((head, parent_index)) => {
-                        self.current_path = head.path.clone();
 
-                        if self.recyclable || parent_index.is_none() {
-                            self.backlog.push(head.clone());
-                        }
-
-                        self.tree.push(TreeHandle(self.tree.len(), Arc::new(Mutex::new(None)), parent_index));
-                        self.parent_index = Some(self.tree.len() - 1);
-
-                        self.gen = GenLegalMovesetIter::new(
-                            self.game,
-                            Cow::Owned(head.partial_game),
-                            Some(self.max_duration - self.sigma - start.elapsed()),
-                        );
+        if self.pool.len() < self.pool_size && self.pool.len() != 0 {
+            let (base_node, mut parent_index) = self.pool.pop_front().unwrap();
+            let mut current_path = base_node.path;
+            let mut gen = GenLegalMovesetIter::new(
+                self.game,
+                Cow::Owned(base_node.partial_game),
+                Some(self.max_duration - self.sigma),
+            );
+            loop {
+                // Add all of the items in gen into the pool
+                for (ms, partial_game) in gen {
+                    if self.sigma + start.elapsed() > self.max_duration {
+                        self.sigma += start.elapsed();
+                        return
                     }
-                    None => return,
+                    let mut path = current_path.clone();
+                    path.push(ms);
+                    let partial_game = partial_game.flatten();
+                    let branches = partial_game.info.len_timelines() - self.game.info.len_timelines();
+
+                    // Add entry in the tree
+                    self.tree.push(TreeHandle(self.tree.len(), Arc::new(Mutex::new(None)), Some(parent_index)));
+
+                    // Add entry to the roots
+                    if parent_index == 0 {
+                        self.roots.push(TreeNode::new(
+                            partial_game.clone(),
+                            path.clone(),
+                            branches,
+                        ));
+                    }
+
+                    // Add entry in the pool
+                    self.pool.push_back((TreeNode::new(
+                        partial_game,
+                        path,
+                        branches
+                    ), self.tree.len() - 1));
                 }
-            } else if self.gen.done {
-                return
-            } else {
-                match self.gen.next() {
-                    Some((ms, partial_game)) => {
-                        let mut path = self.current_path.clone();
-                        path.push(ms);
-                        // SAFETY: it is critical that partial_game.flatten() be called here, so that partial_game.parent == None
-                        let partial_game = partial_game.flatten();
-                        assert!(partial_game.parent.is_none());
-                        let branches = partial_game.info.len_timelines() - self.game.info.len_timelines();
-                        self.pool.push_back((TreeNode::new(
-                            partial_game,
-                            path,
-                            branches
-                        ), self.parent_index));
-                        self.pool_yielded += 1;
-                    }
-                    None => {
-                        if self.gen.timed_out() {
-                            return
-                        }
-                    }
+                if self.sigma + start.elapsed() > self.max_duration {
+                    self.sigma += start.elapsed();
+                    return
+                }
+                // Regenerate gen
+                if self.pool.len() < self.pool_size && self.pool.len() != 0 {
+                    let elem = self.pool.pop_front().unwrap();
+                    let base_node = elem.0;
+                    parent_index = elem.1;
+                    current_path = base_node.path;
+                    gen = GenLegalMovesetIter::new(
+                        self.game,
+                        Cow::Owned(base_node.partial_game),
+                        Some(self.max_duration - self.sigma - start.elapsed()),
+                    );
+                } else {
+                    break
                 }
             }
         }
@@ -215,26 +229,29 @@ impl<'a> Tasks<'a> {
         - the scheduler timed out
     **/
     pub fn done(&self) -> bool {
-        self.gen.done && self.pool.len() == 0
-        || self.gen.timed_out()
-        || self.sigma >= self.max_duration
+        self.sigma >= self.max_duration
     }
 
     /**
-        Returns the next element of the underlying pool.
-        You should most likely use `Tasks::next` instead!
+        Returns the n-th element of the underlying pool.
     **/
-    pub fn next_cached(&mut self) -> Option<(TreeNode<'static>, TreeHandle)> {
+    fn get_cached(&mut self, index: usize) -> Option<(TreeNode<'static>, TreeHandle)> {
+        match self.pool.get(index) {
+            Some((elem, handle_index)) => {
+                let handle = &self.tree[*handle_index];
+
+                Some((elem.clone(), TreeHandle(handle.0, Arc::clone(&handle.1), handle.2)))
+            }
+            None => None
+        }
+    }
+
+    fn pop_cached(&mut self) -> Option<(TreeNode<'static>, TreeHandle)> {
         match self.pool.pop_front() {
-            Some((elem, parent_index)) => {
-                let handle = TreeHandle(self.tree.len(), Arc::new(Mutex::new(None)), parent_index);
+            Some((elem, handle_index)) => {
+                let handle = &self.tree[handle_index];
 
-                if self.recyclable || parent_index.is_none() {
-                    self.backlog.push(elem.clone());
-                }
-
-                self.tree.push(TreeHandle(handle.0, Arc::clone(&handle.1), handle.2));
-                Some((elem, handle))
+                Some((elem, TreeHandle(handle.0, Arc::clone(&handle.1), handle.2)))
             }
             None => None
         }
@@ -251,7 +268,6 @@ impl<'a> Tasks<'a> {
                     let mut parent_value = parent_handle.1.lock().unwrap();
 
                     // println!("{:?} {:?} {:?}", parent, *value, *parent_value);
-                    // println!("  {:?}", self.backlog[handle.0].path);
 
                     match (*value, *parent_value) {
                         (Some(x), Some(y)) => {
@@ -275,17 +291,22 @@ impl<'a> Tasks<'a> {
         let mut best_score: Eval = f32::NEG_INFINITY;
 
         for handle in self.tree.iter() {
-            if handle.2.is_none() {
+            if handle.2 == Some(0) {
                 if let Some(value) = *handle.1.lock().unwrap() {
                     if -value > best_score {
                         best_score = -value;
-                        best_move = Some(&self.backlog[handle.0]);
+                        best_move = Some(&self.roots[handle.0 - 1]); // The -1 is here because the first element of the tree is always the base node
                     }
                 }
             }
         }
 
         best_move.map(|bm| (bm.into(), best_score))
+    }
+
+    // TODO: make this filter out ignored/bad moves?
+    pub fn reset(&mut self) {
+        self.index = 0;
     }
 }
 
@@ -294,24 +315,21 @@ impl<'a> Clone for Tasks<'a> {
         Tasks {
             game: self.game,
 
+            roots: self.roots.clone(),
             pool: self.pool.clone(),
             pool_size: self.pool_size,
             pool_yielded: self.pool_yielded,
 
-            gen: self.gen.clone(),
-            current_path: self.current_path.clone(),
-            parent_index: self.parent_index,
-
             max_duration: self.max_duration,
             sigma: self.sigma,
 
-            backlog: self.backlog.clone(),
             tree: self.tree.iter().map(|handle| {
                 // Clones a treehandle: it tries to lock the mutex and to copy the underlying data, but otherwise sets it to None
                 // and wraps it all back up in a Mutex.
                 TreeHandle(handle.0, Arc::new(Mutex::new(handle.1.try_lock().ok().map(|guard| *guard).flatten())), handle.2)
             }).collect(),
             recyclable: self.recyclable,
+            index: self.index,
         }
     }
 }
@@ -323,10 +341,16 @@ impl<'a> Iterator for Tasks<'a> {
         Returns the next tasks.
     **/
     fn next(&mut self) -> Option<Self::Item> {
-        if self.pool.len() == 0 && !self.done() {
-            self.refill_pool();
+        if self.sigma >= self.max_duration {
+            return None
         }
 
-        self.next_cached()
+        if self.recyclable {
+            let res = self.get_cached(self.index);
+            self.index += 1;
+            res
+        } else {
+            self.pop_cached()
+        }
     }
 }
