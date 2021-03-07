@@ -261,11 +261,19 @@ pub fn is_mate<'a>(
                     if tl.last_board <= partial_game.info.present && partial_game.info.is_active(l) {
                         if l >= 0 {
                             if !possible_move_white[l as usize] {
-                                return Mate::Checkmate
+                                if attacked_pieces.len() > 0 {
+                                    return Mate::Checkmate
+                                } else {
+                                    return Mate::Stalemate
+                                }
                             }
                         } else {
                             if !possible_move_white[(-l) as usize - 1] {
-                                return Mate::Checkmate
+                                if attacked_pieces.len() > 0 {
+                                    return Mate::Checkmate
+                                } else {
+                                    return Mate::Stalemate
+                                }
                             }
                         }
                     }

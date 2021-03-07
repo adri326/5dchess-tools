@@ -31,6 +31,9 @@ fn main() -> std::io::Result<()> {
         partial_game.own_boards(&game).count()
     );
 
+    println!("Is in check? {:?}", is_in_check(&game, &partial_game));
+    println!("Is mate? {:?}", chess5dlib::mate::is_mate(&game, &partial_game, None));
+
     // println!("Number of movesets: {}", GenMovesetIter::new(
     //     partial_game.own_boards(&game).collect(),
     //     &game,
@@ -56,35 +59,35 @@ fn main() -> std::io::Result<()> {
     //     }
     // }).count());
 
-    let mut iter = generate_movesets_prefilter(
-        partial_game.own_boards(&game).collect(),
-        &game,
-        &partial_game,
-    )
-    .flatten()
-    .filter(|ms| match ms {
-        Ok(ms) => {
-            if let Some(new_partial_game) = ms.generate_partial_game(&game, &partial_game) {
-                !is_illegal(&game, &new_partial_game).unwrap().0
-            } else {
-                false
-            }
-        }
-        Err(_) => false,
-    });
+    // let mut iter = generate_movesets_prefilter(
+    //     partial_game.own_boards(&game).collect(),
+    //     &game,
+    //     &partial_game,
+    // )
+    // .flatten()
+    // .filter(|ms| match ms {
+    //     Ok(ms) => {
+    //         if let Some(new_partial_game) = ms.generate_partial_game(&game, &partial_game) {
+    //             !is_illegal(&game, &new_partial_game).unwrap().0
+    //         } else {
+    //             false
+    //         }
+    //     }
+    //     Err(_) => false,
+    // });
 
-    let mut dn = 0;
-    println!(
-        "Is checkmate? {}",
-        if iter.next().is_some() {
-            dn = 1;
-            "no"
-        } else {
-            "yes"
-        }
-    );
+    // let mut dn = 0;
+    // println!(
+    //     "Is checkmate? {}",
+    //     if iter.next().is_some() {
+    //         dn = 1;
+    //         "no"
+    //     } else {
+    //         "yes"
+    //     }
+    // );
 
-    println!("Number of legal movesets (filtered): {}", iter.count() + dn);
+    // println!("Number of legal movesets (filtered): {}", iter.count() + dn);
 
     Ok(())
 }

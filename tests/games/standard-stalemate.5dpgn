@@ -1,0 +1,31 @@
+[Board "Standard"]
+[Mode "5D"]
+1. e3 / e6
+2. Qh5 / Nf6
+3. Qf3 / Nc6
+4. Bc4 / Bc5
+5. (0T5)Qf3>>x(0T1)f7~ (>L1) / (1T1)Kxf7
+6. (1T2)Nf3 / (1T2)Nf6
+7. (1T3)Nf3>>(1T2)f5 (>L2) / (1T3)d5
+8. (1T4)e3 / (1T4)g6
+9. (1T5)Ke1>>(0T4)d1 (>L3) / (0T5)Nd4 (1T5)Bg4
+10. (0T6)Nh3 (1T6)Be2 / (0T6)Ne4 (1T6)Qd7
+11. (1T7)Re1 (0T7)Ke1>>(1T6)e1 (>L4) / (0T7)Nxc2 (1T7)Nc6
+12. (1T8)f3 (0T8)Bd3 / (0T8)Nxa1 (1T8)Bf5
+13. (1T9)Ra1>x(0T9)a1 / (0T9)Ng5 (1T9)Nb4
+14. (0T10)Nf4 (1T10)a3 / (1T10)Bxc2 (0T10)Bxe3
+15. (1T11)Qxc2 (0T11)dxe3 / (1T11)Nxc2 (0T11)Qe7
+16. (0T12)Bc1>x(1T12)c2 / (0T12)Qb4 (1T12)Qc6
+17. (1T13)Bed3 (0T13)Nxe6 / (0T13)fxe6 (1T13)Bg7
+18. (1T14)Bxg6 (0T14)f4 / (1T14)hxg6 (0T14)Ne4
+19. (1T15)Bxg6 (0T15)Nc3 / (1T15)Kf8 (0T15)Nxc3
+20. (1T16)Be8 (0T16)Rhe1 / (1T16)Kxe8 (0T16)Qxb2
+21. (1T17)Nc3 (0T17)Rab1 / (0T17)Qxa2 (1T17)Rxh2
+22. (0T18)g4 (1T18)g4 / (1T18)Qxc3 (0T18)Nxb1
+23. (0T19)g5 (1T19)g5 / (1T19)Qc3>x(0T19)d3
+24. (0T20)Re2 (1T20)a4 / (0T20)Qd3>x(1T20)d2
+25. (0T21)Rxa2 (1T21)f4 / (1T21)Qxe1 (0T21)Nc3
+26. (1T22)g6 (0T22)g6 / (1T22)Qxc1 (0T22)Nxa2
+27. (1T23)f5 (0T23)f5 / (0T23)Ke7 (1T23)Qxb2
+28. (1T24)e4 (0T24)e4 / (1T24)e5 (0T24)Kf6
+29. (1T25)Pa4>(0T25)a4 / (1T25)d4 (0T25)Nc3

@@ -646,3 +646,11 @@ fn test_dead_timeline_2() {
         x => panic!("Expected position tests/games/dead-timeline-2.json to be non-mate; got {:?}", x),
     };
 }
+
+#[test]
+fn test_standard_stalemate() {
+    let game = read_and_parse("tests/games/standard-stalemate.json");
+    let partial_game = no_partial_game(&game);
+
+    assert_eq!(is_mate(&game, &partial_game, None), Mate::Stalemate);
+}
