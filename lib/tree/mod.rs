@@ -47,6 +47,16 @@ impl<'a> TreeNode<'a> {
     }
 }
 
+impl TreeNode<'static> {
+    pub fn empty(game: &Game) -> Self {
+        Self {
+            partial_game: no_partial_game(game),
+            path: vec![],
+            branches: 0,
+        }
+    }
+}
+
 /**
     A node in a tree search
 **/

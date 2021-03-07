@@ -4,6 +4,7 @@ use chess5dlib::{
     mate::*,
     tree::*,
     eval::*,
+    eval::value::PieceValues,
 };
 use std::time::Duration;
 
@@ -140,4 +141,14 @@ fn test_dfs_advanced_branching_2() {
     let new_partial_game = node.path[0].generate_partial_game(&game, &partial_game).unwrap();
     assert_eq!(value, f32::INFINITY);
     assert_eq!(is_mate(&game, &new_partial_game, None), Mate::Checkmate);
+}
+
+#[test]
+fn test_eval_standard_empty() {
+    let game = read_and_parse("tests/games/standard-empty.json");
+
+    let node = TreeNode::empty(&game);
+    let piece_values = PieceValues::default();
+
+    assert_eq!(piece_values.eval(&game, &node), Some(0.0));
 }

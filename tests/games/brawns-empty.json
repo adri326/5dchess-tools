@@ -1,0 +1,1 @@
+{"width":5,"height":5,"board_indices":[],"initial_board_indices":[0],"timelines":[{"states":[[6,10,10,10,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,42,42,42,42,38]],"index":0,"begins_at":0,"width":5,"height":5,"emerges_from":null,"moves":[],"synthetic":false,"turn":true}],"moves":[],"active_player":true,"turn":0,"last_white":true,"tags":{"board":"custom","size":"5x5","mode":"5D"}}

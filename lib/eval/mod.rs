@@ -2,6 +2,7 @@ use crate::prelude::*;
 use crate::tree::TreeNode;
 
 pub mod wdl;
+pub mod value;
 
 pub type Eval = f32;
 
