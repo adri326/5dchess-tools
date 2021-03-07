@@ -304,9 +304,30 @@ impl<'a> Tasks<'a> {
         best_move.map(|bm| (bm.into(), best_score))
     }
 
-    // TODO: make this filter out ignored/bad moves?
-    pub fn reset(&mut self) {
-        self.index = 0;
+    pub fn reset(&mut self, prune: bool, prune_empty: bool) {
+        if self.recyclable {
+            self.index = 0;
+            if prune {
+                for _ in 0..self.pool.len() {
+                    if let Some((node, handle_index)) = self.pool.pop_front() {
+                        let handle = &self.tree[handle_index];
+                        let keep = if let Ok(guard) = handle.1.try_lock() {
+                            match *guard {
+                                Some(value) => value.is_finite(),
+                                None => !prune_empty,
+                            }
+                        } else {
+                            // Couldn't lock the mutex, so retain the value
+                            true
+                        };
+                        if keep {
+                            self.pool.push_back((node, handle_index))
+                        }
+                    }
+                }
+                self.refill_pool();
+            }
+        }
     }
 }
 
