@@ -57,9 +57,13 @@ fn test_dfs_rook_tactics_2() {
     let game = read_and_parse("tests/games/puzzles/rook-tactics-2.json");
     let partial_game = no_partial_game(&game);
 
-    let solution = Moveset::new(vec![Move::new(&game, &partial_game, Coords(0, 2, 1, 0), Coords(0, 2, 5, 0)).unwrap()], &game.info);
-    assert!(solution.is_ok());
-    let solution = solution.unwrap();
+    let solution_1 = Moveset::new(vec![Move::new(&game, &partial_game, Coords(0, 2, 1, 0), Coords(0, 2, 5, 0)).unwrap()], &game.info);
+    assert!(solution_1.is_ok());
+    let solution_1 = solution_1.unwrap();
+
+    let solution_2 = Moveset::new(vec![Move::new(&game, &partial_game, Coords(0, 2, 1, 0), Coords(0, 2, 1, 4)).unwrap()], &game.info);
+    assert!(solution_2.is_ok());
+    let solution_2 = solution_2.unwrap();
 
     let node = TreeNode {
         partial_game,
@@ -69,10 +73,12 @@ fn test_dfs_rook_tactics_2() {
 
     let res = dfs(&game, node.clone(), 3, Some(Duration::new(30, 0)), NoEvalFn::new(), |_| true);
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-2!");
-    assert_eq!(res, dfs_schedule(&game, 3, Some(Duration::new(30, 0)), NoEvalFn::new(), 128, N_THREADS, |_| true), "dfs_schedule should return the same value as dfs");
-    assert_eq!(res, iddfs(&game, node, Some(Duration::new(30, 0)), NoEvalFn::new(), |_| true), "iddfs should return the same value as dfs");
+    let dfs_res = dfs_schedule(&game, 3, Some(Duration::new(30, 0)), NoEvalFn::new(), 128, N_THREADS, |_| true).expect("dfs_schedule should return Some(...)");
+    assert!(dfs_res.0.path[0] == solution_1 || dfs_res.0.path[0] == solution_2, "dfs_schedule should return a valid solution");
+    let iddfs_res = iddfs(&game, node, Some(Duration::new(30, 0)), NoEvalFn::new(), |_| true).expect("iddfs should return Some(...)");
+    assert!(iddfs_res.0.path[0] == solution_1 || iddfs_res.0.path[0] == solution_2, "iddfs should return a valid solution");
     let (node, value) = res.unwrap();
-    assert_eq!(node.path[0], solution);
+    assert_eq!(node.path[0], solution_1);
     assert_eq!(value, f32::INFINITY);
 }
 
