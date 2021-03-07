@@ -149,6 +149,58 @@ pub fn dfs_bl<'a, F: EvalFn>(
     )
 }
 
+pub fn iddfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
+    game: &'a Game,
+    node: TreeNode<'a>,
+    max_duration: Option<Duration>,
+    eval_fn: F,
+    condition: C,
+) -> Option<(EvalNode, Eval)> {
+    let mut best = None;
+    let mut depth = 0;
+    let start = Instant::now();
+
+    loop {
+        if let Some(max_duration) = max_duration {
+            if start.elapsed() >= max_duration {
+                break
+            }
+        }
+
+        if let Some(best_node) = dfs(
+            game,
+            node.clone(),
+            depth,
+            max_duration.map(|d| d.checked_sub(start.elapsed())).flatten(),
+            eval_fn,
+            condition
+        ) {
+            best = Some(best_node);
+            depth += 1;
+        } else {
+            break
+        }
+    }
+
+    best
+}
+
+pub fn iddfs_bl<'a, F: EvalFn>(
+    game: &'a Game,
+    node: TreeNode<'a>,
+    max_branches: usize,
+    max_duration: Option<Duration>,
+    eval_fn: F,
+) -> Option<(EvalNode, Eval)> {
+    iddfs(
+        game,
+        node,
+        max_duration,
+        eval_fn,
+        move |node| node.branches <= max_branches,
+    )
+}
+
 fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
     game: &'a Game,
     node: TreeNode<'a>,
