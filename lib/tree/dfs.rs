@@ -312,6 +312,8 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
             if v.is_infinite() {
                 break
             }
+        } else {
+            break
         }
         tasks.reset(true, true);
 
