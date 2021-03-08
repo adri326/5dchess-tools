@@ -14,6 +14,8 @@ pub struct PieceValues {
     pub princess: Eval,
     pub king: Eval,
     pub common_king: Eval,
+
+    pub inactive_multiplier: Eval,
 }
 
 impl PieceValues {
@@ -76,6 +78,11 @@ impl PieceValues {
         self.common_king = value;
         self
     }
+
+    pub fn inactive_multiplier(mut self, value: Eval) -> Self {
+        self.inactive_multiplier = value;
+        self
+    }
 }
 
 impl Default for PieceValues {
@@ -93,6 +100,8 @@ impl Default for PieceValues {
             royal_queen: 9.0,
             king: -4.0,
             common_king: 3.0,
+
+            inactive_multiplier: 0.25,
         }
     }
 }
@@ -102,6 +111,7 @@ impl EvalFn for PieceValues {
         let partial_game = &node.partial_game;
         let mut sum: Eval = 0.0;
         for board in partial_game.own_boards(game).chain(partial_game.opponent_boards(game)) {
+            let multiplier = if partial_game.info.is_active(board.l()) { 1.0 } else { self.inactive_multiplier };
             for piece in &board.pieces {
                 if let Tile::Piece(piece) = piece {
                     let value = match piece.kind {
@@ -118,7 +128,7 @@ impl EvalFn for PieceValues {
                         PieceKind::CommonKing => self.common_king,
                         PieceKind::RoyalQueen => self.royal_queen,
                     };
-                    sum += if piece.white { 1.0 } else { -1.0 } * value;
+                    sum += if piece.white { 1.0 } else { -1.0 } * value * multiplier;
                 }
             }
         }
