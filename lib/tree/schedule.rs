@@ -60,6 +60,7 @@ pub struct Tasks<'a> {
     roots: Vec<TreeNode<'static>>,
     pool: VecDeque<(TreeNode<'static>, usize)>,
     pool_size: usize,
+    max_pool_size: usize,
     pool_yielded: usize,
 
     max_duration: Duration,
@@ -74,6 +75,7 @@ impl<'a> Tasks<'a> {
     pub fn new(
         game: &'a Game,
         pool_size: usize,
+        max_pool_size: usize,
         max_duration: Option<Duration>,
     ) -> Self {
         let mut pool = VecDeque::with_capacity(pool_size);
@@ -85,12 +87,13 @@ impl<'a> Tasks<'a> {
 
         let tree = vec![TreeHandle(0, Arc::new(Mutex::new(None)), None)];
 
-        let mut res = Self {
+        Self {
             game,
 
             roots: vec![],
             pool,
             pool_size,
+            max_pool_size,
             pool_yielded: 0,
 
             max_duration: max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
@@ -99,9 +102,7 @@ impl<'a> Tasks<'a> {
             tree,
             recyclable: true,
             index: 0,
-        };
-        res.refill_pool();
-        res
+        }
     }
 
     /**
@@ -124,7 +125,9 @@ impl<'a> Tasks<'a> {
         let game = parse::parse(/* ... */);
 
         let tasks = Tasks::new(&game, 64, Some(Duration::new(10, 0)));
-        tasks.refill_pool();
+        if !tasks.fill_pool() {
+            panic!("Couldn't fill the pool!");
+        }
 
         while !tasks.done {
             println!("{:?}", tasks.next_cached().unwrap().path);
@@ -135,7 +138,7 @@ impl<'a> Tasks<'a> {
 
         Calling this function on a consumed, non-`recyclable` instance will do nothing and the instance will remain consumed.
     **/
-    pub fn refill_pool(&mut self) {
+    pub fn fill_pool(&mut self) -> bool {
         let start = Instant::now();
 
         if self.pool.len() < self.pool_size && self.pool.len() != 0 {
@@ -151,7 +154,7 @@ impl<'a> Tasks<'a> {
                 for (ms, partial_game) in gen {
                     if self.sigma + start.elapsed() > self.max_duration {
                         self.sigma += start.elapsed();
-                        return
+                        return false
                     }
                     let mut path = current_path.clone();
                     path.push(ms);
@@ -176,10 +179,16 @@ impl<'a> Tasks<'a> {
                         path,
                         branches
                     ), self.tree.len() - 1));
+
+                    // If the pool is at its max size
+                    if self.pool.len() > self.max_pool_size {
+                        self.sigma += start.elapsed();
+                        return false
+                    }
                 }
                 if self.sigma + start.elapsed() > self.max_duration {
                     self.sigma += start.elapsed();
-                    return
+                    return false
                 }
                 // Regenerate gen
                 if self.pool.len() < self.pool_size && self.pool.len() != 0 {
@@ -197,7 +206,9 @@ impl<'a> Tasks<'a> {
                 }
             }
         }
+
         self.sigma += start.elapsed();
+        true
     }
 
     /**
@@ -325,7 +336,7 @@ impl<'a> Tasks<'a> {
                         }
                     }
                 }
-                self.refill_pool();
+                self.fill_pool();
             }
         }
     }
@@ -339,6 +350,7 @@ impl<'a> Clone for Tasks<'a> {
             roots: self.roots.clone(),
             pool: self.pool.clone(),
             pool_size: self.pool_size,
+            max_pool_size: self.max_pool_size,
             pool_yielded: self.pool_yielded,
 
             max_duration: self.max_duration,

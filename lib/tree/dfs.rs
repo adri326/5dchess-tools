@@ -15,12 +15,18 @@ pub fn dfs_schedule<F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy + Sen
     max_duration: Option<Duration>,
     eval_fn: F,
     pool_size: usize,
+    max_pool_size: usize,
     n_threads: u32,
     condition: C,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
 
-    let mut tasks = Tasks::new(game, pool_size, max_duration);
+    let mut tasks = Tasks::new(game, pool_size, max_pool_size, max_duration);
+
+    if !tasks.fill_pool() {
+        return None
+    }
+
     let mut pool = Pool::new(n_threads);
 
     pool.scoped(|scope| {
@@ -55,6 +61,7 @@ pub fn dfs_bl_schedule<F: EvalFn>(
     max_duration: Option<Duration>,
     eval_fn: F,
     pool_size: usize,
+    max_pool_size: usize,
     n_threads: u32,
 ) -> Option<(EvalNode, Eval)> {
     dfs_schedule(
@@ -63,6 +70,7 @@ pub fn dfs_bl_schedule<F: EvalFn>(
         max_duration,
         eval_fn,
         pool_size,
+        max_pool_size,
         n_threads,
         move |node| node.branches <= max_branches,
     )
@@ -261,12 +269,16 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
     max_duration: Option<Duration>,
     eval_fn: F,
     pool_size: usize,
+    max_pool_size: usize,
     n_threads: u32,
     condition: C,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
 
-    let mut tasks = Tasks::new(game, pool_size, max_duration);
+    let mut tasks = Tasks::new(game, pool_size, max_pool_size, max_duration);
+    if !tasks.fill_pool() {
+        return None
+    }
     let mut pool = Pool::new(n_threads);
     let mut best = None;
 
@@ -315,6 +327,7 @@ pub fn iddfs_bl_schedule<'a, F: EvalFn>(
     max_duration: Option<Duration>,
     eval_fn: F,
     pool_size: usize,
+    max_pool_size: usize,
     n_threads: u32,
 ) -> Option<(EvalNode, Eval)> {
     iddfs_schedule(
@@ -322,6 +335,7 @@ pub fn iddfs_bl_schedule<'a, F: EvalFn>(
         max_duration,
         eval_fn,
         pool_size,
+        max_pool_size,
         n_threads,
         move |node| node.branches <= max_branches,
     )
