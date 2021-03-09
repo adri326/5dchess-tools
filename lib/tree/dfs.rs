@@ -3,6 +3,7 @@ use crate::{
     mate::*,
     gen::*,
     eval::{EvalFn, Eval},
+    check::is_in_check,
 };
 use super::*;
 use std::time::{Instant, Duration};
@@ -161,7 +162,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
                 Some((node.into(), score))
             } else {
                 let mut best_node: Option<EvalNode> = None;
-                let mut best_score: Eval = f32::NEG_INFINITY;
+                let mut best_score: Option<Eval> = None;
 
                 let mut iter = match iter {
                     None => GenLegalMovesetIter::new(game, Cow::Borrowed(&node.partial_game), Some(max_duration)),
@@ -201,13 +202,20 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
                             approx,
                         )?;
 
-                        if -child_score > best_score {
-                            best_score = -child_score;
-                            best_node = Some(child_best);
+                        match best_score {
+                            None => {
+                                best_score = Some(-child_score);
+                                best_node = Some(child_best);
+                            }
+                            Some(b) if -child_score > b => {
+                                best_score = Some(-child_score);
+                                best_node = Some(child_best);
+                            }
+                            _ => {}
                         }
 
-                        if best_score > alpha {
-                            alpha = best_score;
+                        if best_score.unwrap() > alpha {
+                            alpha = best_score.unwrap();
                         }
 
                         if alpha >= beta || alpha == f32::INFINITY {
@@ -222,10 +230,15 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
 
                 match best_node {
                     Some(node) => {
-                        Some((node.into(), best_score))
+                        Some((node.into(), best_score.unwrap()))
                     }
                     None => {
-                        Some((node.into(), best_score))
+                        let score = if is_in_check(game, &node.partial_game)?.0 {
+                            Eval::NEG_INFINITY
+                        } else {
+                            0.0
+                        };
+                        Some((node.into(), score))
                     }
                 }
             }

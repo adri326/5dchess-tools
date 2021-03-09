@@ -8,6 +8,9 @@ pub struct KingSafety {
     pub diagonal_empty: Eval,
     pub diagonal_opponent: Eval,
 
+    pub knight_empty: Eval,
+    pub knight_opponent: Eval,
+
     pub additional_king: Eval,
 
     pub inactive_multiplier: Eval,
@@ -40,6 +43,16 @@ impl KingSafety {
         self
     }
 
+    pub fn knight_empty(mut self, value: Eval) -> Self {
+        self.knight_empty = value;
+        self
+    }
+
+    pub fn knight_opponent(mut self, value: Eval) -> Self {
+        self.knight_opponent = value;
+        self
+    }
+
     pub fn inactive_multiplier(mut self, value: Eval) -> Self {
         self.inactive_multiplier = value;
         self
@@ -59,6 +72,8 @@ impl Default for KingSafety {
             orthogonal_opponent: -6.0,
             diagonal_empty: -2.0,
             diagonal_opponent: -4.0,
+            knight_empty: 0.0,
+            knight_opponent: -3.0,
 
             additional_king: -4.0,
 
@@ -144,6 +159,17 @@ impl EvalFn for KingSafety {
                             king_safety!(self, board, sum, piece, index, multiplier, 1, -1, self.allowed_distance, true);
                             king_safety!(self, board, sum, piece, index, multiplier, -1, 1, self.allowed_distance, true);
                             king_safety!(self, board, sum, piece, index, multiplier, -1, -1, self.allowed_distance, true);
+                        }
+                        if self.knight_empty != 0.0 || self.knight_opponent != 0.0 {
+                            king_safety!(self, board, sum, piece, index, multiplier, 2, 1, 0, true);
+                            king_safety!(self, board, sum, piece, index, multiplier, -2, 1, 0, true);
+                            king_safety!(self, board, sum, piece, index, multiplier, 2, -1, 0, true);
+                            king_safety!(self, board, sum, piece, index, multiplier, -2, 1, 0, true);
+
+                            king_safety!(self, board, sum, piece, index, multiplier, 1, 2, 0, true);
+                            king_safety!(self, board, sum, piece, index, multiplier, -1, 2, 0, true);
+                            king_safety!(self, board, sum, piece, index, multiplier, 1, -2, 0, true);
+                            king_safety!(self, board, sum, piece, index, multiplier, -1, 2, 0, true);
                         }
 
                         if piece.white {

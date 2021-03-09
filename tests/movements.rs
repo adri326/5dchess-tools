@@ -121,6 +121,41 @@ pub fn test_standard_king_moves() {
     }
 }
 
+#[test]
+pub fn test_brawns_en_passant() {
+    let game = read_and_parse("tests/games/brawns-en-passant.json");
+
+    test_piece_movement(
+        &game,
+        &no_partial_game(&game),
+        Coords::new(0, 4, 2, 2),
+        vec![
+            Coords::new(0, 4, 1, 3),
+            Coords::new(0, 4, 2, 3),
+        ]
+    );
+
+    // Might as well test these
+    test_piece_movement(
+        &game,
+        &no_partial_game(&game),
+        Coords::new(0, 4, 3, 0),
+        vec![
+            Coords::new(0, 4, 3, 1),
+            Coords::new(0, 4, 3, 2),
+        ]
+    );
+
+    test_piece_movement(
+        &game,
+        &no_partial_game(&game),
+        Coords::new(0, 4, 4, 2),
+        vec![
+            Coords::new(0, 4, 4, 3),
+        ]
+    );
+}
+
 pub fn test_piece_movement<'a>(
     game: &Game,
     partial_game: &PartialGame<'a>,

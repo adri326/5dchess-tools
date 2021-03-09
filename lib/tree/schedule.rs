@@ -218,7 +218,7 @@ impl<'a> Tasks<'a> {
                 }
                 // Regenerate gen
                 if self.pool.len() < self.pool_size && self.pool.len() != 0 {
-                    let mut attempt: usize = 0;
+                    let mut attempts: usize = 0;
                     let elem = loop {
                         let x = self.pool.pop_front().unwrap();
                         if x.0.path.len() <= max_depth {
