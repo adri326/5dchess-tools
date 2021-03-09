@@ -37,6 +37,10 @@ fn main() {
                 .orthogonal_empty(-0.25)
                 .orthogonal_opponent(-1.0)
                 .additional_king(-6.0)
+            ).add(
+                TimelineAdvantage::default()
+            ).add(
+                PawnProgression::default()
             ),
             POOL_SIZE,
             MAX_POOL_SIZE,

@@ -205,7 +205,6 @@ impl<'a> Tasks<'a> {
                 }
 
                 if !yielded && !gen.timed_out() {
-                    println!("Pre-pruning move {:?}", current_path);
                     match is_in_check(self.game, &current_partial_game) {
                         Some((true, _)) => *self.tree[parent_index].1.lock().unwrap() = Some(Eval::NEG_INFINITY),
                         Some((false, _)) => *self.tree[parent_index].1.lock().unwrap() = Some(0.0),

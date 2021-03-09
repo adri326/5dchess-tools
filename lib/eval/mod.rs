@@ -12,6 +12,9 @@ pub use king_safety::KingSafety;
 pub mod timeline_advantage;
 pub use timeline_advantage::TimelineAdvantage;
 
+pub mod pawn_progression;
+pub use pawn_progression::PawnProgression;
+
 pub type Eval = f32;
 
 pub trait EvalFn : Copy + Send {
