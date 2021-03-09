@@ -133,11 +133,11 @@ impl fmt::Debug for PieceKind {
                 PieceKind::Queen => "Q",
                 PieceKind::Princess => "S",
                 PieceKind::King => "K",
-                PieceKind::Brawn => "β",
+                PieceKind::Brawn => "W",
                 PieceKind::Unicorn => "U",
                 PieceKind::Dragon => "D",
-                PieceKind::CommonKing => "κ",
-                PieceKind::RoyalQueen => "ρ",
+                PieceKind::CommonKing => "CK",
+                PieceKind::RoyalQueen => "RQ",
             }
         )
     }

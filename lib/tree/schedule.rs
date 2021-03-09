@@ -1,6 +1,7 @@
 use crate::gen::*;
 use crate::prelude::*;
 use crate::eval::Eval;
+use crate::check::is_in_check;
 use super::{TreeNode, EvalNode};
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
@@ -54,6 +55,7 @@ impl TreeHandle {
     }
     ```
 **/
+#[derive(Debug)]
 pub struct Tasks<'a> {
     game: &'a Game,
 
@@ -144,6 +146,7 @@ impl<'a> Tasks<'a> {
         if self.pool.len() < self.pool_size && self.pool.len() != 0 {
             let (base_node, mut parent_index) = self.pool.pop_front().unwrap();
             let mut current_path = base_node.path;
+            let mut current_partial_game = base_node.partial_game.clone();
             let mut gen = GenLegalMovesetIter::new(
                 self.game,
                 Cow::Owned(base_node.partial_game),
@@ -151,7 +154,9 @@ impl<'a> Tasks<'a> {
             );
             loop {
                 // Add all of the items in gen into the pool
-                for (ms, partial_game) in gen {
+                let mut yielded = false;
+                for (ms, partial_game) in &mut gen {
+                    yielded = true;
                     if self.sigma + start.elapsed() > self.max_duration {
                         self.sigma += start.elapsed();
                         return false
@@ -186,6 +191,15 @@ impl<'a> Tasks<'a> {
                         return false
                     }
                 }
+
+                if !yielded && !gen.timed_out() {
+                    match is_in_check(self.game, &current_partial_game) {
+                        Some((true, _)) => *self.tree[parent_index].1.lock().unwrap() = Some(Eval::NEG_INFINITY),
+                        Some((false, _)) => *self.tree[parent_index].1.lock().unwrap() = Some(0.0),
+                        None => return false
+                    }
+                }
+
                 if self.sigma + start.elapsed() > self.max_duration {
                     self.sigma += start.elapsed();
                     return false
@@ -196,6 +210,7 @@ impl<'a> Tasks<'a> {
                     let base_node = elem.0;
                     parent_index = elem.1;
                     current_path = base_node.path;
+                    current_partial_game = base_node.partial_game.clone();
                     gen = GenLegalMovesetIter::new(
                         self.game,
                         Cow::Owned(base_node.partial_game),
@@ -299,20 +314,31 @@ impl<'a> Tasks<'a> {
 
     pub fn best_move(&self) -> Option<(EvalNode, Eval)> {
         let mut best_move: Option<&TreeNode> = None;
-        let mut best_score: Eval = f32::NEG_INFINITY;
+        let mut best_score: Option<Eval> = None;
 
         for handle in self.tree.iter() {
             if handle.2 == Some(0) {
                 if let Some(value) = *handle.1.lock().unwrap() {
-                    if -value > best_score {
-                        best_score = -value;
-                        best_move = Some(&self.roots[handle.0 - 1]); // The -1 is here because the first element of the tree is always the base node
+                    match best_score {
+                        Some(b) if -value > b => {
+                            best_score = Some(-value);
+                            best_move = Some(&self.roots[handle.0 - 1]); // The -1 is here because the first element of the tree is always the base node
+                        }
+                        None => {
+                            best_score = Some(-value);
+                            best_move = Some(&self.roots[handle.0 - 1]);
+                        }
+                        _ => {}
                     }
                 }
             }
         }
 
-        best_move.map(|bm| (bm.into(), best_score))
+        best_move.map(|bm| (bm.into(), best_score.unwrap()))
+    }
+
+    pub fn root_eval(&self) -> Option<Eval> {
+        self.tree[0].1.try_lock().ok().map(|x| *x).flatten()
     }
 
     pub fn reset(&mut self, prune: bool, prune_empty: bool) {

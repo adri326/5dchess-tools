@@ -309,10 +309,11 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
         if let Some(b) = tasks.best_move() {
             let v = b.1;
             best = Some(b);
-            if v.is_infinite() {
+            if v.is_infinite() || tasks.root_eval()?.is_infinite() {
                 break
             }
         } else {
+            // println!("{:?}", tasks);
             break
         }
         tasks.reset(true, true);

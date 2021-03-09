@@ -36,10 +36,11 @@ pub struct PawnIter {
 }
 
 /// Brawn's capture movements
-const BRAWN_CAPTURES: [Coords; 8] = [
+const BRAWN_CAPTURES: [Coords; 9] = [
     Coords(0, 0, 1, 1),
     Coords(0, 0, -1, 1),
     Coords(0, -2, 0, 1),
+    Coords(0, 2, 0, 1),
     Coords(-1, 0, 0, 1),
     Coords(-1, 2, 0, 0),
     Coords(-1, -2, 0, 0),
