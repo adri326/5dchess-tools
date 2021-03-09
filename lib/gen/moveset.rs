@@ -5,6 +5,7 @@ use itertools::Itertools;
 use std::convert::TryFrom;
 use std::time::{Duration, Instant};
 use std::borrow::Cow;
+use std::cmp::Ordering;
 
 /**
     An iterator that yields all of the valid movesets.
@@ -289,6 +290,18 @@ pub struct GenLegalMovesetIter<'a> {
     attackers_trim_count: usize,
 }
 
+fn sort_boards(partial_game: &PartialGame, a: &Board, b: &Board) -> Ordering {
+    if partial_game.info.is_active(a.l()) && partial_game.info.is_active(b.l()) {
+        a.l().partial_cmp(&b.l()).unwrap()
+    } else {
+        if partial_game.info.is_active(a.l()) {
+            Ordering::Less
+        } else {
+            Ordering::Greater
+        }
+    }
+}
+
 impl<'a> GenLegalMovesetIter<'a> {
     /**
         Creates a new instance of GenLegalMovesetIter.
@@ -304,7 +317,9 @@ impl<'a> GenLegalMovesetIter<'a> {
 
         match &partial_game {
             Cow::Borrowed(partial_game) => {
-                for board in partial_game.own_boards(game) {
+                let mut ordered_boards = partial_game.own_boards(game).collect::<Vec<_>>();
+                ordered_boards.sort_unstable_by(|a, b| sort_boards(&partial_game, a, b));
+                for board in ordered_boards {
                     if let Some(moves) = board.generate_moves(game, partial_game) {
                         boards.push(CacheMovesBoards::new(
                             FilterLegalMove::new(
@@ -321,7 +336,9 @@ impl<'a> GenLegalMovesetIter<'a> {
             Cow::Owned(partial_game) => unsafe {
                 // This is sound iff `CacheMoves::consume` guarantees that `res.done == true`, hence the assertion
                 let partial_game: *const PartialGame<'a> = &*partial_game;
-                for board in partial_game.as_ref().unwrap().own_boards(game) {
+                let mut ordered_boards = partial_game.as_ref().unwrap().own_boards(game).collect::<Vec<_>>();
+                ordered_boards.sort_unstable_by(|a, b| sort_boards(&*partial_game, a, b));
+                for board in ordered_boards {
                     if let Some(moves) = board.generate_moves(game, &*partial_game) {
                         let mut res = CacheMovesBoards::new(
                             FilterLegalMove::new(

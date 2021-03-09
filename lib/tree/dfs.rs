@@ -9,6 +9,8 @@ use std::time::{Instant, Duration};
 use std::borrow::Cow;
 use scoped_threadpool::Pool;
 
+const APPROX_MIN_NODES: usize = 16;
+
 pub fn dfs_schedule<F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy + Send>(
     game: &Game,
     depth: usize,
@@ -18,12 +20,13 @@ pub fn dfs_schedule<F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy + Sen
     max_pool_size: usize,
     n_threads: u32,
     condition: C,
+    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
 
     let mut tasks = Tasks::new(game, pool_size, max_pool_size, max_duration);
 
-    if !tasks.fill_pool() {
+    if !tasks.fill_pool(depth) {
         return None
     }
 
@@ -39,6 +42,7 @@ pub fn dfs_schedule<F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy + Sen
                 eval_fn,
                 condition,
                 depth,
+                approx,
             );
             scope.execute(move || {
                 executor.execute(start);
@@ -63,6 +67,7 @@ pub fn dfs_bl_schedule<F: EvalFn>(
     pool_size: usize,
     max_pool_size: usize,
     n_threads: u32,
+    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     dfs_schedule(
         game,
@@ -73,6 +78,7 @@ pub fn dfs_bl_schedule<F: EvalFn>(
         max_pool_size,
         n_threads,
         move |node| node.branches <= max_branches,
+        approx,
     )
 }
 
@@ -83,6 +89,7 @@ pub fn dfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
     max_duration: Option<Duration>,
     eval_fn: F,
     condition: C,
+    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     dfs_rec(
         game,
@@ -93,6 +100,7 @@ pub fn dfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
         max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
         eval_fn,
         condition,
+        approx,
     )
 }
 
@@ -104,6 +112,7 @@ pub fn dfs_bl<'a, F: EvalFn>(
     max_branches: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
+    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     dfs_rec(
         game,
@@ -114,6 +123,7 @@ pub fn dfs_bl<'a, F: EvalFn>(
         max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
         eval_fn,
         move |node| node.branches <= max_branches,
+        approx,
     )
 }
 
@@ -126,6 +136,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
     max_duration: Duration,
     eval_fn: F,
     condition: C,
+    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     if max_duration == Duration::new(0, 0) {
         return None
@@ -158,8 +169,19 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
                 };
 
                 let initial_node = vec![(ms, pos)];
+                let mut yielded: usize = 0;
 
                 for (child_ms, child_pos) in initial_node.into_iter().chain(&mut iter) {
+                    if approx && yielded >= APPROX_MIN_NODES {
+                        if child_ms.moves().iter().find(|mv|
+                            mv.from.1.t() > node.partial_game.info.present
+                            || !node.partial_game.info.is_active(mv.from.1.l())
+                        ).is_some() {
+                            // println!("Pruned @ {:?}", child_ms);
+                            break
+                        }
+                    }
+                    yielded += 1;
                     if start.elapsed() >= max_duration {
                         return None
                     }
@@ -175,7 +197,8 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
                             -alpha,
                             max_duration.checked_sub(start.elapsed())?,
                             eval_fn,
-                            condition
+                            condition,
+                            approx,
                         )?;
 
                         if -child_score > best_score {
@@ -218,6 +241,7 @@ pub fn iddfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
     max_duration: Option<Duration>,
     eval_fn: F,
     condition: C,
+    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let mut best = None;
     let mut depth = 0;
@@ -236,7 +260,8 @@ pub fn iddfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
             depth,
             max_duration.map(|d| d.checked_sub(start.elapsed())).flatten(),
             eval_fn,
-            condition
+            condition,
+            approx,
         ) {
             best = Some(best_node);
             depth += 1;
@@ -254,6 +279,7 @@ pub fn iddfs_bl<'a, F: EvalFn>(
     max_branches: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
+    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     iddfs(
         game,
@@ -261,6 +287,7 @@ pub fn iddfs_bl<'a, F: EvalFn>(
         max_duration,
         eval_fn,
         move |node| node.branches <= max_branches,
+        approx,
     )
 }
 
@@ -272,11 +299,12 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
     max_pool_size: usize,
     n_threads: u32,
     condition: C,
+    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
 
     let mut tasks = Tasks::new(game, pool_size, max_pool_size, max_duration);
-    if !tasks.fill_pool() {
+    if !tasks.fill_pool(0) {
         return None
     }
     let mut pool = Pool::new(n_threads);
@@ -295,6 +323,7 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
                     eval_fn,
                     condition,
                     depth,
+                    approx,
                 );
                 scope.execute(move || {
                     if max_duration.map(|d| d <= start.elapsed()).unwrap_or(false) {
@@ -304,6 +333,8 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
                 });
             }
         });
+
+        // println!("{{Depth {} complete!}}", depth);
 
         tasks.update_tree();
         if let Some(b) = tasks.best_move() {
@@ -316,7 +347,7 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
             // println!("{:?}", tasks);
             break
         }
-        tasks.reset(true, true);
+        tasks.reset(true, false, depth);
 
         depth += 1;
     }
@@ -332,6 +363,7 @@ pub fn iddfs_bl_schedule<'a, F: EvalFn>(
     pool_size: usize,
     max_pool_size: usize,
     n_threads: u32,
+    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     iddfs_schedule(
         game,
@@ -341,6 +373,7 @@ pub fn iddfs_bl_schedule<'a, F: EvalFn>(
         max_pool_size,
         n_threads,
         move |node| node.branches <= max_branches,
+        approx,
     )
 }
 
@@ -357,6 +390,7 @@ where
     eval_fn: F,
     condition: C,
     depth: usize,
+    approx: bool,
 }
 
 impl<'a, F, C> DFSExecutor<'a, F, C>
@@ -372,6 +406,7 @@ where
         eval_fn: F,
         condition: C,
         depth: usize,
+        approx: bool,
     ) -> Self {
         Self {
             game,
@@ -380,7 +415,8 @@ where
             max_duration,
             eval_fn,
             condition,
-            depth
+            depth,
+            approx,
         }
     }
 
@@ -403,7 +439,8 @@ where
                 depth,
                 self.max_duration.map(|d| d.checked_sub(start.elapsed()).unwrap_or(Duration::new(0, 0))),
                 self.eval_fn,
-                self.condition
+                self.condition,
+                self.approx,
             ) {
                 Some(res) => res,
                 None => {

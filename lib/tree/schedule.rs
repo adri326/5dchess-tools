@@ -140,11 +140,23 @@ impl<'a> Tasks<'a> {
 
         Calling this function on a consumed, non-`recyclable` instance will do nothing and the instance will remain consumed.
     **/
-    pub fn fill_pool(&mut self) -> bool {
+    pub fn fill_pool(&mut self, max_depth: usize) -> bool {
         let start = Instant::now();
 
         if self.pool.len() < self.pool_size && self.pool.len() != 0 {
-            let (base_node, mut parent_index) = self.pool.pop_front().unwrap();
+            let mut attempts: usize = 0;
+            let (base_node, mut parent_index) = loop {
+                let x = self.pool.pop_front().unwrap();
+                if x.0.path.len() <= max_depth {
+                    break x
+                } else {
+                    self.pool.push_back(x);
+                    attempts += 1;
+                    if attempts > self.pool.len() {
+                        return true
+                    }
+                }
+            };
             let mut current_path = base_node.path;
             let mut current_partial_game = base_node.partial_game.clone();
             let mut gen = GenLegalMovesetIter::new(
@@ -193,6 +205,7 @@ impl<'a> Tasks<'a> {
                 }
 
                 if !yielded && !gen.timed_out() {
+                    println!("Pre-pruning move {:?}", current_path);
                     match is_in_check(self.game, &current_partial_game) {
                         Some((true, _)) => *self.tree[parent_index].1.lock().unwrap() = Some(Eval::NEG_INFINITY),
                         Some((false, _)) => *self.tree[parent_index].1.lock().unwrap() = Some(0.0),
@@ -206,8 +219,21 @@ impl<'a> Tasks<'a> {
                 }
                 // Regenerate gen
                 if self.pool.len() < self.pool_size && self.pool.len() != 0 {
-                    let elem = self.pool.pop_front().unwrap();
+                    let mut attempt: usize = 0;
+                    let elem = loop {
+                        let x = self.pool.pop_front().unwrap();
+                        if x.0.path.len() <= max_depth {
+                            break x
+                        } else {
+                            self.pool.push_back(x);
+                            attempts += 1;
+                            if attempts > self.pool.len() {
+                                return true
+                            }
+                        }
+                    };
                     let base_node = elem.0;
+                    // println!("-> {:?}", base_node.path);
                     parent_index = elem.1;
                     current_path = base_node.path;
                     current_partial_game = base_node.partial_game.clone();
@@ -341,7 +367,7 @@ impl<'a> Tasks<'a> {
         self.tree[0].1.try_lock().ok().map(|x| *x).flatten()
     }
 
-    pub fn reset(&mut self, prune: bool, prune_empty: bool) {
+    pub fn reset(&mut self, prune: bool, prune_empty: bool, depth: usize) {
         if self.recyclable {
             self.index = 0;
             if prune {
@@ -359,10 +385,12 @@ impl<'a> Tasks<'a> {
                         };
                         if keep {
                             self.pool.push_back((node, handle_index))
+                        } else {
+                            // println!("<- {:?}: {:?}", *handle.1.lock().unwrap(), node.path);
                         }
                     }
                 }
-                self.fill_pool();
+                self.fill_pool(depth);
             }
         }
     }
