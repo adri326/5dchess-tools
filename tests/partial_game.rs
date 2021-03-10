@@ -116,7 +116,7 @@ fn test_new_partial_game_castling() {
 }
 
 #[test]
-pub fn test_partial_game_deepen() {
+pub fn test_partial_game_flatten() {
     let game = read_and_parse("tests/games/standard-castle.json");
     let partial_game = no_partial_game(&game);
 
@@ -132,7 +132,7 @@ pub fn test_partial_game_deepen() {
     assert_eq!(partial_game_2.info, info_2);
 
     let info_1 = partial_game_1.info.clone();
-    assert!(partial_game_1.info != info_1);
+    assert!(partial_game.info != info_1);
 
     let partial_game_1 = partial_game_1.flatten();
     assert_eq!(partial_game_1.info, info_1);
