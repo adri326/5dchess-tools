@@ -317,7 +317,7 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
     let start = Instant::now();
 
     let mut tasks = Tasks::new(game, pool_size, max_pool_size, max_duration);
-    if !tasks.fill_pool(0) {
+    if !tasks.fill_pool(1) {
         return None
     }
     let mut pool = Pool::new(n_threads);

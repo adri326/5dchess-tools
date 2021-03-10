@@ -114,3 +114,26 @@ fn test_new_partial_game_castling() {
     //     "∄ a castling move when castling is filtered out"
     // );
 }
+
+#[test]
+pub fn test_partial_game_deepen() {
+    let game = read_and_parse("tests/games/standard-castle.json");
+    let partial_game = no_partial_game(&game);
+
+    let ms_1 = Moveset::new(vec![Move::new(&game, &partial_game, Coords(0, 6, 4, 0), Coords(0, 6, 6, 0)).unwrap()], &partial_game.info).unwrap();
+    let partial_game_1 = ms_1.generate_partial_game(&game, &partial_game).unwrap();
+    let ms_2 = Moveset::new(vec![Move::new(&game, &partial_game_1, Coords(0, 7, 2, 4), Coords(0, 7, 2, 3)).unwrap()], &partial_game_1.info).unwrap();
+    let partial_game_2 = ms_2.generate_partial_game(&game, &partial_game_1).unwrap();
+
+    let info_2 = partial_game_2.info.clone();
+    assert!(partial_game_1.info != info_2);
+
+    let partial_game_2 = partial_game_2.flatten();
+    assert_eq!(partial_game_2.info, info_2);
+
+    let info_1 = partial_game_1.info.clone();
+    assert!(partial_game_1.info != info_1);
+
+    let partial_game_1 = partial_game_1.flatten();
+    assert_eq!(partial_game_1.info, info_1);
+}

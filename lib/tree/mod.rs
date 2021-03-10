@@ -65,6 +65,14 @@ pub struct EvalNode {
     pub path: Vec<Moveset>,
 }
 
+impl EvalNode {
+    pub fn new(path: Vec<Moveset>) -> Self {
+        Self {
+            path
+        }
+    }
+}
+
 impl PartialEq for EvalNode {
     fn eq(&self, other: &Self) -> bool {
         self.path == other.path
