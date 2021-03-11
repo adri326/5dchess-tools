@@ -57,7 +57,7 @@ impl TreeHandle {
     ```
 **/
 #[derive(Debug)]
-pub struct Tasks<'a> {
+pub struct Tasks<'a, C: Goal, G: Goal> {
     game: &'a Game,
 
     roots: Vec<TreeNode<'static>>,
@@ -72,10 +72,13 @@ pub struct Tasks<'a> {
     pub tree: Vec<TreeHandle>,
     recyclable: bool,
     index: usize,
+
+    condition: C,
+    goal: G,
 }
 
-impl<'a> Tasks<'a> {
-    pub fn new<C: Goal, G: Goal>(
+impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
+    pub fn new(
         game: &'a Game,
         options: TasksOptions<C, G>,
     ) -> Self {
@@ -107,6 +110,9 @@ impl<'a> Tasks<'a> {
             tree,
             recyclable: true,
             index: 0,
+
+            condition: options.condition,
+            goal: options.goal,
         }
     }
 
@@ -150,14 +156,22 @@ impl<'a> Tasks<'a> {
             let mut attempts: usize = 0;
             let (base_node, mut parent_index) = loop {
                 let x = self.pool.pop_front().unwrap();
-                if x.0.path.len() <= max_depth {
-                    break x
-                } else {
-                    self.pool.push_back(x);
-                    attempts += 1;
-                    if attempts > self.pool.len() {
-                        return true
+                match self.goal.verify(&x.0.path, self.game, &x.0.partial_game, Some(max_depth)) {
+                    Some(false) => {
+                        if x.0.path.len() <= max_depth {
+                            break x
+                        } else {
+                            self.pool.push_back(x);
+                            attempts += 1;
+                            if attempts > self.pool.len() {
+                                return true
+                            }
+                        }
                     }
+                    Some(true) => {
+                        *self.tree[x.1].1.lock().unwrap() = Some(Eval::INFINITY);
+                    }
+                    None => return false
                 }
             };
             let mut current_path = base_node.path;
@@ -224,14 +238,22 @@ impl<'a> Tasks<'a> {
                     let mut attempts: usize = 0;
                     let elem = loop {
                         let x = self.pool.pop_front().unwrap();
-                        if x.0.path.len() <= max_depth {
-                            break x
-                        } else {
-                            self.pool.push_back(x);
-                            attempts += 1;
-                            if attempts > self.pool.len() {
-                                return true
+                        match self.goal.verify(&x.0.path, self.game, &x.0.partial_game, None) {
+                            Some(false) => {
+                                if x.0.path.len() <= max_depth {
+                                    break x
+                                } else {
+                                    self.pool.push_back(x);
+                                    attempts += 1;
+                                    if attempts > self.pool.len() {
+                                        return true
+                                    }
+                                }
                             }
+                            Some(true) => {
+                                *self.tree[x.1].1.lock().unwrap() = Some(Eval::INFINITY);
+                            }
+                            None => return false
                         }
                     };
                     let base_node = elem.0;
@@ -418,8 +440,8 @@ impl<'a> Tasks<'a> {
     }
 }
 
-impl<'a> Clone for Tasks<'a> {
-    fn clone(&self) -> Tasks<'a> {
+impl<'a, C: Goal, G: Goal> Clone for Tasks<'a, C, G> {
+    fn clone(&self) -> Self {
         Tasks {
             game: self.game,
 
@@ -439,11 +461,14 @@ impl<'a> Clone for Tasks<'a> {
             }).collect(),
             recyclable: self.recyclable,
             index: self.index,
+
+            condition: self.condition,
+            goal: self.goal,
         }
     }
 }
 
-impl<'a> Iterator for Tasks<'a> {
+impl<'a, C: Goal, G: Goal> Iterator for Tasks<'a, C, G> {
     type Item = (TreeNode<'static>, TreeHandle);
 
     /**

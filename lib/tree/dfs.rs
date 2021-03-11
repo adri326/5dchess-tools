@@ -177,6 +177,10 @@ fn dfs_rec<'a, F: EvalFn, C: Goal, G: Goal>(
         return None
     }
 
+    if goal.verify(&node.path, game, &node.partial_game, Some(depth + node.path.len()))? {
+        return Some((node.into(), f32::INFINITY, 1))
+    }
+
     let start = Instant::now();
 
     match is_mate(game, &node.partial_game, Some(max_duration)) {
@@ -485,14 +489,22 @@ where
 
     fn execute(self, start: Instant) -> Option<Eval> {
         let (_node, value) = if self.task.path.len() > self.depth {
-            let score = match self.eval_fn.eval(self.game, &self.task) {
-                Some(score) => score,
-                None => {
-                    return None
-                }
-            };
+            if self.condition.verify(&self.task.path, &self.game, &self.task.partial_game, Some(self.task.path.len() + self.depth))? {
+                if self.goal.verify(&self.task.path, &self.game, &self.task.partial_game, Some(self.task.path.len() + self.depth))? {
+                    (self.task.into(), Eval::INFINITY)
+                } else {
+                    let score = match self.eval_fn.eval(self.game, &self.task) {
+                        Some(score) => score,
+                        None => {
+                            return None
+                        }
+                    };
 
-            (self.task.into(), score)
+                    (self.task.into(), score)
+                }
+            } else {
+                return None
+            }
         } else {
             let depth = self.depth - self.task.path.len();
 
