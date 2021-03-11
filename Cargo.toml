@@ -10,6 +10,7 @@ edition = "2018"
 default = ["castling"]
 castling = []
 bitboard128 = []
+countnodes = []
 
 [lib]
 name = "chess5dlib"

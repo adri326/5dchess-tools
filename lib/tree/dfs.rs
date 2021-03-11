@@ -10,6 +10,12 @@ use std::time::{Instant, Duration};
 use std::borrow::Cow;
 use scoped_threadpool::Pool;
 
+#[cfg(feature = "countnodes")]
+lazy_static! {
+    pub static ref NODES: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
+    pub static ref SIGMA: std::sync::Mutex<Duration> = std::sync::Mutex::new(Duration::new(0, 0));
+}
+
 const APPROX_MIN_NODES: usize = 16;
 
 pub fn dfs_schedule<F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy + Send>(
@@ -92,7 +98,10 @@ pub fn dfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
     condition: C,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
-    dfs_rec(
+    #[cfg(feature = "countnodes")]
+    let start = Instant::now();
+
+    let res = dfs_rec(
         game,
         node,
         depth,
@@ -102,7 +111,20 @@ pub fn dfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
         eval_fn,
         condition,
         approx,
-    )
+    )?;
+
+    #[cfg(feature = "countnodes")]
+    {
+        let sigma = start.elapsed();
+        if let Ok(mut guard_nodes) = NODES.lock() {
+            if let Ok(mut guard_sigma) = SIGMA.lock() {
+                *guard_nodes += res.2;
+                *guard_sigma += sigma;
+            }
+        }
+    }
+
+    Some((res.0, res.1))
 }
 
 
@@ -115,7 +137,10 @@ pub fn dfs_bl<'a, F: EvalFn>(
     eval_fn: F,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
-    dfs_rec(
+    #[cfg(feature = "countnodes")]
+    let start = Instant::now();
+
+    let res = dfs_rec(
         game,
         node,
         depth,
@@ -125,7 +150,20 @@ pub fn dfs_bl<'a, F: EvalFn>(
         eval_fn,
         move |node| node.branches <= max_branches,
         approx,
-    )
+    )?;
+
+    #[cfg(feature = "countnodes")]
+    {
+        let sigma = start.elapsed();
+        if let Ok(mut guard_nodes) = NODES.lock() {
+            if let Ok(mut guard_sigma) = SIGMA.lock() {
+                *guard_nodes += res.2;
+                *guard_sigma += sigma;
+            }
+        }
+    }
+
+    Some((res.0, res.1))
 }
 
 fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
@@ -138,7 +176,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
     eval_fn: F,
     condition: C,
     approx: bool,
-) -> Option<(EvalNode, Eval)> {
+) -> Option<(EvalNode, Eval, u64)> {
     if max_duration == Duration::new(0, 0) {
         return None
     }
@@ -147,10 +185,10 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
 
     match is_mate(game, &node.partial_game, Some(max_duration)) {
         Mate::Checkmate => {
-            Some((node.into(), f32::NEG_INFINITY))
+            Some((node.into(), f32::NEG_INFINITY, 1))
         }
         Mate::Stalemate => {
-            Some((node.into(), 0.0))
+            Some((node.into(), 0.0, 1))
         }
         Mate::TimeoutCheckmate | Mate::TimeoutStalemate | Mate::Error => {
             None
@@ -159,7 +197,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
             if depth == 0 {
                 let score = eval_fn.eval(game, &node)?;
                 // score is expected to return higher for the current player
-                Some((node.into(), score))
+                Some((node.into(), score, 1))
             } else {
                 let mut best_node: Option<EvalNode> = None;
                 let mut best_score: Option<Eval> = None;
@@ -171,6 +209,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
 
                 let initial_node = vec![(ms, pos)];
                 let mut yielded: usize = 0;
+                let mut nodes = 1;
 
                 for (child_ms, child_pos) in initial_node.into_iter().chain(&mut iter) {
                     if approx && yielded >= APPROX_MIN_NODES {
@@ -190,7 +229,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
                     let child_node = TreeNode::extend(&node, child_ms, child_pos);
 
                     if condition(&child_node) {
-                        let (child_best, child_score) = dfs_rec(
+                        let (child_best, child_score, child_nodes) = dfs_rec(
                             game,
                             child_node,
                             depth - 1,
@@ -201,6 +240,8 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
                             condition,
                             approx,
                         )?;
+
+                        nodes += child_nodes;
 
                         match best_score {
                             None => {
@@ -231,7 +272,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
 
                 match best_node {
                     Some(node) => {
-                        Some((node.into(), best_score.unwrap()))
+                        Some((node.into(), best_score.unwrap(), nodes))
                     }
                     None => {
                         let score = if is_in_check(game, &node.partial_game)?.0 {
@@ -239,7 +280,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
                         } else {
                             0.0
                         };
-                        Some((node.into(), score))
+                        Some((node.into(), score, nodes))
                     }
                 }
             }
@@ -458,7 +499,7 @@ where
         } else {
             let depth = self.depth - self.task.path.len();
 
-            match dfs(
+            dfs(
                 self.game,
                 self.task,
                 depth,
@@ -466,12 +507,7 @@ where
                 self.eval_fn,
                 self.condition,
                 self.approx,
-            ) {
-                Some(res) => res,
-                None => {
-                    return None
-                }
-            }
+            )?
         };
 
         self.handle.report(value);

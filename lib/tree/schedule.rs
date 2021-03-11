@@ -336,18 +336,18 @@ impl<'a> Tasks<'a> {
             }
         }
 
-        for handle in &self.tree {
-            // println!("=> {:?}", handle);
-        }
+        // for _handle in &self.tree {
+        //     println!("=> {:?}", _handle);
+        // }
 
-        for task in &self.pool {
-            // if self.tree[task.1].1.lock().unwrap().unwrap().is_finite() {
-            // println!("{:?} {:?}", task.0.path, self.tree[task.1]);
-            if self.tree[task.1].2 == Some(2) {
-                // println!("{:#?}", task);
-            }
-            // }
-        }
+        // for task in &self.pool {
+        //     if self.tree[task.1].1.lock().unwrap().unwrap().is_finite() {
+        //         println!("{:?} {:?}", task.0.path, self.tree[task.1]);
+        //         if self.tree[task.1].2 == Some(2) {
+        //             println!("{:#?}", task);
+        //         }
+        //     }
+        // }
     }
 
     pub fn best_move(&self) -> Option<(EvalNode, Eval)> {

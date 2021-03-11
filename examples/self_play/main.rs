@@ -10,7 +10,7 @@ use std::env;
 // const DEPTH: usize = 3;
 const MAX_BRANCHES: usize = 3;
 const MAX_TIMELINES: usize = 8;
-const TIMEOUT: u64 = 60;
+const TIMEOUT: u64 = 30;
 const POOL_SIZE: usize = 1024;
 const MAX_POOL_SIZE: usize = 100000;
 const N_THREADS: u32 = 14;
@@ -60,6 +60,13 @@ fn main() {
                 println!("{}. {} {{{:.2}}}", (turn / 2) + 1, node.path[0], value);
             } else {
                 println!(" / {} {{{}}}", node.path[0], value);
+            }
+
+            #[cfg(feature = "countnodes")]
+            {
+                let nodes = *NODES.lock().unwrap();
+                let sigma = *SIGMA.lock().unwrap();
+                println!("{{N: {}, ms: {}, N/s: {:.4}}}", nodes, sigma.as_millis(), nodes as f64 / sigma.as_millis() as f64 * 1000.0);
             }
 
             if game.info.len_timelines() > MAX_TIMELINES {
