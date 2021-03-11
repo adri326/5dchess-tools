@@ -3,6 +3,7 @@ use crate::prelude::*;
 use crate::eval::Eval;
 use crate::check::is_in_check;
 use super::{TreeNode, EvalNode};
+use super::TasksOptions;
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
@@ -74,12 +75,14 @@ pub struct Tasks<'a> {
 }
 
 impl<'a> Tasks<'a> {
-    pub fn new(
+    pub fn new<C: Goal>(
         game: &'a Game,
-        pool_size: usize,
-        max_pool_size: usize,
-        max_duration: Option<Duration>,
+        options: TasksOptions<C>,
     ) -> Self {
+        let max_duration = options.max_duration;
+        let pool_size = options.pool_size;
+        let max_pool_size = options.max_pool_size;
+
         let mut pool = VecDeque::with_capacity(pool_size);
 
         pool.push_back((

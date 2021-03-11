@@ -29,7 +29,6 @@ fn main() {
         if let Some((node, value)) = iddfs_bl_schedule(
             &game,
             MAX_BRANCHES,
-            Some(Duration::new(TIMEOUT, 0)),
             PieceValues::default()
             .inactive_multiplier(0.05)
             .add(
@@ -45,9 +44,11 @@ fn main() {
             ).add(
                 PawnProgression::default()
             ),
-            POOL_SIZE,
-            MAX_POOL_SIZE,
-            N_THREADS,
+            TasksOptions::default()
+                .n_threads(N_THREADS)
+                .max_pool_size(MAX_POOL_SIZE)
+                .pool_size(POOL_SIZE)
+                .max_duration(Some(Duration::new(TIMEOUT, 0))),
             APPROX,
         ) {
             let new_partial_game = {
