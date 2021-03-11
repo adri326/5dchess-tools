@@ -98,15 +98,16 @@ impl<'a> From<&TreeNode<'a>> for EvalNode {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct TasksOptions<C: Goal> {
+pub struct TasksOptions<C: Goal, G: Goal> {
     pub n_threads: u32,
     pub pool_size: usize,
     pub max_pool_size: usize,
     pub condition: C,
+    pub goal: G,
     pub max_duration: Option<std::time::Duration>,
 }
 
-impl<C: Goal> TasksOptions<C> {
+impl<C: Goal, G: Goal> TasksOptions<C, G> {
     pub fn n_threads(mut self, value: u32) -> Self {
         self.n_threads = value;
         self
@@ -127,43 +128,49 @@ impl<C: Goal> TasksOptions<C> {
         self
     }
 
-    pub fn condition(mut self, value: C) -> Self {
-        self.condition = value;
-        self
+    pub fn condition<C2: Goal>(self, value: C2) -> TasksOptions<C2, G> {
+        (value, self.goal, self).into()
+    }
+
+    pub fn goal<G2: Goal>(self, value: G2) -> TasksOptions<C, G2> {
+        (self.condition, value, self).into()
     }
 }
 
-impl<C: Goal> From<C> for TasksOptions<C> {
+impl<C: Goal> From<C> for TasksOptions<C, FalseGoal> {
     fn from(condition: C) -> Self {
         Self {
             n_threads: 1,
             pool_size: 32,
             max_pool_size: 10000,
             condition,
+            goal: FalseGoal,
             max_duration: None,
         }
     }
 }
 
-impl<C: Goal, D: Goal> From<(C, TasksOptions<D>)> for TasksOptions<C> {
-    fn from((condition, options): (C, TasksOptions<D>)) -> Self {
+impl<C: Goal, G: Goal, D: Goal, H: Goal> From<(C, G, TasksOptions<D, H>)> for TasksOptions<C, G> {
+    fn from((condition, goal, options): (C, G, TasksOptions<D, H>)) -> Self {
         Self {
             n_threads: options.n_threads,
             pool_size: options.pool_size,
             max_pool_size: options.max_pool_size,
             condition,
+            goal,
             max_duration: options.max_duration,
         }
     }
 }
 
-impl Default for TasksOptions<TrueGoal> {
+impl Default for TasksOptions<TrueGoal, FalseGoal> {
     fn default() -> Self {
         Self {
             n_threads: 1,
             pool_size: 32,
             max_pool_size: 10000,
             condition: TrueGoal,
+            goal: FalseGoal,
             max_duration: None,
         }
     }

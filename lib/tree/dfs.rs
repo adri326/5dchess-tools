@@ -19,11 +19,11 @@ lazy_static! {
 
 const APPROX_MIN_NODES: usize = 16;
 
-pub fn dfs_schedule<F: EvalFn, C: Goal>(
+pub fn dfs_schedule<F: EvalFn, C: Goal, G: Goal>(
     game: &Game,
     depth: usize,
     eval_fn: F,
-    options: TasksOptions<C>,
+    options: TasksOptions<C, G>,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
@@ -45,6 +45,7 @@ pub fn dfs_schedule<F: EvalFn, C: Goal>(
                 options.max_duration,
                 eval_fn,
                 options.condition,
+                options.goal,
                 depth,
                 approx,
             );
@@ -62,30 +63,31 @@ pub fn dfs_schedule<F: EvalFn, C: Goal>(
 
 
 // TODO: actually make this threaded
-pub fn dfs_bl_schedule<F: EvalFn>(
+pub fn dfs_bl_schedule<F: EvalFn, G: Goal>(
     game: &Game,
     depth: usize,
     max_branches: usize,
     eval_fn: F,
-    options: TasksOptions<TrueGoal>,
+    options: TasksOptions<TrueGoal, G>,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     dfs_schedule(
         game,
         depth,
         eval_fn,
-        (MaxBranching::new(&game.info, max_branches), options).into(),
+        options.condition(MaxBranching::new(&game.info, max_branches)),
         approx,
     )
 }
 
-pub fn dfs<'a, F: EvalFn, C: Goal>(
+pub fn dfs<'a, F: EvalFn, C: Goal, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
     condition: C,
+    goal: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     #[cfg(feature = "countnodes")]
@@ -100,6 +102,7 @@ pub fn dfs<'a, F: EvalFn, C: Goal>(
         max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
         eval_fn,
         condition,
+        goal,
         approx,
     )?;
 
@@ -118,13 +121,14 @@ pub fn dfs<'a, F: EvalFn, C: Goal>(
 }
 
 
-pub fn dfs_bl<'a, F: EvalFn>(
+pub fn dfs_bl<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
     max_branches: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
+    goal: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     #[cfg(feature = "countnodes")]
@@ -139,6 +143,7 @@ pub fn dfs_bl<'a, F: EvalFn>(
         max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
         eval_fn,
         MaxBranching::new(&game.info, max_branches),
+        goal,
         approx,
     )?;
 
@@ -156,7 +161,7 @@ pub fn dfs_bl<'a, F: EvalFn>(
     Some((res.0, res.1))
 }
 
-fn dfs_rec<'a, F: EvalFn, C: Goal>(
+fn dfs_rec<'a, F: EvalFn, C: Goal, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
@@ -165,6 +170,7 @@ fn dfs_rec<'a, F: EvalFn, C: Goal>(
     max_duration: Duration,
     eval_fn: F,
     condition: C,
+    goal: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval, u64)> {
     if max_duration == Duration::new(0, 0) {
@@ -228,6 +234,7 @@ fn dfs_rec<'a, F: EvalFn, C: Goal>(
                             max_duration.checked_sub(start.elapsed())?,
                             eval_fn,
                             condition,
+                            goal,
                             approx,
                         )?;
 
@@ -280,12 +287,13 @@ fn dfs_rec<'a, F: EvalFn, C: Goal>(
 
 // == IDDFS ==
 
-pub fn iddfs<'a, F: EvalFn, C: Goal>(
+pub fn iddfs<'a, F: EvalFn, C: Goal, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     max_duration: Option<Duration>,
     eval_fn: F,
     condition: C,
+    goal: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let mut best = None;
@@ -306,6 +314,7 @@ pub fn iddfs<'a, F: EvalFn, C: Goal>(
             max_duration.map(|d| d.checked_sub(start.elapsed())).flatten(),
             eval_fn,
             condition,
+            goal,
             approx,
         ) {
             best = Some(best_node);
@@ -318,12 +327,13 @@ pub fn iddfs<'a, F: EvalFn, C: Goal>(
     best
 }
 
-pub fn iddfs_bl<'a, F: EvalFn>(
+pub fn iddfs_bl<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     max_branches: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
+    goal: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     iddfs(
@@ -331,15 +341,16 @@ pub fn iddfs_bl<'a, F: EvalFn>(
         node,
         max_duration,
         eval_fn,
+        goal,
         MaxBranching::new(&game.info, max_branches),
         approx,
     )
 }
 
-pub fn iddfs_schedule<'a, F: EvalFn, C: Goal>(
+pub fn iddfs_schedule<'a, F: EvalFn, C: Goal, G: Goal>(
     game: &'a Game,
     eval_fn: F,
-    options: TasksOptions<C>,
+    options: TasksOptions<C, G>,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
@@ -364,6 +375,7 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: Goal>(
                     max_duration,
                     eval_fn,
                     options.condition,
+                    options.goal,
                     depth,
                     approx,
                 );
@@ -408,26 +420,27 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: Goal>(
     best
 }
 
-pub fn iddfs_bl_schedule<'a, F: EvalFn>(
+pub fn iddfs_bl_schedule<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     max_branches: usize,
     eval_fn: F,
-    options: TasksOptions<TrueGoal>,
+    options: TasksOptions<TrueGoal, G>,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     iddfs_schedule(
         game,
         eval_fn,
-        (MaxBranching::new(&game.info, max_branches), options).into(),
+        options.condition(MaxBranching::new(&game.info, max_branches)),
         approx,
     )
 }
 
 
-struct DFSExecutor<'a, F, C>
+struct DFSExecutor<'a, F, C, G>
 where
     F: EvalFn,
-    C: Goal
+    C: Goal,
+    G: Goal,
 {
     game: &'a Game,
     task: TreeNode<'a>,
@@ -435,14 +448,16 @@ where
     max_duration: Option<Duration>,
     eval_fn: F,
     condition: C,
+    goal: G,
     depth: usize,
     approx: bool,
 }
 
-impl<'a, F, C> DFSExecutor<'a, F, C>
+impl<'a, F, C, G> DFSExecutor<'a, F, C, G>
 where
     F: EvalFn,
-    C: Goal
+    C: Goal,
+    G: Goal,
  {
     fn new(
         game: &'a Game,
@@ -451,6 +466,7 @@ where
         max_duration: Option<Duration>,
         eval_fn: F,
         condition: C,
+        goal: G,
         depth: usize,
         approx: bool,
     ) -> Self {
@@ -461,6 +477,7 @@ where
             max_duration,
             eval_fn,
             condition,
+            goal,
             depth,
             approx,
         }
@@ -486,6 +503,7 @@ where
                 self.max_duration.map(|d| d.checked_sub(start.elapsed()).unwrap_or(Duration::new(0, 0))),
                 self.eval_fn,
                 self.condition,
+                self.goal,
                 self.approx,
             )?
         };

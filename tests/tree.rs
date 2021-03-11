@@ -12,7 +12,7 @@ extern crate lazy_static;
 
 const N_THREADS: u32 = 4;
 lazy_static! {
-    pub static ref OPTIONS: TasksOptions<TrueGoal> = TasksOptions::default().n_threads(N_THREADS).max_duration(Some(Duration::new(20, 0)));
+    pub static ref OPTIONS: TasksOptions<TrueGoal, FalseGoal> = TasksOptions::default().n_threads(N_THREADS).max_duration(Some(Duration::new(20, 0)));
 }
 
 
@@ -31,7 +31,7 @@ fn test_dfs_rook_tactics_1() {
         branches: 0,
     };
 
-    let res = dfs(&game, node, 1, Some(Duration::new(10, 0)), NoEvalFn::new(), TrueGoal, false);
+    let res = dfs(&game, node, 1, Some(Duration::new(10, 0)), NoEvalFn::new(), TrueGoal, FalseGoal, false);
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-1!");
     assert_eq!(res, dfs_schedule(&game, 1, NoEvalFn::new(), *OPTIONS, false), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
@@ -77,11 +77,11 @@ fn test_dfs_rook_tactics_2() {
         branches: 0,
     };
 
-    let res = dfs(&game, node.clone(), 3, Some(Duration::new(30, 0)), NoEvalFn::new(), TrueGoal, false);
+    let res = dfs(&game, node.clone(), 3, Some(Duration::new(30, 0)), NoEvalFn::new(), TrueGoal, FalseGoal, false);
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-2!");
     let dfs_res = dfs_schedule(&game, 3, NoEvalFn::new(), *OPTIONS, false).expect("dfs_schedule should return Some(...)");
     assert!(dfs_res.0.path[0] == solution_1 || dfs_res.0.path[0] == solution_2, "dfs_schedule should return a valid solution");
-    let iddfs_res = iddfs(&game, node, Some(Duration::new(30, 0)), NoEvalFn::new(), TrueGoal, false).expect("iddfs should return Some(...)");
+    let iddfs_res = iddfs(&game, node, Some(Duration::new(30, 0)), NoEvalFn::new(), TrueGoal, FalseGoal, false).expect("iddfs should return Some(...)");
     assert!(iddfs_res.0.path[0] == solution_1 || iddfs_res.0.path[0] == solution_2, "iddfs should return a valid solution");
     let (node, value) = res.unwrap();
     assert_eq!(node.path[0], solution_1);
@@ -104,7 +104,7 @@ fn test_dfs_standard_1() {
         branches: 0,
     };
 
-    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new(), TrueGoal, false);
+    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new(), TrueGoal, FalseGoal, false);
     assert!(res.is_some(), "dfs timed out or errored out on standard-mate-1!");
     assert_eq!(res, dfs_schedule(&game, 1, NoEvalFn::new(), *OPTIONS, false), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
@@ -127,7 +127,7 @@ fn test_dfs_rook_tactics_3() {
         branches: 0,
     };
 
-    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new(), TrueGoal, false);
+    let res = dfs(&game, node, 3, Some(Duration::new(20, 0)), NoEvalFn::new(), TrueGoal, FalseGoal, false);
     assert!(res.is_some(), "dfs timed out or errored out on rook-tactics-3!");
     assert_eq!(res, dfs_schedule(&game, 1, NoEvalFn::new(), *OPTIONS, false), "dfs_schedule to return the same value as dfs");
     let (node, value) = res.unwrap();
@@ -146,7 +146,7 @@ fn test_dfs_advanced_branching_2() {
         branches: 0,
     };
 
-    let res = dfs(&game, node, 1, Some(Duration::new(20, 0)), NoEvalFn::new(), TrueGoal, false);
+    let res = dfs(&game, node, 1, Some(Duration::new(20, 0)), NoEvalFn::new(), TrueGoal, FalseGoal, false);
     assert!(res.is_some(), "dfs timed out or errored out on advanced-branching-2!");
     let partial_game = no_partial_game(&game);
     let (node, value) = res.unwrap();

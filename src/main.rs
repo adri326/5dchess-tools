@@ -35,7 +35,7 @@ fn main() -> std::io::Result<()> {
     println!("Is mate? {:?}", chess5dlib::mate::is_mate(&game, &partial_game, None));
 
     const D: usize = 3;
-    println!("DFS, d={}: {:?}", D, dfs_bl(&game, TreeNode::empty(&game), D, 3, None, PieceValues::default(), false));
+    println!("DFS, d={}: {:?}", D, dfs_bl(&game, TreeNode::empty(&game), D, 3, None, PieceValues::default(), FalseGoal, false));
 
     // println!("Number of movesets: {}", GenMovesetIter::new(
     //     partial_game.own_boards(&game).collect(),

@@ -75,9 +75,9 @@ pub struct Tasks<'a> {
 }
 
 impl<'a> Tasks<'a> {
-    pub fn new<C: Goal>(
+    pub fn new<C: Goal, G: Goal>(
         game: &'a Game,
-        options: TasksOptions<C>,
+        options: TasksOptions<C, G>,
     ) -> Self {
         let max_duration = options.max_duration;
         let pool_size = options.pool_size;
