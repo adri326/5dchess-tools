@@ -19,7 +19,7 @@ lazy_static! {
 
 const APPROX_MIN_NODES: usize = 16;
 
-pub fn dfs_schedule<F: EvalFn, G: Goal>(
+pub fn dfs_schedule<F: EvalFn, C: Goal>(
     game: &Game,
     depth: usize,
     max_duration: Option<Duration>,
@@ -27,7 +27,7 @@ pub fn dfs_schedule<F: EvalFn, G: Goal>(
     pool_size: usize,
     max_pool_size: usize,
     n_threads: u32,
-    condition: G,
+    condition: C,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
@@ -90,13 +90,13 @@ pub fn dfs_bl_schedule<F: EvalFn>(
     )
 }
 
-pub fn dfs<'a, F: EvalFn, G: Goal>(
+pub fn dfs<'a, F: EvalFn, C: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
-    condition: G,
+    condition: C,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     #[cfg(feature = "countnodes")]
@@ -167,7 +167,7 @@ pub fn dfs_bl<'a, F: EvalFn>(
     Some((res.0, res.1))
 }
 
-fn dfs_rec<'a, F: EvalFn, G: Goal>(
+fn dfs_rec<'a, F: EvalFn, C: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
@@ -175,7 +175,7 @@ fn dfs_rec<'a, F: EvalFn, G: Goal>(
     beta: Eval,
     max_duration: Duration,
     eval_fn: F,
-    condition: G,
+    condition: C,
     approx: bool,
 ) -> Option<(EvalNode, Eval, u64)> {
     if max_duration == Duration::new(0, 0) {
@@ -291,12 +291,12 @@ fn dfs_rec<'a, F: EvalFn, G: Goal>(
 
 // == IDDFS ==
 
-pub fn iddfs<'a, F: EvalFn, G: Goal>(
+pub fn iddfs<'a, F: EvalFn, C: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     max_duration: Option<Duration>,
     eval_fn: F,
-    condition: G,
+    condition: C,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let mut best = None;
@@ -347,14 +347,14 @@ pub fn iddfs_bl<'a, F: EvalFn>(
     )
 }
 
-pub fn iddfs_schedule<'a, F: EvalFn, G: Goal>(
+pub fn iddfs_schedule<'a, F: EvalFn, C: Goal>(
     game: &'a Game,
     max_duration: Option<Duration>,
     eval_fn: F,
     pool_size: usize,
     max_pool_size: usize,
     n_threads: u32,
-    condition: G,
+    condition: C,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
@@ -445,25 +445,25 @@ pub fn iddfs_bl_schedule<'a, F: EvalFn>(
 }
 
 
-struct DFSExecutor<'a, F, G>
+struct DFSExecutor<'a, F, C>
 where
     F: EvalFn,
-    G: Goal
+    C: Goal
 {
     game: &'a Game,
     task: TreeNode<'a>,
     handle: schedule::TreeHandle,
     max_duration: Option<Duration>,
     eval_fn: F,
-    condition: G,
+    condition: C,
     depth: usize,
     approx: bool,
 }
 
-impl<'a, F, G> DFSExecutor<'a, F, G>
+impl<'a, F, C> DFSExecutor<'a, F, C>
 where
     F: EvalFn,
-    G: Goal
+    C: Goal
  {
     fn new(
         game: &'a Game,
@@ -471,7 +471,7 @@ where
         handle: schedule::TreeHandle,
         max_duration: Option<Duration>,
         eval_fn: F,
-        condition: G,
+        condition: C,
         depth: usize,
         approx: bool,
     ) -> Self {
