@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use chess5dlib::{parse::*, prelude::*, check::*, gen::*};
+use chess5dlib::{parse::*, prelude::*, check::*, gen::*, tree::{*, dfs::*}, eval::*};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -33,6 +33,9 @@ fn main() -> std::io::Result<()> {
 
     println!("Is in check? {:?}", is_in_check(&game, &partial_game));
     println!("Is mate? {:?}", chess5dlib::mate::is_mate(&game, &partial_game, None));
+
+    const D: usize = 3;
+    println!("DFS, d={}: {:?}", D, dfs_bl(&game, TreeNode::empty(&game), D, 3, None, PieceValues::default(), false));
 
     // println!("Number of movesets: {}", GenMovesetIter::new(
     //     partial_game.own_boards(&game).collect(),

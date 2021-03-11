@@ -5,10 +5,11 @@ use chess5dlib::{
     tree::*,
 };
 use std::time::{Duration, Instant};
+use std::env;
 
 // const DEPTH: usize = 3;
-const MAX_BRANCHES: usize = 2;
-const MAX_TIMELINES: usize = 6;
+const MAX_BRANCHES: usize = 3;
+const MAX_TIMELINES: usize = 8;
 const TIMEOUT: u64 = 60;
 const POOL_SIZE: usize = 1024;
 const MAX_POOL_SIZE: usize = 100000;
@@ -16,7 +17,8 @@ const N_THREADS: u32 = 14;
 const APPROX: bool = true;
 
 fn main() {
-    let mut game = read_and_parse_opt("tests/games/brawns-empty.json").unwrap();
+    let path = env::args().last().unwrap();
+    let mut game = read_and_parse_opt(&path).unwrap();
 
     // let pg = no_partial_game(&game);
     // for b in pg.own_boards(&game) {
@@ -36,6 +38,7 @@ fn main() {
                 .diagonal_opponent(-0.75)
                 .orthogonal_empty(-0.25)
                 .orthogonal_opponent(-1.0)
+                .knight_opponent(-0.5)
                 .additional_king(-6.0)
             ).add(
                 TimelineAdvantage::default()
@@ -54,7 +57,7 @@ fn main() {
             new_partial_game.apply(&mut game);
 
             if turn % 2 == 0 {
-                println!("{}. {} {{{}}}", (turn / 2) + 1, node.path[0], value);
+                println!("{}. {} {{{:.2}}}", (turn / 2) + 1, node.path[0], value);
             } else {
                 println!(" / {} {{{}}}", node.path[0], value);
             }

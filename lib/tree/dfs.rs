@@ -207,11 +207,12 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
                                 best_score = Some(-child_score);
                                 best_node = Some(child_best);
                             }
-                            Some(b) if -child_score > b => {
-                                best_score = Some(-child_score);
-                                best_node = Some(child_best);
+                            Some(b) => {
+                                if -child_score > b {
+                                    best_score = Some(-child_score);
+                                    best_node = Some(child_best);
+                                }
                             }
-                            _ => {}
                         }
 
                         if best_score.unwrap() > alpha {
@@ -347,11 +348,22 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
             }
         });
 
+        if max_duration.map(|d| d <= start.elapsed()).unwrap_or(false) {
+            break
+        }
+
         // println!("{{Depth {} complete!}}", depth);
 
         tasks.update_tree();
         if let Some(b) = tasks.best_move() {
             let v = b.1;
+
+            // print!("{{d={}, score={:7.2}, path=", depth, b.1);
+            // for ms in b.0.path.iter(){
+            //     print!("{}", ms);
+            // }
+            // println!("}}");
+
             best = Some(b);
             if v.is_infinite() || tasks.root_eval()?.is_infinite() {
                 break
@@ -360,7 +372,7 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
             // println!("{:?}", tasks);
             break
         }
-        tasks.reset(true, false, depth);
+        tasks.reset(true, false, depth + 1);
 
         depth += 1;
     }
