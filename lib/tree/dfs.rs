@@ -4,6 +4,7 @@ use crate::{
     gen::*,
     eval::{EvalFn, Eval},
     check::is_in_check,
+    goals::branch::*,
 };
 use super::*;
 use std::time::{Instant, Duration};
@@ -18,7 +19,7 @@ lazy_static! {
 
 const APPROX_MIN_NODES: usize = 16;
 
-pub fn dfs_schedule<F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy + Send>(
+pub fn dfs_schedule<F: EvalFn, G: Goal>(
     game: &Game,
     depth: usize,
     max_duration: Option<Duration>,
@@ -26,7 +27,7 @@ pub fn dfs_schedule<F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy + Sen
     pool_size: usize,
     max_pool_size: usize,
     n_threads: u32,
-    condition: C,
+    condition: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
@@ -84,18 +85,18 @@ pub fn dfs_bl_schedule<F: EvalFn>(
         pool_size,
         max_pool_size,
         n_threads,
-        move |node| node.branches <= max_branches,
+        MaxBranching::new(&game.info, max_branches),
         approx,
     )
 }
 
-pub fn dfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
+pub fn dfs<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
-    condition: C,
+    condition: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     #[cfg(feature = "countnodes")]
@@ -148,7 +149,7 @@ pub fn dfs_bl<'a, F: EvalFn>(
         f32::INFINITY,
         max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
         eval_fn,
-        move |node| node.branches <= max_branches,
+        MaxBranching::new(&game.info, max_branches),
         approx,
     )?;
 
@@ -166,7 +167,7 @@ pub fn dfs_bl<'a, F: EvalFn>(
     Some((res.0, res.1))
 }
 
-fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
+fn dfs_rec<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
@@ -174,7 +175,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
     beta: Eval,
     max_duration: Duration,
     eval_fn: F,
-    condition: C,
+    condition: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval, u64)> {
     if max_duration == Duration::new(0, 0) {
@@ -228,7 +229,7 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
 
                     let child_node = TreeNode::extend(&node, child_ms, child_pos);
 
-                    if condition(&child_node) {
+                    if condition.verify(&child_node.path, game, &child_node.partial_game, Some(depth))? {
                         let (child_best, child_score, child_nodes) = dfs_rec(
                             game,
                             child_node,
@@ -290,12 +291,12 @@ fn dfs_rec<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
 
 // == IDDFS ==
 
-pub fn iddfs<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy>(
+pub fn iddfs<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     max_duration: Option<Duration>,
     eval_fn: F,
-    condition: C,
+    condition: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let mut best = None;
@@ -341,19 +342,19 @@ pub fn iddfs_bl<'a, F: EvalFn>(
         node,
         max_duration,
         eval_fn,
-        move |node| node.branches <= max_branches,
+        MaxBranching::new(&game.info, max_branches),
         approx,
     )
 }
 
-pub fn iddfs_schedule<'a, F: EvalFn, C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy + Send>(
+pub fn iddfs_schedule<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     max_duration: Option<Duration>,
     eval_fn: F,
     pool_size: usize,
     max_pool_size: usize,
     n_threads: u32,
-    condition: C,
+    condition: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
@@ -438,31 +439,31 @@ pub fn iddfs_bl_schedule<'a, F: EvalFn>(
         pool_size,
         max_pool_size,
         n_threads,
-        move |node| node.branches <= max_branches,
+        MaxBranching::new(&game.info, max_branches),
         approx,
     )
 }
 
 
-struct DFSExecutor<'a, F, C>
+struct DFSExecutor<'a, F, G>
 where
     F: EvalFn,
-    C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
+    G: Goal
 {
     game: &'a Game,
     task: TreeNode<'a>,
     handle: schedule::TreeHandle,
     max_duration: Option<Duration>,
     eval_fn: F,
-    condition: C,
+    condition: G,
     depth: usize,
     approx: bool,
 }
 
-impl<'a, F, C> DFSExecutor<'a, F, C>
+impl<'a, F, G> DFSExecutor<'a, F, G>
 where
     F: EvalFn,
-    C: for<'b> Fn(&TreeNode<'b>) -> bool + Copy
+    G: Goal
  {
     fn new(
         game: &'a Game,
@@ -470,7 +471,7 @@ where
         handle: schedule::TreeHandle,
         max_duration: Option<Duration>,
         eval_fn: F,
-        condition: C,
+        condition: G,
         depth: usize,
         approx: bool,
     ) -> Self {

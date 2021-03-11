@@ -7,7 +7,7 @@ Following is a list of the submodules and what they include:
 - [`misc`](./misc.rs): Contains miscellaneous goals that do not fit in the other categories.
 */
 
-pub mod misc;
+pub mod branch;
 
 #[derive(Clone)]
 pub struct ApplyGoals<'a, 'b, G, I>
@@ -21,7 +21,7 @@ where
     pub game: &'a Game,
     pub sigma: Duration,
     pub duration: Option<Duration>,
-    pub depth: usize,
+    pub max_depth: Option<usize>,
 }
 
 impl<'a, 'b, G, I> ApplyGoals<'a, 'b, G, I>
@@ -35,7 +35,7 @@ where
         goal: &'b G,
         game: &'a Game,
         duration: Option<Duration>,
-        depth: usize,
+        max_depth: Option<usize>,
     ) -> Self {
         Self {
             iterator,
@@ -43,7 +43,7 @@ where
             game,
             sigma: Duration::new(0, 0),
             duration,
-            depth,
+            max_depth,
         }
     }
 
@@ -95,8 +95,12 @@ where
 
             match self.iterator.next() {
                 Some((ms, partial_game)) => {
-                    match self.goal.verify(&ms, self.game, &partial_game, self.depth) {
-                        Some(true) => break Some((ms, partial_game)),
+                    let mut arr = vec![ms];
+                    match self.goal.verify(&arr, self.game, &partial_game, self.max_depth) {
+                        Some(true) => {
+                            let ms = arr.pop().unwrap();
+                            break Some((ms, partial_game))
+                        }
                         Some(false) => {}
                         None => break None,
                     }

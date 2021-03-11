@@ -41,16 +41,16 @@ use super::*;
 
     You may use the included `or`, `and`, `not` and `until` functions to combine goals together.
 **/
-pub trait Goal {
+pub trait Goal: Copy + Send {
     /**
         Required method. Return `Some(true)` if the given moveset is valid, `Some(false)` if it is invalid and `None` if an error occured.
     **/
     fn verify<'b>(
         &self,
-        moveset: &'b Moveset,
+        path: &'b [Moveset], // TODO: &'b [Cow<Moveset>]?
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
-        depth: usize,
+        max_depth: Option<usize>,
     ) -> Option<bool>;
 
     fn or<G: Goal>(self, goal: G) -> OrGoal<Self, G>
@@ -83,32 +83,34 @@ pub trait Goal {
 }
 
 /** A goal that will always return true. **/
+#[derive(Clone, Copy)]
 pub struct TrueGoal;
 
 impl Goal for TrueGoal {
     #[inline]
     fn verify<'b>(
         &self,
-        _moveset: &'b Moveset,
+        _path: &'b [Moveset],
         _game: &'b Game,
         _partial_game: &'b PartialGame<'b>,
-        _depth: usize,
+        _max_depth: Option<usize>,
     ) -> Option<bool> {
         Some(true)
     }
 }
 
 /** A goal that will always return false. **/
+#[derive(Clone, Copy)]
 pub struct FalseGoal;
 
 impl Goal for FalseGoal {
     #[inline]
     fn verify<'b>(
         &self,
-        _moveset: &'b Moveset,
+        _path: &'b [Moveset],
         _game: &'b Game,
         _partial_game: &'b PartialGame<'b>,
-        _depth: usize,
+        _max_depth: Option<usize>,
     ) -> Option<bool> {
         Some(false)
     }
@@ -118,6 +120,7 @@ impl Goal for FalseGoal {
     A goal that will return true if its sub-goal returns false, representing the negation of its sub-goal.
     If the sub-goal fails (by returning `None`), it will also fail (by returning `None`).
 **/
+#[derive(Clone, Copy)]
 pub struct NotGoal<G>
 where
     G: Goal,
@@ -141,12 +144,12 @@ where
     #[inline]
     fn verify<'b>(
         &self,
-        moveset: &'b Moveset,
+        path: &'b [Moveset],
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
-        depth: usize,
+        max_depth: Option<usize>,
     ) -> Option<bool> {
-        match self.goal.verify(moveset, game, partial_game, depth) {
+        match self.goal.verify(path, game, partial_game, max_depth) {
             Some(x) => Some(!x),
             None => None,
         }
@@ -156,6 +159,7 @@ where
 /**
     A goal that will return true if either of its sub-goals returns true, representing the disjunction of both goals.
 **/
+#[derive(Clone, Copy)]
 pub struct OrGoal<Left, Right>
 where
     Left: Goal,
@@ -183,13 +187,13 @@ where
     #[inline]
     fn verify<'b>(
         &self,
-        moveset: &'b Moveset,
+        path: &'b [Moveset],
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
-        depth: usize,
+        max_depth: Option<usize>,
     ) -> Option<bool> {
-        match self.left.verify(moveset, game, partial_game, depth) {
-            Some(false) => self.right.verify(moveset, game, partial_game, depth),
+        match self.left.verify(path, game, partial_game, max_depth) {
+            Some(false) => self.right.verify(path, game, partial_game, max_depth),
             x => x,
         }
     }
@@ -198,6 +202,7 @@ where
 /**
     A goal that returns true if both sub-goals return true, representing the conjunction of both goals.
 **/
+#[derive(Clone, Copy)]
 pub struct AndGoal<Left, Right>
 where
     Left: Goal,
@@ -225,18 +230,19 @@ where
     #[inline]
     fn verify<'b>(
         &self,
-        moveset: &'b Moveset,
+        path: &'b [Moveset],
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
-        depth: usize,
+        max_depth: Option<usize>,
     ) -> Option<bool> {
-        match self.left.verify(moveset, game, partial_game, depth) {
-            Some(true) => self.right.verify(moveset, game, partial_game, depth),
+        match self.left.verify(path, game, partial_game, max_depth) {
+            Some(true) => self.right.verify(path, game, partial_game, max_depth),
             x => x,
         }
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct UntilGoal<G: Goal> {
     pub goal: G,
     pub max_depth: usize,
@@ -252,15 +258,16 @@ impl<G: Goal> Goal for UntilGoal<G> {
     #[inline]
     fn verify<'b>(
         &self,
-        moveset: &'b Moveset,
+        path: &'b [Moveset],
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
-        depth: usize,
+        max_depth: Option<usize>,
     ) -> Option<bool> {
+        let depth = path.len();
         if depth > self.max_depth {
-            Some(false)
+            Some(true)
         } else {
-            self.goal.verify(moveset, game, partial_game, depth)
+            self.goal.verify(path, game, partial_game, max_depth)
         }
     }
 }
