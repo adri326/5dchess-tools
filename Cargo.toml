@@ -11,6 +11,7 @@ default = ["castling"]
 castling = []
 bitboard128 = []
 countnodes = []
+iddfs_log = []
 
 [lib]
 name = "chess5dlib"

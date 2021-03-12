@@ -402,11 +402,13 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: Goal, G: Goal>(
         if let Some(b) = tasks.best_move() {
             let v = b.1;
 
-            // print!("{{d={}, score={:7.2}, path=", depth, b.1);
-            // for ms in b.0.path.iter(){
-            //     print!("{}", ms);
-            // }
-            // println!("}}");
+            if cfg!(feature = "iddfs_log") {
+                print!("{{d={}, score={:7.2}, path=", depth, b.1);
+                for ms in b.0.path.iter(){
+                    print!("{}", ms);
+                }
+                println!("}}");
+            }
 
             best = Some(b);
             if v.is_infinite() || tasks.root_eval()?.is_infinite() {
