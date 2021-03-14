@@ -367,7 +367,7 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: Goal, G: Goal>(
     let mut pool = Pool::new(options.n_threads);
     let mut best = None;
 
-    let mut depth: usize = 0;
+    let mut depth: usize = 1;
 
     while max_duration.map(|d| start.elapsed() < d).unwrap_or(true) {
         pool.scoped(|scope| {
@@ -410,10 +410,20 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: Goal, G: Goal>(
                 println!("}}");
             }
 
-            best = Some(b);
             if v.is_infinite() || tasks.root_eval()?.is_infinite() {
+                if tasks.root_eval()? == Eval::INFINITY {
+                    best = Some(b);
+                } else {
+                    if let Some((mv, _)) = best {
+                        best = Some((mv, v));
+                    } else {
+                        best = Some(b);
+                    }
+                }
                 break
             }
+
+            best = Some(b);
         } else {
             // println!("{:?}", tasks);
             break

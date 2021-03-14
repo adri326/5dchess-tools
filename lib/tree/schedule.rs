@@ -366,9 +366,9 @@ impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
         // }
 
         // for task in &self.pool {
-        //     if self.tree[task.1].1.lock().unwrap().unwrap().is_finite() {
-        //         println!("{:?} {:?}", task.0.path, self.tree[task.1]);
+        //     if self.tree[task.1].1.lock().unwrap().map(|x| x.is_finite()).unwrap_or(false) {
         //         if self.tree[task.1].2 == Some(2) {
+        //             println!("{:?} {:?}", task.0.path, self.tree[task.1]);
         //             println!("{:#?}", task);
         //         }
         //     }
