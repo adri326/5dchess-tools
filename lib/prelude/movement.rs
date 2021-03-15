@@ -185,7 +185,7 @@ impl Move {
                 // Replace pieces
                 new_board.set(((self.to.1).2, (self.to.1).3), set_moved(new_board.pieces[from_index], true))?;
                 new_board.set(((self.from.1).2, (self.from.1).3), Tile::Blank)?;
-                new_board.set((ex, ey), Tile::Blank)?;
+                new_board.set((ex, if new_board.t % 2 == 0 { ey + 1 } else { ey - 1 }), Tile::Blank)?;
 
                 new_board
             },

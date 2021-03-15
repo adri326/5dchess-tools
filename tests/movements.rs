@@ -190,6 +190,13 @@ pub fn test_brawns_en_passant() {
             Coords::new(0, 4, 4, 3),
         ]
     );
+
+    let ms2 = Moveset::new(vec![Move::new(&game, &new_partial_game, Coords(0, 4, 2, 2), Coords(0, 4, 1, 3)).unwrap()], &new_partial_game.info).unwrap();
+    let new_partial_game = ms2.generate_partial_game(&game, &new_partial_game).unwrap();
+
+    assert_eq!(new_partial_game.get_with_game(&game, Coords(0, 5, 1, 3)), Tile::Piece(Piece::new(PieceKind::Brawn, true, true)));
+    assert_eq!(new_partial_game.get_with_game(&game, Coords(0, 5, 1, 2)), Tile::Blank);
+    assert_eq!(new_partial_game.get_with_game(&game, Coords(0, 5, 1, 4)), Tile::Blank);
 }
 
 pub fn test_piece_movement<'a>(
