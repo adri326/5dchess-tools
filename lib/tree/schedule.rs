@@ -361,9 +361,17 @@ impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
             }
         }
 
-        // for _handle in &self.tree {
-        //     println!("=> {:?}", _handle);
-        // }
+        if cfg!(feature = "schedule_log") {
+            for _handle in &self.tree {
+                if _handle.2 == Some(0) {
+                    print!("  {{ => {}  ", _handle.1.lock().unwrap().map(|x| format!("{:7.4}", -x)).unwrap_or(String::from("?")));
+                    for ms in &self.roots[_handle.0 - 1].path {
+                        print!("{}", ms);
+                    }
+                    println!("}}");
+                }
+            }
+        }
 
         // for task in &self.pool {
         //     if self.tree[task.1].1.lock().unwrap().map(|x| x.is_finite()).unwrap_or(false) {
@@ -408,18 +416,33 @@ impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
         if self.recyclable {
             self.index = 0;
             if prune {
+                // Traverse the tree to agressively trim nodes
+                for handle in &self.tree {
+                    if let Some(parent_index) = handle.2 {
+                        if let (Ok(parent_guard), Ok(mut handle_guard)) = (
+                            self.tree[parent_index].1.try_lock(),
+                            handle.1.try_lock()
+                        ) {
+                            if parent_guard.map(|x| x.is_infinite()).unwrap_or(false) {
+                                *handle_guard = *parent_guard;
+                            }
+                        }
+                    }
+                }
+
                 for _ in 0..self.pool.len() {
                     if let Some((node, handle_index)) = self.pool.pop_front() {
                         let handle = &self.tree[handle_index];
+
                         let keep = if let Ok(guard) = handle.1.try_lock() {
                             match *guard {
                                 Some(value) => value.is_finite(),
                                 None => !prune_empty,
                             }
                         } else {
-                            // Couldn't lock the mutex, so retain the value
                             true
                         };
+
                         if keep {
                             self.pool.push_back((node, handle_index))
                         } else {
