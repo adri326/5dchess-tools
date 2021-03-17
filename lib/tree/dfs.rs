@@ -18,6 +18,7 @@ lazy_static! {
 }
 
 const APPROX_MIN_NODES: usize = 16;
+const PRUNE_VALUE: Eval = Eval::NEG_INFINITY;
 
 pub fn dfs_schedule<F: EvalFn, C: Goal, G: Goal>(
     game: &Game,
@@ -279,7 +280,7 @@ fn dfs_rec<'a, F: EvalFn, C: Goal, G: Goal>(
                         let score = if is_in_check(game, &node.partial_game)?.0 {
                             Eval::NEG_INFINITY
                         } else {
-                            0.0
+                            PRUNE_VALUE
                         };
                         Some((node.into(), score, nodes))
                     }

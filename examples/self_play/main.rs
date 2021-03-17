@@ -3,6 +3,7 @@ use chess5dlib::{
     prelude::*,
     eval::*,
     tree::*,
+    goals::branch::*,
 };
 use std::time::{Duration, Instant};
 use std::env;
@@ -10,10 +11,10 @@ use std::env;
 // const DEPTH: usize = 3;
 const MAX_BRANCHES: usize = 3;
 const MAX_TIMELINES: usize = 8;
-const TIMEOUT: u64 = 60 * 30;
+const TIMEOUT: u64 = 60 * 60;
 const POOL_SIZE: usize = 128;
 const MAX_POOL_SIZE: usize = 100000;
-const N_THREADS: u32 = 14;
+const N_THREADS: u32 = 16;
 const APPROX: bool = true;
 
 fn main() {
@@ -26,9 +27,8 @@ fn main() {
     }
 
     for turn in 0..100 {
-        if let Some((node, value)) = iddfs_bl_schedule(
+        if let Some((node, value)) = iddfs_schedule(
             &game,
-            MAX_BRANCHES,
             PieceValues::default()
             .inactive_multiplier(0.05)
             .add(
@@ -48,6 +48,8 @@ fn main() {
             ).add(
                 Deepen::default()
                 .none_mult(0.05)
+                .win_value(2.0)
+                .timeout_win_value(1.0)
                 .max_time(Duration::new(0, 1_000_000))
                 .eval(
                     PieceValues::default()
@@ -57,6 +59,16 @@ fn main() {
                 .intermediary_value(
                     PieceValues::default()
                     .add(TimelineAdvantage::default())
+                    .add(
+                        KingSafety::default()
+                        .diagonal_empty(-0.02)
+                        .diagonal_opponent(-0.5)
+                        .orthogonal_empty(-0.02)
+                        .orthogonal_opponent(-1.0)
+                        .knight_opponent(-1.0)
+                        .additional_king(-6.0)
+                        .inactive_multiplier(0.1)
+                    )
                 )
             )
             ,
@@ -64,7 +76,13 @@ fn main() {
                 .n_threads(N_THREADS)
                 .max_pool_size(MAX_POOL_SIZE)
                 .pool_size(POOL_SIZE)
-                .max_duration(Some(Duration::new(TIMEOUT, 0))),
+                .max_duration(Some(Duration::new(TIMEOUT, 0)))
+                .condition(
+                    MaxBranching::new(&game.info, MAX_BRANCHES)
+                    .and(InefficientBranching::new(5))
+                    .and(BranchBefore::new(5))
+                    .and(InactiveTimeline::default())
+                ),
             APPROX,
         ) {
             let new_partial_game = {
@@ -92,5 +110,6 @@ fn main() {
         } else {
             break
         }
+        break
     }
 }
