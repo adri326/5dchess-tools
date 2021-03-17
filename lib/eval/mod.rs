@@ -15,6 +15,9 @@ pub use timeline_advantage::TimelineAdvantage;
 pub mod pawn_progression;
 pub use pawn_progression::PawnProgression;
 
+pub mod deepen;
+pub use deepen::Deepen;
+
 pub type Eval = f32;
 
 pub trait EvalFn : Copy + Send {
