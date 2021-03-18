@@ -160,11 +160,12 @@ pub fn is_mate<'a>(
                         != (mv.to.1).1
                 {
                     match Moveset::new(vec![mv], &partial_game.info) {
-                        Ok(ms) => {
+                        Ok(mut ms) => {
                             if let Some(new_partial_game) =
                                 ms.generate_partial_game(game, partial_game)
                             {
                                 if !unwrap_mate!(is_illegal(game, &new_partial_game)).0 {
+                                    ms.necessary_branching = true;
                                     return Mate::None(ms, new_partial_game, None);
                                 }
                             }

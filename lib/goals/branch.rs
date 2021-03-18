@@ -105,7 +105,7 @@ impl Goal for InefficientBranching {
     ) -> Option<bool> {
         if path.len() >= self.depth {
             let ms = &path[path.len() - self.depth];
-            Some(!ms.branches)
+            Some(!ms.branches || ms.necessary_branching)
         } else {
             Some(true)
         }
@@ -140,7 +140,7 @@ impl Goal for BranchBefore {
         if let Some(max_depth) = max_depth {
             if max_depth - path.len() > self.depth {
                 if let Some(ms) = path.last() {
-                    return Some(!ms.branches)
+                    return Some(!ms.branches || ms.necessary_branching)
                 }
             }
         }

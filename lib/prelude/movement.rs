@@ -508,6 +508,7 @@ pub enum MovesetValidityErr {
 pub struct Moveset {
     moves: Vec<Move>,
     pub branches: bool,
+    pub necessary_branching: bool,
 }
 
 impl Moveset {
@@ -619,7 +620,7 @@ impl Moveset {
 
             // If the player can create a new active timeline and branches back
             if info.timeline_advantage(info.active_player) > 0 && branch_back {
-                return Ok(Moveset { moves, branches: true })
+                return Ok(Moveset { moves, branches: true, necessary_branching: false })
             }
 
             // Look at the now-active timelines and check that the present is pushed forward
@@ -640,7 +641,7 @@ impl Moveset {
             }
         }
 
-        Ok(Moveset { moves, branches: branches > 0 })
+        Ok(Moveset { moves, branches: branches > 0, necessary_branching: false })
     }
 
     #[inline]

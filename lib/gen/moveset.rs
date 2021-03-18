@@ -249,6 +249,15 @@ const ATTACKERS_PREFERED_LEN: usize = 20;
 /// Number of trims after which it is considered unnecessary to record any more attackers
 const ATTACKERS_MAX_TRIM: usize = 20;
 
+/// Number of non-branching legal movesets after which branching legal movesets are considered non-necessary
+/// A non-necessary branching legal moveset *may* be trimmed off during tree search (see `goals::branches::InefficientBranching`)
+/// A too high value will result in said trimming techniques to not be as efficient as they could.
+///
+/// There is no easy way to preemptively tell that such a branching moveset is necessary. This is currently the best that
+/// GenLegalMovesetIter can do.
+const MIN_NON_BRANCHING: usize = 5;
+// TODO: pre-sort moves to only put branching ones last?
+
 /**
     An iterator, similar to GenMovesetIter, which only yields legal movesets.
     It does its best to look for legal movesets as fast a possible.
@@ -288,6 +297,8 @@ pub struct GenLegalMovesetIter<'a> {
     // Attacker cache
     attackers: Vec<(Coords, usize)>,
     attackers_trim_count: usize,
+
+    n_non_branching: usize,
 }
 
 fn sort_boards(partial_game: &PartialGame, a: &Board, b: &Board) -> Ordering {
@@ -380,6 +391,8 @@ impl<'a> GenLegalMovesetIter<'a> {
 
             attackers: Vec::with_capacity(ATTACKERS_THRESHOLD),
             attackers_trim_count: 0,
+
+            n_non_branching: 0,
         }
     }
 
@@ -413,6 +426,8 @@ impl<'a> GenLegalMovesetIter<'a> {
 
             attackers: Vec::with_capacity(ATTACKERS_THRESHOLD),
             attackers_trim_count: 0,
+
+            n_non_branching: 0,
         }
     }
 
@@ -513,7 +528,7 @@ impl<'a> GenLegalMovesetIter<'a> {
             boards.push(self.boards[index].get_board_cached(state).unwrap());
         }
 
-        if let Ok(ms) = Moveset::new_shifting(moves, &self.partial_game.info, true) {
+        if let Ok(mut ms) = Moveset::new_shifting(moves, &self.partial_game.info, true) {
             let mut new_partial_game = match &self.partial_game {
                 Cow::Borrowed(partial_game) => PartialGame::empty(self.partial_game.info.clone(), Some(partial_game)),
                 Cow::Owned(partial_game) => {
@@ -576,7 +591,14 @@ impl<'a> GenLegalMovesetIter<'a> {
                     is_illegal(self.game, &new_partial_game)
                 };
                 match illegal {
-                    Some((false, _)) => return Some((ms, new_partial_game)),
+                    Some((false, _)) => {
+                        if new_partial_game.info.len_timelines() == self.partial_game.info.len_timelines() {
+                            self.n_non_branching += 1;
+                        } else if self.n_non_branching <= MIN_NON_BRANCHING {
+                            ms.necessary_branching = true;
+                        }
+                        return Some((ms, new_partial_game))
+                    },
                     Some((true, None)) => {}
                     Some((true, Some(mv))) => {
                         self.insert_attacker(mv.from.1);
