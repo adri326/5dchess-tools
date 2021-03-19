@@ -20,12 +20,13 @@ fn bench_dfs<M: Measurement>(
     name: &str
 ) {
     group.bench_with_input(BenchmarkId::new(name, format!("dfs, d={}, bl={}", depth, max_branches)), &game, |b, game| {
-        let mut tasks = Tasks::new(game, 256, Some(Duration::new(10, 0)));
+        let options = TasksOptions::default().pool_size(256).max_duration(Some(Duration::new(10, 0)));
+        let mut tasks = Tasks::new(game, options);
         b.iter_batched(|| {
             match tasks.next() {
                 Some(x) => x,
                 None => {
-                    tasks = Tasks::new(game, 256, Some(Duration::new(10, 0)));
+                    tasks = Tasks::new(game, options);
                     tasks.next().unwrap()
                 }
             }
@@ -43,6 +44,8 @@ fn bench_dfs<M: Measurement>(
                     max_branches,
                     Some(Duration::new(10, 0)),
                     NoEvalFn::new(),
+                    FalseGoal,
+                    false
                 ).expect("dfs timed out!")
             };
 
@@ -59,12 +62,13 @@ fn bench_eval_sub<M: Measurement>(
     eval_fn: impl EvalFn,
 ) {
     group.bench_with_input(name, &game, |b, game| {
-        let mut tasks = Tasks::new(game, 256, Some(Duration::new(10, 0)));
+        let options = TasksOptions::default().pool_size(256).max_duration(Some(Duration::new(10, 0)));
+        let mut tasks = Tasks::new(game, options);
         b.iter_batched(|| {
             match tasks.next() {
                 Some(x) => x,
                 None => {
-                    tasks = Tasks::new(game, 256, Some(Duration::new(10, 0)));
+                    tasks = Tasks::new(game, options);
                     tasks.next().unwrap()
                 }
             }
