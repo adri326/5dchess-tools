@@ -24,7 +24,7 @@ fn bench_is_mate_sub<M: Measurement>(group: &mut BenchmarkGroup<M>, game: &Game,
                     sigma += 1;
                     delta += start.elapsed();
                 }
-                Mate::None(_ms) => {
+                Mate::None(_ms, _pos, _gen) => {
                     sigma += 1;
                     delta += start.elapsed();
                 }
