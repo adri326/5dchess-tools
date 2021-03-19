@@ -40,12 +40,16 @@ fn main() {
                 .knight_opponent(-0.6)
                 .additional_king(-6.0)
                 .inactive_multiplier(0.05)
-            ).add(
-                TimelineAdvantage::default(),
-            ).add(
+            )
+            .add(
                 PawnProgression::default()
                 .inactive_multiplier(0.05)
-            ).add(
+            )
+            .into_eval()
+            .add(
+                TimelineAdvantage::default(),
+            )
+            .add(
                 Deepen::default()
                 .none_mult(0.05)
                 .win_value(2.0)
@@ -53,12 +57,12 @@ fn main() {
                 .max_time(Duration::new(0, 1_000_000))
                 .eval(
                     PieceValues::default()
-                    .add(TimelineAdvantage::default())
                     .add(PawnProgression::default())
+                    .into_eval()
+                    .add(TimelineAdvantage::default())
                 )
                 .intermediary_value(
                     PieceValues::default()
-                    .add(TimelineAdvantage::default())
                     .add(
                         KingSafety::default()
                         .diagonal_empty(-0.02)
@@ -69,9 +73,10 @@ fn main() {
                         .additional_king(-6.0)
                         .inactive_multiplier(0.1)
                     )
+                    .into_eval()
+                    .add(TimelineAdvantage::default())
                 )
-            )
-            ,
+            ),
             TasksOptions::default()
                 .n_threads(N_THREADS)
                 .max_pool_size(MAX_POOL_SIZE)

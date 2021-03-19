@@ -128,7 +128,7 @@ pub fn bench_eval<M: Measurement>(c: &mut Criterion<M>) {
             .measurement_time(Duration::new(20, 0))
             .sample_size(1000);
         let game = read_and_parse("tests/games/standard-check.json");
-        bench_eval_sub(&mut moveset_group, &game, "Standard Check 1", PieceValues::default());
+        bench_eval_sub(&mut moveset_group, &game, "Standard Check 1", PieceValues::default().into_eval());
     }
 }
 

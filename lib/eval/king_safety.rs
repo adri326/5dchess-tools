@@ -135,55 +135,52 @@ mod macros {
     }
 }
 
-impl EvalFn for KingSafety {
-    fn eval<'a>(&self, game: &'a Game, node: &'a TreeNode) -> Option<Eval> {
+impl EvalBoardFn for KingSafety {
+    fn eval_board(&self, _game: &Game, node: &TreeNode, board: &Board) -> Option<Eval> {
         let partial_game = &node.partial_game;
         let mut sum: Eval = 0.0;
 
         let mut found_king_white: bool = false;
         let mut found_king_black: bool = false;
+        let multiplier = if partial_game.info.is_active(board.l()) { 1.0 } else { self.inactive_multiplier };
+        for (index, piece) in board.pieces.iter().enumerate() {
+            if let Tile::Piece(piece) = piece {
+                if piece.kind == PieceKind::King {
+                    if self.orthogonal_empty != 0.0 || self.orthogonal_opponent != 0.0 {
+                        king_safety!(self, board, sum, piece, index, multiplier, 0, 1, self.allowed_distance, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, 0, -1, self.allowed_distance, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, 1, 0, self.allowed_distance, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, -1, 0, self.allowed_distance, true);
+                    }
+                    if self.diagonal_empty != 0.0 || self.diagonal_opponent != 0.0 {
+                        king_safety!(self, board, sum, piece, index, multiplier, 1, 1, self.allowed_distance, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, 1, -1, self.allowed_distance, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, -1, 1, self.allowed_distance, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, -1, -1, self.allowed_distance, true);
+                    }
+                    if self.knight_empty != 0.0 || self.knight_opponent != 0.0 {
+                        king_safety!(self, board, sum, piece, index, multiplier, 2, 1, 0, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, -2, 1, 0, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, 2, -1, 0, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, -2, 1, 0, true);
 
-        for board in partial_game.own_boards(game).chain(partial_game.opponent_boards(game)) {
-            let multiplier = if partial_game.info.is_active(board.l()) { 1.0 } else { self.inactive_multiplier };
-            for (index, piece) in board.pieces.iter().enumerate() {
-                if let Tile::Piece(piece) = piece {
-                    if piece.kind == PieceKind::King {
-                        if self.orthogonal_empty != 0.0 || self.orthogonal_opponent != 0.0 {
-                            king_safety!(self, board, sum, piece, index, multiplier, 0, 1, self.allowed_distance, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, 0, -1, self.allowed_distance, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, 1, 0, self.allowed_distance, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, -1, 0, self.allowed_distance, true);
-                        }
-                        if self.diagonal_empty != 0.0 || self.diagonal_opponent != 0.0 {
-                            king_safety!(self, board, sum, piece, index, multiplier, 1, 1, self.allowed_distance, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, 1, -1, self.allowed_distance, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, -1, 1, self.allowed_distance, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, -1, -1, self.allowed_distance, true);
-                        }
-                        if self.knight_empty != 0.0 || self.knight_opponent != 0.0 {
-                            king_safety!(self, board, sum, piece, index, multiplier, 2, 1, 0, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, -2, 1, 0, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, 2, -1, 0, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, -2, 1, 0, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, 1, 2, 0, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, -1, 2, 0, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, 1, -2, 0, true);
+                        king_safety!(self, board, sum, piece, index, multiplier, -1, 2, 0, true);
+                    }
 
-                            king_safety!(self, board, sum, piece, index, multiplier, 1, 2, 0, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, -1, 2, 0, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, 1, -2, 0, true);
-                            king_safety!(self, board, sum, piece, index, multiplier, -1, 2, 0, true);
-                        }
-
-                        if piece.white {
-                            if found_king_white {
-                                sum += self.additional_king;
-                            } else {
-                                found_king_white = true;
-                            }
+                    if piece.white {
+                        if found_king_white {
+                            sum += self.additional_king;
                         } else {
-                            if found_king_black {
-                                sum -= self.additional_king;
-                            } else {
-                                found_king_black = true;
-                            }
+                            found_king_white = true;
+                        }
+                    } else {
+                        if found_king_black {
+                            sum -= self.additional_king;
+                        } else {
+                            found_king_black = true;
                         }
                     }
                 }

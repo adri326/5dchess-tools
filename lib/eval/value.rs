@@ -106,30 +106,29 @@ impl Default for PieceValues {
     }
 }
 
-impl EvalFn for PieceValues {
-    fn eval<'a>(&self, game: &'a Game, node: &'a TreeNode) -> Option<Eval> {
+impl EvalBoardFn for PieceValues {
+    fn eval_board(&self, _game: &Game, node: &TreeNode, board: &Board) -> Option<Eval> {
         let partial_game = &node.partial_game;
         let mut sum: Eval = 0.0;
-        for board in partial_game.own_boards(game).chain(partial_game.opponent_boards(game)) {
-            let multiplier = if partial_game.info.is_active(board.l()) { 1.0 } else { self.inactive_multiplier };
-            for piece in &board.pieces {
-                if let Tile::Piece(piece) = piece {
-                    let value = match piece.kind {
-                        PieceKind::Pawn => self.pawn,
-                        PieceKind::Knight => self.knight,
-                        PieceKind::Bishop => self.bishop,
-                        PieceKind::Rook => self.rook,
-                        PieceKind::Queen => self.queen,
-                        PieceKind::Princess => self.princess,
-                        PieceKind::King => self.king,
-                        PieceKind::Brawn => self.brawn,
-                        PieceKind::Unicorn => self.unicorn,
-                        PieceKind::Dragon => self.dragon,
-                        PieceKind::CommonKing => self.common_king,
-                        PieceKind::RoyalQueen => self.royal_queen,
-                    };
-                    sum += if piece.white { 1.0 } else { -1.0 } * value * multiplier;
-                }
+
+        let multiplier = if partial_game.info.is_active(board.l()) { 1.0 } else { self.inactive_multiplier };
+        for piece in &board.pieces {
+            if let Tile::Piece(piece) = piece {
+                let value = match piece.kind {
+                    PieceKind::Pawn => self.pawn,
+                    PieceKind::Knight => self.knight,
+                    PieceKind::Bishop => self.bishop,
+                    PieceKind::Rook => self.rook,
+                    PieceKind::Queen => self.queen,
+                    PieceKind::Princess => self.princess,
+                    PieceKind::King => self.king,
+                    PieceKind::Brawn => self.brawn,
+                    PieceKind::Unicorn => self.unicorn,
+                    PieceKind::Dragon => self.dragon,
+                    PieceKind::CommonKing => self.common_king,
+                    PieceKind::RoyalQueen => self.royal_queen,
+                };
+                sum += if piece.white { 1.0 } else { -1.0 } * value * multiplier;
             }
         }
 

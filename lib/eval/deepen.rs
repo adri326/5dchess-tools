@@ -36,9 +36,9 @@ impl Default for Deepen<NoEvalFn, NoEvalFn> {
 
             win_value: 5.0,
             draw_value: 0.0,
-            eval: NoEvalFn(),
+            eval: NoEvalFn,
             none_mult: 0.1,
-            intermediary_eval: NoEvalFn(),
+            intermediary_eval: NoEvalFn,
 
             timeout_win_value: 3.0, // Not as valuable as a clear win
             timeout_draw_value: -0.05, // Slight disadvantage because of the computational complexity

@@ -36,29 +36,27 @@ impl Default for PawnProgression {
     }
 }
 
-impl EvalFn for PawnProgression {
-    fn eval<'a>(&self, game: &'a Game, node: &'a TreeNode) -> Option<Eval> {
+impl EvalBoardFn for PawnProgression {
+    fn eval_board(&self, _game: &Game, node: &TreeNode, board: &Board) -> Option<Eval> {
         let partial_game = &node.partial_game;
         let mut sum: Eval = 0.0;
 
-        for board in partial_game.own_boards(game).chain(partial_game.opponent_boards(game)) {
-            let multiplier = if partial_game.info.is_active(board.l()) { 1.0 } else { self.inactive_multiplier };
+        let multiplier = if partial_game.info.is_active(board.l()) { 1.0 } else { self.inactive_multiplier };
 
-            for (index, piece) in board.pieces.iter().enumerate() {
-                if let Tile::Piece(piece) = piece {
-                    let y = (index % board.width() as usize) as Physical;
-                    let base_value = if piece.kind == PieceKind::Pawn {
-                        self.pawn_delta
-                    } else if piece.kind == PieceKind::Brawn {
-                        self.brawn_delta
-                    } else {
-                        continue
-                    };
-                    if piece.white {
-                        sum += base_value * y as Eval * multiplier;
-                    } else {
-                        sum -= base_value * (board.height() - y - 1) as Eval * multiplier;
-                    }
+        for (index, piece) in board.pieces.iter().enumerate() {
+            if let Tile::Piece(piece) = piece {
+                let y = (index % board.width() as usize) as Physical;
+                let base_value = if piece.kind == PieceKind::Pawn {
+                    self.pawn_delta
+                } else if piece.kind == PieceKind::Brawn {
+                    self.brawn_delta
+                } else {
+                    continue
+                };
+                if piece.white {
+                    sum += base_value * y as Eval * multiplier;
+                } else {
+                    sum -= base_value * (board.height() - y - 1) as Eval * multiplier;
                 }
             }
         }

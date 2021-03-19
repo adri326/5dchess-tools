@@ -162,5 +162,5 @@ fn test_eval_standard_empty() {
     let node = TreeNode::empty(&game);
     let piece_values = PieceValues::default();
 
-    assert_eq!(piece_values.eval(&game, &node), Some(0.0));
+    assert_eq!(piece_values.into_eval().eval(&game, &node), Some(0.0));
 }
