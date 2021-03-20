@@ -226,7 +226,10 @@ fn dfs_rec<'a, F: EvalFn, G: Goal>(
                         GoalResult::Loss => (child_node.into(), Eval::NEG_INFINITY, 1),
                         GoalResult::Error => return None,
                         GoalResult::Score(s) => (child_node.into(), s, 1),
-                        GoalResult::Ignore => continue,
+                        GoalResult::Stop => {
+                            let score = eval_fn.eval(game, &child_node)?;
+                            (child_node.into(), score, 1)
+                        }
                         GoalResult::Continue => {
                              dfs_rec(
                                 game,
@@ -497,8 +500,7 @@ where
                 GoalResult::Loss => (self.task.into(), Eval::NEG_INFINITY),
                 GoalResult::Score(s) => (self.task.into(), s),
                 GoalResult::Error => return None,
-                GoalResult::Ignore => return None,
-                GoalResult::Continue => {
+                GoalResult::Stop | GoalResult::Continue => {
                     let score = match self.eval_fn.eval(self.game, &self.task) {
                         Some(score) => score,
                         None => {

@@ -32,7 +32,7 @@ impl Goal for NoBranching {
         {
             GoalResult::Continue
         } else {
-            GoalResult::Ignore
+            GoalResult::Stop
         }
     }
 }
@@ -76,7 +76,7 @@ impl Goal for MaxBranching {
         if branches as usize <= self.max_branches {
             GoalResult::Continue
         } else {
-            GoalResult::Ignore
+            GoalResult::Stop
         }
     }
 }
@@ -115,7 +115,7 @@ impl Goal for InefficientBranching {
             if !ms.branches || ms.necessary_branching {
                 GoalResult::Continue
             } else {
-                GoalResult::Ignore
+                GoalResult::Stop
             }
         } else {
             GoalResult::Continue
@@ -124,7 +124,7 @@ impl Goal for InefficientBranching {
 }
 
 /**
-    Ignore lines where a branching occurred before the DFS depth was down to `depth`, useful for use with IDDFS.
+    Stop lines where a branching occurred before the DFS depth was down to `depth`, useful for use with IDDFS.
 
     **Note:** this filter loses accuracy.
 **/
@@ -154,7 +154,7 @@ impl Goal for BranchBefore {
                     if !ms.branches || ms.necessary_branching {
                         return GoalResult::Continue
                     } else {
-                        return GoalResult::Ignore
+                        return GoalResult::Stop
                     }
                 }
             }

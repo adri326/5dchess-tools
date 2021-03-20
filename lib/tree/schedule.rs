@@ -175,7 +175,7 @@ impl<'a, G: Goal> Tasks<'a, G> {
                     GoalResult::Score(s) => {
                         *self.tree[x.1].1.lock().unwrap() = Some(s);
                     }
-                    GoalResult::Ignore => continue,
+                    GoalResult::Stop => continue,
                     GoalResult::Error => return false,
                 }
             };
@@ -255,7 +255,7 @@ impl<'a, G: Goal> Tasks<'a, G> {
                                     }
                                 }
                             }
-                            GoalResult::Ignore => continue,
+                            GoalResult::Stop => continue,
                             GoalResult::Win => {
                                 *self.tree[x.1].1.lock().unwrap() = Some(Eval::INFINITY);
                             }

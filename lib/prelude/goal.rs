@@ -90,8 +90,8 @@ pub enum GoalResult {
     Loss,
     /// Continue the tree search as normal
     Continue,
-    /// Do not continue searching down
-    Ignore,
+    /// Do not continue searching down the given path; a score may be given to that node or it may be ignored
+    Stop,
     /// Give the node a set score
     Score(crate::eval::Eval),
     /// Error out
@@ -117,9 +117,9 @@ impl Goal for ContinueGoal {
 
 /** A goal that will always return false. **/
 #[derive(Clone, Copy)]
-pub struct IgnoreGoal;
+pub struct StopGoal;
 
-impl Goal for IgnoreGoal {
+impl Goal for StopGoal {
     #[inline]
     fn verify<'b>(
         &self,
@@ -128,7 +128,7 @@ impl Goal for IgnoreGoal {
         _partial_game: &'b PartialGame<'b>,
         _max_depth: Option<usize>,
     ) -> GoalResult {
-        GoalResult::Ignore
+        GoalResult::Stop
     }
 }
 
@@ -268,9 +268,9 @@ where
                     _ => GoalResult::Continue
                 }
             },
-            GoalResult::Ignore => {
+            GoalResult::Stop => {
                 match self.right.verify(path, game, partial_game, max_depth) {
-                    GoalResult::Ignore => GoalResult::Ignore,
+                    GoalResult::Stop => GoalResult::Stop,
                     GoalResult::Error => GoalResult::Error,
                     _ => GoalResult::Continue
                 }
