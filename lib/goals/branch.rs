@@ -26,11 +26,14 @@ impl Goal for NoBranching {
         _game: &'b Game,
         partial_game: &'b PartialGame<'b>,
         _max_depth: Option<usize>,
-    ) -> Option<bool> {
-        Some(
-            partial_game.info.min_timeline() == self.min_timeline
-                && partial_game.info.max_timeline() == self.max_timeline,
-        )
+    ) -> GoalResult {
+        if partial_game.info.min_timeline() == self.min_timeline
+                && partial_game.info.max_timeline() == self.max_timeline
+        {
+            GoalResult::Continue
+        } else {
+            GoalResult::Ignore
+        }
     }
 }
 
@@ -66,11 +69,15 @@ impl Goal for MaxBranching {
         _game: &'b Game,
         partial_game: &'b PartialGame<'b>,
         _max_depth: Option<usize>,
-    ) -> Option<bool> {
+    ) -> GoalResult {
         let branches = self.min_timeline - partial_game.info.min_timeline()
             + partial_game.info.max_timeline()
             - self.max_timeline;
-        Some(branches as usize <= self.max_branches)
+        if branches as usize <= self.max_branches {
+            GoalResult::Continue
+        } else {
+            GoalResult::Ignore
+        }
     }
 }
 
@@ -102,12 +109,16 @@ impl Goal for InefficientBranching {
         _game: &'b Game,
         _partial_game: &'b PartialGame<'b>,
         _max_depth: Option<usize>,
-    ) -> Option<bool> {
+    ) -> GoalResult {
         if path.len() >= self.depth {
             let ms = &path[path.len() - self.depth];
-            Some(!ms.branches || ms.necessary_branching)
+            if !ms.branches || ms.necessary_branching {
+                GoalResult::Continue
+            } else {
+                GoalResult::Ignore
+            }
         } else {
-            Some(true)
+            GoalResult::Continue
         }
     }
 }
@@ -136,15 +147,19 @@ impl Goal for BranchBefore {
         _game: &'b Game,
         _partial_game: &'b PartialGame<'b>,
         max_depth: Option<usize>,
-    ) -> Option<bool> {
+    ) -> GoalResult {
         if let Some(max_depth) = max_depth {
             if max_depth - path.len() > self.depth {
                 if let Some(ms) = path.last() {
-                    return Some(!ms.branches || ms.necessary_branching)
+                    if !ms.branches || ms.necessary_branching {
+                        return GoalResult::Continue
+                    } else {
+                        return GoalResult::Ignore
+                    }
                 }
             }
         }
-        Some(true)
+        GoalResult::Continue
     }
 }
 
@@ -185,7 +200,7 @@ impl Goal for InactiveTimeline {
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
         _max_depth: Option<usize>,
-    ) -> Option<bool> {
+    ) -> GoalResult {
         for tl in partial_game
             .info
             .timelines_white
@@ -215,7 +230,7 @@ impl Goal for InactiveTimeline {
                             }
 
                             if kings_from > kings_to {
-                                return Some(true);
+                                return GoalResult::Continue;
                             }
                         }
                     }
@@ -225,9 +240,9 @@ impl Goal for InactiveTimeline {
                     // TODO
                 }
 
-                return Some(false);
+                return GoalResult::Win;
             }
         }
-        Some(true)
+        GoalResult::Continue
     }
 }

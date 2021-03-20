@@ -20,11 +20,11 @@ lazy_static! {
 const APPROX_MIN_NODES: usize = 16;
 const PRUNE_VALUE: Eval = Eval::NEG_INFINITY;
 
-pub fn dfs_schedule<F: EvalFn, C: Goal, G: Goal>(
+pub fn dfs_schedule<F: EvalFn, G: Goal>(
     game: &Game,
     depth: usize,
     eval_fn: F,
-    options: TasksOptions<C, G>,
+    options: TasksOptions<G>,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
@@ -45,7 +45,6 @@ pub fn dfs_schedule<F: EvalFn, C: Goal, G: Goal>(
                 task.1,
                 options.max_duration,
                 eval_fn,
-                options.condition,
                 options.goal,
                 depth,
                 approx,
@@ -69,25 +68,25 @@ pub fn dfs_bl_schedule<F: EvalFn, G: Goal>(
     depth: usize,
     max_branches: usize,
     eval_fn: F,
-    options: TasksOptions<TrueGoal, G>,
+    options: TasksOptions<G>,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
+    let g = options.goal.or(MaxBranching::new(&game.info, max_branches));
     dfs_schedule(
         game,
         depth,
         eval_fn,
-        options.condition(MaxBranching::new(&game.info, max_branches)),
+        options.goal(g),
         approx,
     )
 }
 
-pub fn dfs<'a, F: EvalFn, C: Goal, G: Goal>(
+pub fn dfs<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
     max_duration: Option<Duration>,
     eval_fn: F,
-    condition: C,
     goal: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
@@ -102,7 +101,6 @@ pub fn dfs<'a, F: EvalFn, C: Goal, G: Goal>(
         f32::INFINITY,
         max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
         eval_fn,
-        condition,
         goal,
         approx,
     )?;
@@ -143,8 +141,7 @@ pub fn dfs_bl<'a, F: EvalFn, G: Goal>(
         f32::INFINITY,
         max_duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1)),
         eval_fn,
-        MaxBranching::new(&game.info, max_branches),
-        goal,
+        goal.or(MaxBranching::new(&game.info, max_branches)),
         approx,
     )?;
 
@@ -162,7 +159,7 @@ pub fn dfs_bl<'a, F: EvalFn, G: Goal>(
     Some((res.0, res.1))
 }
 
-fn dfs_rec<'a, F: EvalFn, C: Goal, G: Goal>(
+fn dfs_rec<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     depth: usize,
@@ -170,16 +167,11 @@ fn dfs_rec<'a, F: EvalFn, C: Goal, G: Goal>(
     beta: Eval,
     max_duration: Duration,
     eval_fn: F,
-    condition: C,
     goal: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval, u64)> {
     if max_duration == Duration::new(0, 0) {
         return None
-    }
-
-    if goal.verify(&node.path, game, &node.partial_game, Some(depth + node.path.len()))? {
-        return Some((node.into(), f32::INFINITY, 1))
     }
 
     let start = Instant::now();
@@ -229,42 +221,48 @@ fn dfs_rec<'a, F: EvalFn, C: Goal, G: Goal>(
 
                     let child_node = TreeNode::extend(&node, child_ms, child_pos);
 
-                    if condition.verify(&child_node.path, game, &child_node.partial_game, Some(depth))? {
-                        let (child_best, child_score, child_nodes) = dfs_rec(
-                            game,
-                            child_node,
-                            depth - 1,
-                            -beta,
-                            -alpha,
-                            max_duration.checked_sub(start.elapsed())?,
-                            eval_fn,
-                            condition,
-                            goal,
-                            approx,
-                        )?;
+                    let (child_best, child_score, child_nodes) = match goal.verify(&child_node.path, game, &child_node.partial_game, Some(depth)) {
+                        GoalResult::Win => (child_node.into(), Eval::INFINITY, 1),
+                        GoalResult::Loss => (child_node.into(), Eval::NEG_INFINITY, 1),
+                        GoalResult::Error => return None,
+                        GoalResult::Score(s) => (child_node.into(), s, 1),
+                        GoalResult::Ignore => continue,
+                        GoalResult::Continue => {
+                             dfs_rec(
+                                game,
+                                child_node,
+                                depth - 1,
+                                -beta,
+                                -alpha,
+                                max_duration.checked_sub(start.elapsed())?,
+                                eval_fn,
+                                goal,
+                                approx,
+                            )?
+                        }
+                    };
 
-                        nodes += child_nodes;
+                    nodes += child_nodes;
 
-                        match best_score {
-                            None => {
+                    match best_score {
+                        None => {
+                            best_score = Some(-child_score);
+                            best_node = Some(child_best);
+                        }
+                        Some(b) => {
+                            if -child_score > b {
                                 best_score = Some(-child_score);
                                 best_node = Some(child_best);
                             }
-                            Some(b) => {
-                                if -child_score > b {
-                                    best_score = Some(-child_score);
-                                    best_node = Some(child_best);
-                                }
-                            }
                         }
+                    }
 
-                        if best_score.unwrap() > alpha {
-                            alpha = best_score.unwrap();
-                        }
+                    if best_score.unwrap() > alpha {
+                        alpha = best_score.unwrap();
+                    }
 
-                        if alpha >= beta || alpha == f32::INFINITY {
-                            break
-                        }
+                    if alpha >= beta || alpha == f32::INFINITY {
+                        break
                     }
                 }
 
@@ -292,12 +290,11 @@ fn dfs_rec<'a, F: EvalFn, C: Goal, G: Goal>(
 
 // == IDDFS ==
 
-pub fn iddfs<'a, F: EvalFn, C: Goal, G: Goal>(
+pub fn iddfs<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
     max_duration: Option<Duration>,
     eval_fn: F,
-    condition: C,
     goal: G,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
@@ -318,7 +315,6 @@ pub fn iddfs<'a, F: EvalFn, C: Goal, G: Goal>(
             depth,
             max_duration.map(|d| d.checked_sub(start.elapsed())).flatten(),
             eval_fn,
-            condition,
             goal,
             approx,
         ) {
@@ -346,16 +342,15 @@ pub fn iddfs_bl<'a, F: EvalFn, G: Goal>(
         node,
         max_duration,
         eval_fn,
-        goal,
-        MaxBranching::new(&game.info, max_branches),
+        goal.or(MaxBranching::new(&game.info, max_branches)),
         approx,
     )
 }
 
-pub fn iddfs_schedule<'a, F: EvalFn, C: Goal, G: Goal>(
+pub fn iddfs_schedule<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     eval_fn: F,
-    options: TasksOptions<C, G>,
+    options: TasksOptions<G>,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let start = Instant::now();
@@ -379,7 +374,6 @@ pub fn iddfs_schedule<'a, F: EvalFn, C: Goal, G: Goal>(
                     task.1,
                     max_duration,
                     eval_fn,
-                    options.condition,
                     options.goal,
                     depth,
                     approx,
@@ -441,22 +435,22 @@ pub fn iddfs_bl_schedule<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     max_branches: usize,
     eval_fn: F,
-    options: TasksOptions<TrueGoal, G>,
+    options: TasksOptions<G>,
     approx: bool,
 ) -> Option<(EvalNode, Eval)> {
+    let g = options.goal.or(MaxBranching::new(&game.info, max_branches));
     iddfs_schedule(
         game,
         eval_fn,
-        options.condition(MaxBranching::new(&game.info, max_branches)),
+        options.goal(g),
         approx,
     )
 }
 
 
-struct DFSExecutor<'a, F, C, G>
+struct DFSExecutor<'a, F, G>
 where
     F: EvalFn,
-    C: Goal,
     G: Goal,
 {
     game: &'a Game,
@@ -464,16 +458,14 @@ where
     handle: schedule::TreeHandle,
     max_duration: Option<Duration>,
     eval_fn: F,
-    condition: C,
     goal: G,
     depth: usize,
     approx: bool,
 }
 
-impl<'a, F, C, G> DFSExecutor<'a, F, C, G>
+impl<'a, F, G> DFSExecutor<'a, F, G>
 where
     F: EvalFn,
-    C: Goal,
     G: Goal,
  {
     fn new(
@@ -482,7 +474,6 @@ where
         handle: schedule::TreeHandle,
         max_duration: Option<Duration>,
         eval_fn: F,
-        condition: C,
         goal: G,
         depth: usize,
         approx: bool,
@@ -493,7 +484,6 @@ where
             handle,
             max_duration,
             eval_fn,
-            condition,
             goal,
             depth,
             approx,
@@ -502,10 +492,13 @@ where
 
     fn execute(self, start: Instant) -> Option<Eval> {
         let (_node, value) = if self.task.path.len() > self.depth {
-            if self.condition.verify(&self.task.path, &self.game, &self.task.partial_game, Some(self.task.path.len() + self.depth))? {
-                if self.goal.verify(&self.task.path, &self.game, &self.task.partial_game, Some(self.task.path.len() + self.depth))? {
-                    (self.task.into(), Eval::INFINITY)
-                } else {
+            match self.goal.verify(&self.task.path, &self.game, &self.task.partial_game, Some(self.task.path.len() + self.depth)) {
+                GoalResult::Win => (self.task.into(), Eval::INFINITY),
+                GoalResult::Loss => (self.task.into(), Eval::NEG_INFINITY),
+                GoalResult::Score(s) => (self.task.into(), s),
+                GoalResult::Error => return None,
+                GoalResult::Ignore => return None,
+                GoalResult::Continue => {
                     let score = match self.eval_fn.eval(self.game, &self.task) {
                         Some(score) => score,
                         None => {
@@ -515,8 +508,6 @@ where
 
                     (self.task.into(), score)
                 }
-            } else {
-                return None
             }
         } else {
             let depth = self.depth - self.task.path.len();
@@ -527,7 +518,6 @@ where
                 depth,
                 self.max_duration.map(|d| d.checked_sub(start.elapsed()).unwrap_or(Duration::new(0, 0))),
                 self.eval_fn,
-                self.condition,
                 self.goal,
                 self.approx,
             )?

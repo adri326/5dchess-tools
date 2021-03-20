@@ -57,7 +57,7 @@ impl TreeHandle {
     ```
 **/
 #[derive(Debug)]
-pub struct Tasks<'a, C: Goal, G: Goal> {
+pub struct Tasks<'a, G: Goal> {
     game: &'a Game,
 
     roots: Vec<TreeNode<'static>>,
@@ -73,14 +73,13 @@ pub struct Tasks<'a, C: Goal, G: Goal> {
     recyclable: bool,
     index: usize,
 
-    condition: C,
     goal: G,
 }
 
-impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
+impl<'a, G: Goal> Tasks<'a, G> {
     pub fn new(
         game: &'a Game,
-        options: TasksOptions<C, G>,
+        options: TasksOptions<G>,
     ) -> Self {
         let max_duration = options.max_duration;
         let pool_size = options.pool_size;
@@ -111,7 +110,6 @@ impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
             recyclable: true,
             index: 0,
 
-            condition: options.condition,
             goal: options.goal,
         }
     }
@@ -157,7 +155,7 @@ impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
             let (base_node, mut parent_index) = loop {
                 let x = self.pool.pop_front().unwrap();
                 match self.goal.verify(&x.0.path, self.game, &x.0.partial_game, Some(max_depth)) {
-                    Some(false) => {
+                    GoalResult::Continue => {
                         if x.0.path.len() <= max_depth {
                             break x
                         } else {
@@ -168,10 +166,17 @@ impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
                             }
                         }
                     }
-                    Some(true) => {
+                    GoalResult::Win => {
                         *self.tree[x.1].1.lock().unwrap() = Some(Eval::INFINITY);
                     }
-                    None => return false
+                    GoalResult::Loss => {
+                        *self.tree[x.1].1.lock().unwrap() = Some(Eval::NEG_INFINITY);
+                    }
+                    GoalResult::Score(s) => {
+                        *self.tree[x.1].1.lock().unwrap() = Some(s);
+                    }
+                    GoalResult::Ignore => continue,
+                    GoalResult::Error => return false,
                 }
             };
             let mut current_path = base_node.path;
@@ -239,7 +244,7 @@ impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
                     let elem = loop {
                         let x = self.pool.pop_front().unwrap();
                         match self.goal.verify(&x.0.path, self.game, &x.0.partial_game, None) {
-                            Some(false) => {
+                            GoalResult::Continue => {
                                 if x.0.path.len() <= max_depth {
                                     break x
                                 } else {
@@ -250,10 +255,17 @@ impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
                                     }
                                 }
                             }
-                            Some(true) => {
+                            GoalResult::Ignore => continue,
+                            GoalResult::Win => {
                                 *self.tree[x.1].1.lock().unwrap() = Some(Eval::INFINITY);
                             }
-                            None => return false
+                            GoalResult::Loss => {
+                                *self.tree[x.1].1.lock().unwrap() = Some(Eval::NEG_INFINITY);
+                            }
+                            GoalResult::Score(s) => {
+                                *self.tree[x.1].1.lock().unwrap() = Some(s);
+                            }
+                            GoalResult::Error => return false
                         }
                     };
                     let base_node = elem.0;
@@ -463,7 +475,7 @@ impl<'a, C: Goal, G: Goal> Tasks<'a, C, G> {
     }
 }
 
-impl<'a, C: Goal, G: Goal> Clone for Tasks<'a, C, G> {
+impl<'a, G: Goal> Clone for Tasks<'a, G> {
     fn clone(&self) -> Self {
         Tasks {
             game: self.game,
@@ -485,13 +497,12 @@ impl<'a, C: Goal, G: Goal> Clone for Tasks<'a, C, G> {
             recyclable: self.recyclable,
             index: self.index,
 
-            condition: self.condition,
             goal: self.goal,
         }
     }
 }
 
-impl<'a, C: Goal, G: Goal> Iterator for Tasks<'a, C, G> {
+impl<'a, G: Goal> Iterator for Tasks<'a, G> {
     type Item = (TreeNode<'static>, TreeHandle);
 
     /**

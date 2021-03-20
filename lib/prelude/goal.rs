@@ -24,7 +24,7 @@ use super::*;
             game: &'b Game,
             partial_game: &'b PartialGame<'b>,
             depth: usize
-        ) -> Option<bool> {
+        ) -> GoalResult {
             if depth > 4 {
                 Some(true)
             } else {
@@ -51,7 +51,7 @@ pub trait Goal: Copy + Send {
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
         max_depth: Option<usize>,
-    ) -> Option<bool>;
+    ) -> GoalResult;
 
     fn or<G: Goal>(self, goal: G) -> OrGoal<Self, G>
     where
@@ -82,11 +82,27 @@ pub trait Goal: Copy + Send {
     }
 }
 
+/// Value returned by a Goal, represents what decision a tree search algorithm should make
+pub enum GoalResult {
+    /// If the last move in a goal's given path results in the **current player** (the one about to play) winning
+    Win,
+    /// If the last move in a goal's given path results in the **current player** (the one about to play) losing
+    Loss,
+    /// Continue the tree search as normal
+    Continue,
+    /// Do not continue searching down
+    Ignore,
+    /// Give the node a set score
+    Score(crate::eval::Eval),
+    /// Error out
+    Error,
+}
+
 /** A goal that will always return true. **/
 #[derive(Clone, Copy)]
-pub struct TrueGoal;
+pub struct ContinueGoal;
 
-impl Goal for TrueGoal {
+impl Goal for ContinueGoal {
     #[inline]
     fn verify<'b>(
         &self,
@@ -94,16 +110,16 @@ impl Goal for TrueGoal {
         _game: &'b Game,
         _partial_game: &'b PartialGame<'b>,
         _max_depth: Option<usize>,
-    ) -> Option<bool> {
-        Some(true)
+    ) -> GoalResult {
+        GoalResult::Continue
     }
 }
 
 /** A goal that will always return false. **/
 #[derive(Clone, Copy)]
-pub struct FalseGoal;
+pub struct IgnoreGoal;
 
-impl Goal for FalseGoal {
+impl Goal for IgnoreGoal {
     #[inline]
     fn verify<'b>(
         &self,
@@ -111,8 +127,8 @@ impl Goal for FalseGoal {
         _game: &'b Game,
         _partial_game: &'b PartialGame<'b>,
         _max_depth: Option<usize>,
-    ) -> Option<bool> {
-        Some(false)
+    ) -> GoalResult {
+        GoalResult::Ignore
     }
 }
 
@@ -148,10 +164,12 @@ where
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
         max_depth: Option<usize>,
-    ) -> Option<bool> {
+    ) -> GoalResult {
         match self.goal.verify(path, game, partial_game, max_depth) {
-            Some(x) => Some(!x),
-            None => None,
+            GoalResult::Win => GoalResult::Loss,
+            GoalResult::Loss => GoalResult::Win,
+            GoalResult::Score(x) => GoalResult::Score(-x),
+            x => x,
         }
     }
 }
@@ -191,9 +209,9 @@ where
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
         max_depth: Option<usize>,
-    ) -> Option<bool> {
+    ) -> GoalResult {
         match self.left.verify(path, game, partial_game, max_depth) {
-            Some(false) => self.right.verify(path, game, partial_game, max_depth),
+            GoalResult::Continue => self.right.verify(path, game, partial_game, max_depth),
             x => x,
         }
     }
@@ -234,9 +252,29 @@ where
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
         max_depth: Option<usize>,
-    ) -> Option<bool> {
+    ) -> GoalResult {
         match self.left.verify(path, game, partial_game, max_depth) {
-            Some(true) => self.right.verify(path, game, partial_game, max_depth),
+            GoalResult::Win => {
+                match self.right.verify(path, game, partial_game, max_depth) {
+                    GoalResult::Win => GoalResult::Win,
+                    GoalResult::Error => GoalResult::Error,
+                    _ => GoalResult::Continue
+                }
+            },
+            GoalResult::Loss => {
+                match self.right.verify(path, game, partial_game, max_depth) {
+                    GoalResult::Loss => GoalResult::Loss,
+                    GoalResult::Error => GoalResult::Error,
+                    _ => GoalResult::Continue
+                }
+            },
+            GoalResult::Ignore => {
+                match self.right.verify(path, game, partial_game, max_depth) {
+                    GoalResult::Ignore => GoalResult::Ignore,
+                    GoalResult::Error => GoalResult::Error,
+                    _ => GoalResult::Continue
+                }
+            },
             x => x,
         }
     }
@@ -262,10 +300,10 @@ impl<G: Goal> Goal for UntilGoal<G> {
         game: &'b Game,
         partial_game: &'b PartialGame<'b>,
         max_depth: Option<usize>,
-    ) -> Option<bool> {
+    ) -> GoalResult {
         let depth = path.len();
         if depth > self.max_depth {
-            Some(true)
+            GoalResult::Continue
         } else {
             self.goal.verify(path, game, partial_game, max_depth)
         }

@@ -82,11 +82,11 @@ fn main() {
                 .max_pool_size(MAX_POOL_SIZE)
                 .pool_size(POOL_SIZE)
                 .max_duration(Some(Duration::new(TIMEOUT, 0)))
-                .condition(
+                .goal(
                     MaxBranching::new(&game.info, MAX_BRANCHES)
-                    .and(InefficientBranching::new(5))
-                    .and(BranchBefore::new(5))
-                    .and(InactiveTimeline::default())
+                    .or(InefficientBranching::new(5))
+                    .or(BranchBefore::new(5))
+                    .or(InactiveTimeline::default())
                 ),
             APPROX,
         ) {
