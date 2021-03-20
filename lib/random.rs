@@ -5,10 +5,9 @@ use rand::seq::SliceRandom;
 use std::borrow::Cow;
 use std::time::Duration;
 
-// Goals
-
-// Random movesets, useful for MCTS
-
+/**
+    Error value returned by `random_legal_moveset`, should it find mate, error out of time out.
+**/
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RandomLegalMovesetReason {
     Checkmate,
@@ -18,7 +17,12 @@ pub enum RandomLegalMovesetReason {
     TimeoutStalemate,
 }
 
-// TODO: make this less bad
+/**
+    Returns a random, legal moveset. This function can be used within a monte carlo-like tree search.
+    This algorithm works by shuffling the moves for each boards and the boards, before feeding them to
+    `GenLegalMovesetIter`.
+    This means that performances are slightly worse than `GenLegalMovesetIter`, as promising moves aren't considered first.
+**/
 pub fn random_legal_moveset<'a>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
