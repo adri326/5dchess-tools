@@ -41,7 +41,7 @@ fn main() -> std::io::Result<()> {
         let start = Instant::now();
 
         // Max limit of 100 turns
-        for turn in 0..100 {
+        for turn in 0..50 {
             if start.elapsed() > Duration::new(60, 0) {
                 break;
             }
@@ -101,6 +101,9 @@ fn main() -> std::io::Result<()> {
                         RandomLegalMovesetReason::Stalemate => {
                             header += "[Result \"1/2-1/2\"]\n";
                             header += "[Checkmate_timeout \"false\"]\n";
+                            // println!("{}", header);
+                            // println!("{}", res);
+                            // println!("{:#?}", partial_game);
                             println!("Stalemate!");
                         }
                     }
@@ -113,7 +116,8 @@ fn main() -> std::io::Result<()> {
         if !stopped {
             header += "[Result \"*\"]\n";
             header += "[Checkmate_timeout \"false\"]\n";
-            println!("Complete!");
+            // println!("Complete!");
+            // println!("{}\n{}", header, res);
         }
 
         let white = if partial_game.info.active_player {
@@ -157,7 +161,8 @@ fn main() -> std::io::Result<()> {
         if let Some(RandomLegalMovesetReason::Error) = result {
             // noop
         } else {
-            // println!("{}\n{}", header, res);
+            println!("-> {}", path);
+            // println!("@{}:\n\n{}\n{}", path, header, res);
             let mut file = File::create(path)?;
             file.write_all(format!("{}\n{}", header, res).as_bytes())?;
         }

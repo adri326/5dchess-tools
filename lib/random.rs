@@ -1,7 +1,8 @@
-use crate::*;
-use crate::gen::*;
 use crate::check::*;
+use crate::gen::*;
+use crate::*;
 use rand::seq::SliceRandom;
+use std::borrow::Cow;
 use std::time::Duration;
 
 // Goals
@@ -21,9 +22,8 @@ pub enum RandomLegalMovesetReason {
 pub fn random_legal_moveset<'a>(
     game: &'a Game,
     partial_game: &'a PartialGame<'a>,
-    duration: Option<Duration>,
+    max_duration: Option<Duration>,
 ) -> Result<(Moveset, PartialGame<'a>), RandomLegalMovesetReason> {
-    let duration = duration.unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1));
     let mut rng = rand::thread_rng();
     let mut active_boards: Vec<&Board> = partial_game
         .own_boards(game)
@@ -42,59 +42,61 @@ pub fn random_legal_moveset<'a>(
     let mut iters = Vec::new();
 
     for board in boards {
-        let mut moves: Vec<_> = FilterLegalMove::new(
+        let mut boards: Vec<_> = Vec::new();
+        let mut iter = FilterLegalMove::new(
             board
                 .generate_moves(game, partial_game)
                 .ok_or(RandomLegalMovesetReason::Error)?,
             game,
             partial_game,
-        )
-        .collect();
+        );
+
+        let mut moves: Vec<_> = Vec::new();
+        for mv in &mut iter {
+            moves.push(mv);
+        }
         moves.shuffle(&mut rng);
-        iters.push(CacheMoves::new(moves.into_iter()));
+
+        for mv in &moves {
+            let src = mv
+                .generate_source_board(game, partial_game)
+                .ok_or(RandomLegalMovesetReason::Error)?;
+            if mv.is_jump() {
+                let dst = mv
+                    .generate_target_board(game, partial_game)
+                    .ok_or(RandomLegalMovesetReason::Error)?;
+                boards.push((src, Some(dst)));
+            } else {
+                boards.push((src, None));
+            }
+        }
+
+        iters.push(CacheMovesBoards::from_raw_parts((
+            iter,
+            moves,
+            boards,
+            true,
+            game,
+            partial_game,
+        )));
     }
 
-    let mut iter = SigmaFilter::new(
-        GenMovesetIter::from_cached_iters(iters, game, partial_game)
-            .filter_timed(|_iter| true, duration)
-            .flatten()
-            .map(|ms| {
-                let res = match ms {
-                    Ok(ms) => match ms.generate_partial_game(game, partial_game) {
-                        Some(new_partial_game) => Some((ms, new_partial_game)),
-                        None => None,
-                    },
-                    Err(_) => None,
-                };
-                res
-            })
-            .filter_timed(|x| x.is_some(), duration),
-        |opt| {
-            let (_ms, new_partial_game) = opt.as_ref().unwrap();
-            !is_illegal(game, &new_partial_game).unwrap_or((true, None)).0
-        },
-        duration,
-    );
+    let mut iter =
+        GenLegalMovesetIter::with_iterators(game, Cow::Borrowed(partial_game), iters, max_duration);
 
     match iter.next() {
-        Some(Some(x)) => Ok(x),
+        Some((ms, pos)) => Ok((ms, pos)),
         _ => {
             if iter.timed_out() {
-                match generate_idle_boards(game, partial_game) {
-                    Some(idle_partial_game) => match is_threatened(game, &idle_partial_game) {
-                        Some((true, _)) => Err(RandomLegalMovesetReason::TimeoutCheckmate),
-                        Some((false, _)) => Err(RandomLegalMovesetReason::TimeoutStalemate),
-                        None => Err(RandomLegalMovesetReason::Error),
-                    },
+                match is_in_check(game, partial_game) {
+                    Some((true, _)) => Err(RandomLegalMovesetReason::TimeoutCheckmate),
+                    Some((false, _)) => Err(RandomLegalMovesetReason::TimeoutStalemate),
                     None => Err(RandomLegalMovesetReason::Error),
                 }
             } else {
-                match generate_idle_boards(game, partial_game) {
-                    Some(idle_partial_game) => match is_threatened(game, &idle_partial_game) {
-                        Some((true, _)) => Err(RandomLegalMovesetReason::Checkmate),
-                        Some((false, _)) => Err(RandomLegalMovesetReason::Stalemate),
-                        None => Err(RandomLegalMovesetReason::Error),
-                    },
+                match is_in_check(game, partial_game) {
+                    Some((true, _)) => Err(RandomLegalMovesetReason::Checkmate),
+                    Some((false, _)) => Err(RandomLegalMovesetReason::Stalemate),
                     None => Err(RandomLegalMovesetReason::Error),
                 }
             }

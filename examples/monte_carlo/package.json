@@ -6,6 +6,6 @@
     "author": "Shad Amethyst",
     "licence": "MIT",
     "dependencies": {
-        "5d-chess-js": "^1.0.3"
+        "5d-chess-js": "^1.0.27"
     }
 }
