@@ -34,6 +34,8 @@ pub use cache::{CacheMoves, CacheMovesBoards};
 pub mod moveset;
 pub use moveset::{generate_movesets_prefilter, GenMovesetIter, GenMovesetPreFilter, GenLegalMovesetIter};
 
+pub mod n_cuboids;
+
 /**
     An enum containing the different flags used by `GenMoves::generate_moves_flag.`
     Each flag allows you to only yield a subset of the moves, except for `Any`.

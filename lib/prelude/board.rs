@@ -15,7 +15,7 @@ pub struct Board {
     pub en_passant: Option<(Physical, Physical)>,
     pub castle: Option<(Physical, Physical, Physical, Physical)>,
     pub bitboards: BitBoards,
-    fits_bitboards: bool,
+    fits_bitboards: bool, // TODO: remove this
 }
 
 impl fmt::Debug for Board {
