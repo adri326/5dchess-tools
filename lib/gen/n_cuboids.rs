@@ -25,7 +25,7 @@ pub fn hc_contains(hypercuboid: HC, point: HashMap<Layer, usize>) -> bool {
 fn cut(mut hypercuboid: HC, sections: HashMap<Layer, Vec<usize>>) -> Vec<HC> {
     let mut res: Vec<HC> = Vec::with_capacity(sections.len());
 
-    for (index, section) in sections {
+    for section in sections {
         let (with_hc, without_hc) = split(hypercuboid, section);
         res.push(without_hc);
         hypercuboid = with_hc;
@@ -79,7 +79,8 @@ impl<'a> Search<'a> {
         let mut elements: Vec<AxisLoc> = Vec::new();
 
         for board in partial_game.own_boards(game) {
-            axes.insert(board.l(), Vec::new());
+            axes.insert(board.l(), vec![elements.len()]);
+            elements.push(AxisLoc::Pass(board.l(),Some(board.t())) );
         }
 
         for board in partial_game.own_boards(game) {
@@ -139,6 +140,8 @@ impl<'a> Search<'a> {
             };
 
             axes.insert(new_l, branching_axis.clone());
+            axes.get_mut(&new_l).unwrap().push(elements.len());
+            elements.push(AxisLoc::Pass(new_l,None));
         }
 
         Some(Self {
