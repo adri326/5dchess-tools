@@ -22,6 +22,11 @@ pub fn hc_contains(hypercuboid: HC, point: HashMap<Layer, usize>) -> bool {
     true
 }
 
+
+/**
+    Given a cross section, cut it out of a hypercuboid, returning a list of disjoint hypercuboids that are
+    subsets of the original.
+**/
 fn cut(mut hypercuboid: HC, sections: HashMap<Layer, Vec<usize>>) -> Vec<HC> {
     let mut res: Vec<HC> = Vec::with_capacity(sections.len());
 
@@ -34,6 +39,9 @@ fn cut(mut hypercuboid: HC, sections: HashMap<Layer, Vec<usize>>) -> Vec<HC> {
     res
 }
 
+/**
+    split a hypercuboid into two 
+**/
 fn split(hypercuboid: HC, section: (Layer, Vec<usize>)) -> (HC, HC) {
     let mut with_hc = hypercuboid.clone();
     let mut without_hc = hypercuboid;
@@ -48,6 +56,7 @@ fn split(hypercuboid: HC, section: (Layer, Vec<usize>)) -> (HC, HC) {
 
     (with_hc, without_hc)
 }
+
 
 #[derive(Clone)]
 pub enum AxisLoc {
