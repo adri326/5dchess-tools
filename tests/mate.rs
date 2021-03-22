@@ -263,7 +263,7 @@ fn test_gen_legal_moveset_partial_game() {
 
 
 #[test]
-fn defended_pawn_checkmate() {
+fn test_defended_pawn_checkmate() {
     let game = read_and_parse("tests/games/defended-pawn-checkmate.json");
     let partial_game = no_partial_game(&game);
 
@@ -302,7 +302,7 @@ fn defended_pawn_checkmate() {
 }
 
 #[test]
-fn standard_checkmate() {
+fn test_standard_checkmate() {
     let game = read_and_parse("tests/games/standard-checkmate.json");
     let partial_game = no_partial_game(&game);
 
@@ -341,7 +341,7 @@ fn standard_checkmate() {
 }
 
 #[test]
-fn standard_checkmate_2() {
+fn test_standard_checkmate_2() {
     let game = read_and_parse("tests/games/standard-checkmate-2.json");
     let partial_game = no_partial_game(&game);
 
@@ -380,7 +380,7 @@ fn standard_checkmate_2() {
 }
 
 #[test]
-fn standard_checkmate_3() {
+fn test_standard_checkmate_3() {
     let game = read_and_parse("tests/games/standard-checkmate-3.json");
     let partial_game = no_partial_game(&game);
 
@@ -419,7 +419,7 @@ fn standard_checkmate_3() {
 }
 
 #[test]
-fn princess_checkmate() {
+fn test_princess_checkmate() {
     let game = read_and_parse("tests/games/princess-checkmate.json");
     let partial_game = no_partial_game(&game);
 
@@ -461,7 +461,7 @@ fn princess_checkmate() {
 }
 
 #[test]
-fn tricky_nonmate() {
+fn test_tricky_nonmate() {
     let game = read_and_parse("tests/games/tricky-nonmate.json");
     let partial_game = no_partial_game(&game);
 
@@ -494,7 +494,7 @@ fn tricky_nonmate() {
 }
 
 #[test]
-fn reflected_checkmate() {
+fn test_reflected_checkmate() {
     let game = read_and_parse("tests/games/reflected-checkmate.json");
     let partial_game = no_partial_game(&game);
 
@@ -528,7 +528,7 @@ fn reflected_checkmate() {
 }
 
 #[test]
-fn standard_nonmate() {
+fn test_standard_nonmate() {
     let game = read_and_parse("tests/games/standard-nonmate.json");
     let partial_game = no_partial_game(&game);
 
@@ -568,7 +568,7 @@ fn standard_nonmate() {
 }
 
 #[test]
-fn standard_nonmate2() {
+fn test_standard_nonmate2() {
     let game = read_and_parse("tests/games/standard-nonmate-2.json");
     let partial_game = no_partial_game(&game);
 
@@ -644,6 +644,17 @@ fn test_dead_timeline_2() {
             // Ok!
         },
         x => panic!("Expected position tests/games/dead-timeline-2.json to be non-mate; got {:?}", x),
+    };
+}
+
+#[test]
+fn test_standard_checkmate_4() {
+    let game = read_and_parse("tests/games/standard-checkmate-4.json");
+    let partial_game = no_partial_game(&game);
+
+    match is_mate(&game, &partial_game, Some(std::time::Duration::new(15, 0))) {
+        Mate::Checkmate => {}
+        x => panic!("Expected position tests/games/standard-checkmate-4.json to be non-mate; got {:?}", x),
     };
 }
 

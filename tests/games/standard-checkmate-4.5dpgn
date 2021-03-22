@@ -1,0 +1,14 @@
+[Board "Standard - Turn Zero"]
+[Mode "5D"]
+[Size "8x8"]
+
+1. e3 / b5
+2. Qf3 / Nc6
+3. Bxb5 / e5
+4. Bxc6 / Bc5
+5. Bxa8 / (0T5)Bc5>>x(0T2)c2
+6. (-1T3)Nc3 (0T6)Nc3 / (-1T3)c6
+7. (-1T4)Ke2 / (-1T4)Qb6
+8. (L-1T5)Qf3>>(L-1T4)f4 / (1T4)f6
+9. (L1T5)Qf4>>x(L0T5)e4* / (0T6)Qd8>>(0T2)h4
+10. (-2T3)Qxf7 (0T7)Qf3>>x(0T3)f7#

@@ -125,6 +125,7 @@ pub fn is_mate<'a>(
     let mut attacked_pieces: HashSet<(Coords, bool)> = HashSet::new();
     let mut attackers: HashSet<(Coords, bool)> = HashSet::new();
     let mut attacking_moves: Vec<Move> = Vec::new();
+    let mut could_shift_back = true;
 
     for board in idle_boards.opponent_boards(game) {
         for mv in unwrap_mate!(board.generate_moves_flag(game, &idle_boards, GenMovesFlag::Check)) {
@@ -152,6 +153,7 @@ pub fn is_mate<'a>(
 
     // The current player may create inactive timeline, look for branching moves that shift the present back
     if partial_game.info.timeline_advantage(partial_game.info.active_player) > 0 {
+        could_shift_back = false;
         for own_moves in &mut moves {
             for mv in own_moves {
                 if mv.from.1.non_physical() != mv.to.1.non_physical()
@@ -159,7 +161,8 @@ pub fn is_mate<'a>(
                     && unwrap_mate!(partial_game.info.get_timeline((mv.to.1).0)).last_board
                         != (mv.to.1).1
                 {
-                    match Moveset::new(vec![mv], &partial_game.info) {
+                    could_shift_back = true;
+                    match Moveset::new_shifting(vec![mv], &partial_game.info, true) {
                         Ok(mut ms) => {
                             if let Some(new_partial_game) =
                                 ms.generate_partial_game(game, partial_game)
@@ -256,7 +259,9 @@ pub fn is_mate<'a>(
 
         // Handle shifting impossibility
         // TODO: add condition that there are no legal branching move
-        if partial_game.info.timeline_advantage(partial_game.info.active_player) == 0 {
+        if partial_game.info.timeline_advantage(partial_game.info.active_player) == 0
+            || !could_shift_back && partial_game.info.timeline_debt(!partial_game.info.active_player) == 0
+        {
             for l in partial_game.info.min_timeline()..=partial_game.info.max_timeline() {
                 if let Some(tl) = partial_game.info.get_timeline(l) {
                     if tl.last_board <= partial_game.info.present && partial_game.info.is_active(l) {
@@ -265,14 +270,16 @@ pub fn is_mate<'a>(
                                 if attacked_pieces.len() > 0 {
                                     return Mate::Checkmate
                                 } else {
+                                    println!("Huh? {}", l);
                                     return Mate::Stalemate
                                 }
                             }
                         } else {
-                            if !possible_move_white[(-l) as usize - 1] {
+                            if !possible_move_black[(-l) as usize - 1] {
                                 if attacked_pieces.len() > 0 {
                                     return Mate::Checkmate
                                 } else {
+                                    println!("Huh? {}", l);
                                     return Mate::Stalemate
                                 }
                             }
@@ -280,7 +287,8 @@ pub fn is_mate<'a>(
                     }
                 }
             }
-        } else if partial_game.info.timeline_debt(!partial_game.info.active_player) > 0 {
+        }
+        if partial_game.info.timeline_debt(!partial_game.info.active_player) > 0 {
             // Handle dead timelines
             let debt = partial_game.info.timeline_debt(!partial_game.info.active_player);
 
@@ -326,6 +334,7 @@ pub fn is_mate<'a>(
                     }
 
                     // TODO: recalculate possible_moves_*?
+                    // TODO: if !could_shift_back, return *mate if a board in the present cannot shift forward
                 }
 
                 // Ignore spatial moves from inactive timelines
