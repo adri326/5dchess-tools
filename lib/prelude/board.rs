@@ -4,6 +4,9 @@ use std::fmt;
 
 /**
     A board of the game. Contains a set of `width` × `height` pieces and other informations that are useful for processing boards.
+
+    If you mutate a Board, you will also need to make sure that all of the informations are updated accordingly.
+    You should rely on functions like `Move::generate_source_board` to correctly update these informations.
 **/
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Board {
@@ -132,11 +135,13 @@ impl Board {
         self.en_passant = en_passant
     }
 
+    /** Returns the castling information for the board. **/
     #[inline]
     pub fn castle(&self) -> Option<(Physical, Physical, Physical, Physical)> {
         self.castle
     }
 
+    /** Sets the castling information for the board. **/
     #[inline]
     pub fn set_castle(&mut self, castle: Option<(Physical, Physical, Physical, Physical)>) {
         self.castle = castle;

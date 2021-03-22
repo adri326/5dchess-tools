@@ -98,11 +98,17 @@ impl Move {
         Self { from, to, kind }
     }
 
+    /**
+        Returns whether or not the move captures a piece.
+    **/
     #[inline]
     pub fn captures(&self) -> bool {
         self.to.0.is_some()
     }
 
+    /**
+        Returns whether or not the move ends on a different board than the starting board
+    **/
     #[inline]
     pub fn is_jump(&self) -> bool {
         (self.from.1).0 != (self.to.1).0 || (self.from.1).1 != (self.to.1).1
@@ -482,6 +488,7 @@ impl fmt::Display for Move {
     }
 }
 
+/// Reason why a moveset is not considered valid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MovesetValidityErr {
     NoMoves,
@@ -624,6 +631,7 @@ impl Moveset {
             }
 
             // Look at the now-active timelines and check that the present is pushed forward
+            // Issue here?
             for l in min..=max {
                 if let Some(tl) = info.get_timeline(l) {
                     if tl.last_board <= info.present {

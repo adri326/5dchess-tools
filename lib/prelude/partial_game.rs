@@ -59,6 +59,9 @@ impl<'a> PartialGame<'a> {
         self.boards = boards;
     }
 
+    /**
+        Inserts a board within a PartialGame instance.
+    **/
     pub fn insert(&mut self, board: Board) {
         match &mut self.boards {
             PartialGameStorage::Shallow(boards_white, boards_black) => {
@@ -188,6 +191,9 @@ impl<'a> PartialGame<'a> {
         self.boards.iter()
     }
 
+    /**
+        Gets the board at (l, t) within that PartialGame or its parents. Returns None if not found
+    **/
     pub fn get_board<'b>(&'b self, coords: (Layer, Time)) -> Option<&'b Board> {
         match &self.boards {
             PartialGameStorage::Shallow(boards_white, boards_black) => {
@@ -226,6 +232,9 @@ impl<'a> PartialGame<'a> {
         }
     }
 
+    /**
+        Gets the board at (l, t) within that PartialGame, its parents or a Game instance. Return None if not found.
+    **/
     #[inline]
     pub fn get_board_with_game<'b>(
         &'b self,
@@ -238,6 +247,9 @@ impl<'a> PartialGame<'a> {
         }
     }
 
+    /**
+        Gets the tile at (l, t, x, y) within that PartialGame, its parents or a Game instance.
+    **/
     #[inline]
     pub fn get_with_game<'b>(&'b self, game: &'b Game, coords: Coords) -> Tile {
         match self.get_board_with_game(game, coords.non_physical()) {
@@ -246,6 +258,9 @@ impl<'a> PartialGame<'a> {
         }
     }
 
+    /**
+        Returns an iterator over the boards that the current player can play on.
+    **/
     #[inline]
     pub fn own_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = &'b Board> + 'b {
         self.info
@@ -256,6 +271,9 @@ impl<'a> PartialGame<'a> {
             .filter(move |b| b.white() == self.info.active_player)
     }
 
+    /**
+        Returns an iterator over the boards that the current player's **opponent** can play on.
+    **/
     #[inline]
     pub fn opponent_boards<'b>(&'b self, game: &'b Game) -> impl Iterator<Item = &'b Board> + 'b {
         self.info
@@ -266,6 +284,9 @@ impl<'a> PartialGame<'a> {
             .filter(move |b| b.white() != self.info.active_player)
     }
 
+    /**
+        Returns whether or not the board at (l, t) is the last of its timeline
+    **/
     #[inline]
     pub fn is_last_board(&self, coords: (Layer, Time)) -> Option<bool> {
         match self.info.get_timeline(coords.0) {
@@ -274,6 +295,9 @@ impl<'a> PartialGame<'a> {
         }
     }
 
+    /**
+        Merges a PartialGame into a Game instance.
+    **/
     pub fn apply(self, game: &mut Game) {
         game.info = self.info;
 
@@ -301,6 +325,9 @@ impl<'a> PartialGame<'a> {
     }
 }
 
+/**
+    Returns an empty PartialGame, with as info `game.info`.
+**/
 #[inline]
 pub fn no_partial_game<'a>(game: &Game) -> PartialGame<'static> {
     PartialGame::empty(game.info.clone(), None)
@@ -318,6 +345,9 @@ impl<'a> From<&'_ Game> for PartialGame<'a> {
 
 // Iterator for PartialGameStorage
 
+/**
+    Parts of the iterator used by `PartialGame::iter`.
+**/
 pub enum PartialGameStorageIter<'a> {
     Shallow(std::iter::Chain<std::slice::Iter<'a, Option<Board>>, std::slice::Iter<'a, Option<Board>>>),
     Deep(std::slice::Iter<'a, Option<Board>>)
@@ -364,7 +394,11 @@ impl<'a> Iterator for PartialGameStorageIter<'a> {
 }
 
 // Recursive iterator for PartialGame
+// TODO: use impl types.
 
+/**
+    Iterator returned by `PartialGame::iter`
+**/
 pub struct PartialGameIter<'a> {
     pub partial_game: &'a PartialGame<'a>,
     pub iter: PartialGameStorageIter<'a>,

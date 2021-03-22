@@ -35,10 +35,16 @@ pub struct Piece {
 }
 
 impl Piece {
+    /**
+        Creates a new `Piece` instance.
+    **/
     pub fn new(kind: PieceKind, white: bool, moved: bool) -> Self {
         Self { kind, white, moved }
     }
 
+    /**
+        Returns `true` if the piece is a royal piece (king or royal queen), `false` otherwise.
+    **/
     #[inline]
     pub fn is_royal(&self) -> bool {
         match self.kind {
@@ -47,16 +53,27 @@ impl Piece {
         }
     }
 
+    /**
+        Returns `true` if the piece can castle (king), `false` otherwise.
+    **/
     #[inline]
     pub fn can_castle(&self) -> bool {
         self.kind == PieceKind::King
     }
 
+    /**
+        Returns `true` if the piece can be castled to (rook), `false` otherwise.
+    **/
     #[inline]
     pub fn can_castle_to(&self) -> bool {
         self.kind == PieceKind::Rook
     }
 
+    /**
+        Returns `true` if the piece can promote (pawns and brawns), `false` otherwise.
+
+        *Note:* the promotion rule is hard-coded into `Move::new` (the piece must reach the last row).
+    **/
     #[inline]
     pub fn can_promote(&self) -> bool {
         match self.kind {
@@ -65,6 +82,12 @@ impl Piece {
         }
     }
 
+    /**
+        Returns `true` if the piece can capture a kickstarting piece en-passant (pawns and brawns), `false` otherwise.
+        The corresponding movement can be yielded if the board's `en_passant` field is set to `Some((x, y))`.
+
+        *Note:* It is currently assumed that no royal piece can kickstart.
+    **/
     #[inline]
     pub fn can_enpassant(&self) -> bool {
         match self.kind {
@@ -73,6 +96,9 @@ impl Piece {
         }
     }
 
+    /**
+        Returns `true` if the piece can "kickstart" if it hadn't been moved yet.
+    **/
     #[inline]
     pub fn can_kickstart(&self) -> bool {
         match self.kind {
@@ -81,6 +107,9 @@ impl Piece {
         }
     }
 
+    /**
+        Returns the bitboard mask corresponding to that piece.
+    **/
     #[inline]
     pub fn bitboard_mask(&self) -> &'static BitBoardMask {
         match self.kind {

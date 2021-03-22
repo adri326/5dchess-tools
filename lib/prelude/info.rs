@@ -1,23 +1,38 @@
 use super::*;
 
+/**
+    A structure containing the necessary pieces of information for a timeline.
+**/
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TimelineInfo {
+    /// The index of that timeline
     pub index: Layer,
+    /// Where the timeline originates from
     pub starts_from: Option<(Layer, Time)>,
+    /// The time coordinate of the last board of that timeline
     pub last_board: Time,
+    /// The time coordinate of the first board of that timeline
     pub first_board: Time,
 }
 
+/** A structure containing the non-board data of a game state. Contains in particular the TimelineInfo for each timeline in the game. **/
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Info {
+    /// Where the present for the game is at
     pub present: Time,
+    /// Which player's turn it is
     pub active_player: bool,
+    /// Whether or not the number of starting timelines is even. Does not change the behavior of indices,
+    /// but only the behavior of functions whose behavior is dependent on the activeness of the timelines.
     pub even_timelines: bool,
+    /// The timelines within `[0; +∞[` if even_timelines is false, `[0⁺; +∞[` otherwise
     pub timelines_white: Vec<TimelineInfo>,
+    /// The timelines within `]-∞; -1]` if even_timelines is false, `]-∞; 0¯]` otherwise
     pub timelines_black: Vec<TimelineInfo>,
 }
 
 impl TimelineInfo {
+    /** Creates a new TimelineInfo instance. **/
     pub fn new(
         index: Layer,
         starts_from: Option<(Layer, Time)>,
@@ -37,6 +52,7 @@ impl TimelineInfo {
 // on an odd variant, white's timelines include the 0-timeline
 // on an even variant, black's timeline include the -0-timeline and white's the +0-timeline
 impl Info {
+    /** Creates a new Info instance. The various pieces of informations are derived from the different TimelineInfo given. **/
     pub fn new(
         even_timelines: bool,
         timelines_white: Vec<TimelineInfo>,
@@ -78,6 +94,7 @@ impl Info {
         }
     }
 
+    /** Returns a reference to the timeline with as Layer coordinate `l` **/
     #[inline]
     pub fn get_timeline(&self, l: Layer) -> Option<&TimelineInfo> {
         if l < 0 {
@@ -87,6 +104,7 @@ impl Info {
         }
     }
 
+    /** Returns a mutable reference to the timeline with as Layer coordinate `l` **/
     #[inline]
     pub fn get_timeline_mut(&mut self, l: Layer) -> Option<&mut TimelineInfo> {
         if l < 0 {
@@ -96,6 +114,7 @@ impl Info {
         }
     }
 
+    /** Returns whether or not the timeline with as Layer coordinate `l` is active **/
     #[inline]
     pub fn is_active(&self, l: Layer) -> bool {
         let timeline_width = self
@@ -113,21 +132,25 @@ impl Info {
         }
     }
 
+    /** Returns the total number of timelines that there are in the game **/
     #[inline]
     pub fn len_timelines(&self) -> usize {
         self.timelines_black.len() + self.timelines_white.len()
     }
 
+    /** Returns the timeline with the lowest layer coordinate. Corresponds to `min{l ∈ ℤ | timeline 'l' exists}`. **/
     #[inline]
     pub fn min_timeline(&self) -> Layer {
         -(self.timelines_black.len() as Layer)
     }
 
+    /** Returns the timeline with the greatest layer coordinate. Corresponds to `max{l ∈ ℤ | timeline 'l' exists}`. **/
     #[inline]
     pub fn max_timeline(&self) -> Layer {
         self.timelines_white.len() as Layer - 1
     }
 
+    /** Recalculates the present **/
     pub fn recalculate_present(&mut self) -> Time {
         let timeline_width =
             self.max_timeline()
@@ -157,8 +180,8 @@ impl Info {
         present
     }
 
-    /// Returns the number of active timelines that the player `white` can make
-    /// Returns 0 if they cannot make any new active timeline
+    /// Returns the number of active timelines that the player with color `white` can make.
+    /// Returns 0 if they cannot make any new active timeline.
     pub fn timeline_advantage(&self, white: bool) -> usize {
         let n_timelines_white = self.timelines_white.len() - 1;
         let n_timelines_black =
@@ -178,8 +201,8 @@ impl Info {
         }
     }
 
-    /// Returns the number of inactive timelines that the player `white` created
-    /// Returns 0 if they didn't create any inactive timeline
+    /// Returns the number of inactive timelines that the player with color `white` created.
+    /// Returns 0 if they didn't create any inactive timeline.
     pub fn timeline_debt(&self, white: bool) -> usize {
         let n_timelines_white = self.timelines_white.len() - 1;
         let n_timelines_black =

@@ -53,6 +53,9 @@ pub trait Goal: Copy + Send {
         max_depth: Option<usize>,
     ) -> GoalResult;
 
+    /**
+        Combines two goals, stopping if either stops or claims a win/loss
+    **/
     fn or<G: Goal>(self, goal: G) -> OrGoal<Self, G>
     where
         Self: Sized,
@@ -60,6 +63,9 @@ pub trait Goal: Copy + Send {
         OrGoal::new(self, goal)
     }
 
+    /**
+        Combines two goals, stopping if both claim a win/loss or stop
+    **/
     fn and<G: Goal>(self, goal: G) -> AndGoal<Self, G>
     where
         Self: Sized,
@@ -67,6 +73,9 @@ pub trait Goal: Copy + Send {
         AndGoal::new(self, goal)
     }
 
+    /**
+        Inverts a goal, claiming a loss if a win is claimed, a win if a loss is claimed and negating the score of a GameResult::Score value.
+    **/
     fn not(self) -> NotGoal<Self>
     where
         Self: Sized,
@@ -74,6 +83,9 @@ pub trait Goal: Copy + Send {
         NotGoal::new(self)
     }
 
+    /**
+        Only applies a goal up to a given depth. Beyond that depth, GameResult::Continue is always returned.
+    **/
     fn until(self, max_depth: usize) -> UntilGoal<Self>
     where
         Self: Sized,
@@ -98,7 +110,7 @@ pub enum GoalResult {
     Error,
 }
 
-/** A goal that will always return true. **/
+/** A goal that will always return GameResult::Continue. **/
 #[derive(Clone, Copy)]
 pub struct ContinueGoal;
 
@@ -115,7 +127,7 @@ impl Goal for ContinueGoal {
     }
 }
 
-/** A goal that will always return false. **/
+/** A goal that will always return GameResult::Stop. **/
 #[derive(Clone, Copy)]
 pub struct StopGoal;
 
@@ -133,8 +145,7 @@ impl Goal for StopGoal {
 }
 
 /**
-    A goal that will return true if its sub-goal returns false, representing the negation of its sub-goal.
-    If the sub-goal fails (by returning `None`), it will also fail (by returning `None`).
+    A goal that inverts a goal, claiming a loss if a win is claimed, a win if a loss is claimed and negating the score of a GameResult::Score value.
 **/
 #[derive(Clone, Copy)]
 pub struct NotGoal<G>
@@ -175,7 +186,7 @@ where
 }
 
 /**
-    A goal that will return true if either of its sub-goals returns true, representing the disjunction of both goals.
+    A goal that combines two goals, stopping if either stops or claims a win/loss
 **/
 #[derive(Clone, Copy)]
 pub struct OrGoal<Left, Right>
@@ -218,7 +229,7 @@ where
 }
 
 /**
-    A goal that returns true if both sub-goals return true, representing the conjunction of both goals.
+    A goal that combines two goals, stopping if both claim a win/loss or stop or if either encounters an error
 **/
 #[derive(Clone, Copy)]
 pub struct AndGoal<Left, Right>
@@ -280,6 +291,7 @@ where
     }
 }
 
+/// A goal that only applies a goal up to a given depth. Beyond that depth, GameResult::Continue is always returned.
 #[derive(Clone, Copy)]
 pub struct UntilGoal<G: Goal> {
     pub goal: G,

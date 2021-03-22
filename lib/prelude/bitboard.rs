@@ -28,7 +28,7 @@ pub const N_BITBOARDS: usize = 11;
     Contains the bitboards for the different piece kinds of each player.
     They are named after their respective, basic piece movements.
 
-    Note that bitboards go from left to right and from bottom to top; with a 3x3 bitboard:
+    Note that bitboards go from left to right and from bottom to top. For instance, with a 3x3 bitboard, the pieces would be ordered as follows:
 
     ```
     789
@@ -52,6 +52,9 @@ pub struct BitBoards {
 }
 
 impl BitBoards {
+    /**
+    Sets a single bit on all of the bitboards, according to `mask`.
+    **/
     pub fn set(&mut self, mask: &BitBoardMask, shift: u32) {
         for n in 0..N_BITBOARDS {
             self.white[n] = (self.white[n] & !(1 << shift)) | (mask.white[n] as BitBoardPrimitive) << shift;
@@ -65,7 +68,10 @@ impl BitBoards {
         self.black_movable = (self.black_movable & !(1 << shift)) | (mask.black_movable as BitBoardPrimitive) << shift;
     }
 
-    /// Assumes that `pieces` fits!
+    /**
+        Initializes a new BitBoard instance from a sequence of tiles.
+        Assumes that `pieces` fits!
+    **/
     pub fn from_pieces(pieces: &Vec<Tile>) -> Self {
         RSHIFT_MASK[0];
         let mut white = [0; N_BITBOARDS];
@@ -101,6 +107,9 @@ impl BitBoards {
         }
     }
 
+    /**
+        Overrides the castling bitboard.
+    **/
     pub fn set_castle(&mut self, castle: Option<(u32, u32)>) {
         match castle {
             Some((i1, i2)) => {
@@ -131,6 +140,7 @@ impl Default for BitBoards {
     }
 }
 
+/// Bitboard used in place of boards that are absent.
 pub const VOID_BITBOARDS: BitBoards = BitBoards {
     white: [0; N_BITBOARDS],
     white_royal: 0,
@@ -141,7 +151,7 @@ pub const VOID_BITBOARDS: BitBoards = BitBoards {
     castle: 0,
 };
 
-/// Contains the state of a piece, to then be put into a bitboard
+/// Contains the different flags that a piece has; it is then used to compute the bitboards.
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct BitBoardMask {
     // White's pieces
@@ -298,8 +308,10 @@ pub const MAX_BITBOARD_WIDTH: usize = 11;
 pub const MAX_BITBOARD_WIDTH: usize = 8;
 
 lazy_static! {
+    /// Pre-computed BitBoardMask for every piece
     pub static ref PIECE_MASKS: [BitBoardMask; 2 * N_PIECES + 2] = {
         let mut res: [BitBoardMask; 2 * N_PIECES + 2] = [BitBoardMask::default(); 2 * N_PIECES + 2];
+        // Set void tiles as unmoveable
         res[1].white_movable = false;
         res[1].black_movable = false;
 
@@ -351,6 +363,7 @@ lazy_static! {
     };
 
     // The length needs a +1 to allow for `width = MAX_BITBOARD_WIDTH`, `shift = width`
+    /// Pre-computed masks for shifting a bitboard to the right
     pub static ref RSHIFT_MASK: [BitBoardPrimitive; MAX_BITBOARD_WIDTH * MAX_BITBOARD_WIDTH + 1] = {
         let mut res = [0; MAX_BITBOARD_WIDTH * MAX_BITBOARD_WIDTH + 1];
 
@@ -369,6 +382,7 @@ lazy_static! {
         res
     };
 
+    /// Pre-computed masks for shifting a bitboard to the left
     pub static ref LSHIFT_MASK: [BitBoardPrimitive; MAX_BITBOARD_WIDTH * MAX_BITBOARD_WIDTH + 1] = {
         let mut res = [0; MAX_BITBOARD_WIDTH * MAX_BITBOARD_WIDTH + 1];
 

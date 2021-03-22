@@ -86,6 +86,7 @@ where
     J: Iterator,
     F: for<'b> Fn(&'b J::Item) -> bool,
 {
+    /** Creates a new TimedFilter iterator, with the given duration. **/
     pub fn new(iterator: J, condition: F, duration: Duration) -> Self {
         Self {
             iterator,
@@ -95,6 +96,7 @@ where
         }
     }
 
+    /** Creates a new TimedFilter iterator, with a given duration and start. **/
     pub fn with_start(
         iterator: J,
         condition: F,
@@ -109,6 +111,7 @@ where
         }
     }
 
+    /** Returns the time elapsed from the start of the timer, or None if the timer hasn't started yet. **/
     pub fn elapsed(&self) -> Option<Duration> {
         match self.start {
             Some(instant) => Some(instant.elapsed()),
@@ -116,6 +119,7 @@ where
         }
     }
 
+    /** Returns the remaining time. **/
     pub fn remaining(&self) -> Option<Duration> {
         match self.start {
             Some(instant) => {
@@ -130,6 +134,7 @@ where
         }
     }
 
+    /** Returns true if the iterator timed out. The iterator will always return None if this value is true. **/
     pub fn timed_out(&self) -> bool {
         match self.start {
             Some(instant) => instant.elapsed() > self.duration,
@@ -205,6 +210,7 @@ impl<J> Timed<J>
 where
     J: Iterator,
 {
+    /** Creates a new Timed iterator, with the given duration. **/
     pub fn new(iterator: J, duration: Duration) -> Self {
         Self {
             iterator,
@@ -213,6 +219,7 @@ where
         }
     }
 
+    /** Creates a new Timed iterator, with a given duration and start. **/
     pub fn with_start(
         iterator: J,
         start: Option<Instant>,
@@ -225,6 +232,7 @@ where
         }
     }
 
+    /** Returns the time elapsed from the start of the timer, or None if the timer hasn't started yet. **/
     pub fn elapsed(&self) -> Option<Duration> {
         match self.start {
             Some(instant) => Some(instant.elapsed()),
@@ -232,6 +240,7 @@ where
         }
     }
 
+    /** Returns the remaining time. **/
     pub fn remaining(&self) -> Option<Duration> {
         match self.start {
             Some(instant) => {
@@ -246,6 +255,7 @@ where
         }
     }
 
+    /** Returns true if the iterator timed out. The iterator will always return None if this value is true. **/
     pub fn timed_out(&self) -> bool {
         match self.start {
             Some(instant) => instant.elapsed() > self.duration,
@@ -314,6 +324,8 @@ where
     J: Iterator,
     F: for<'b> Fn(&'b J::Item) -> bool,
 {
+
+    /** Creates a new SigmaFilter iterator, with the given duration. **/
     pub fn new(iterator: J, condition: F, duration: Duration) -> Self {
         Self {
             iterator,
@@ -323,6 +335,8 @@ where
         }
     }
 
+
+    /** Creates a new SigmaFilter iterator, with a given duration and start. **/
     pub fn with_sigma(iterator: J, condition: F, sigma: Duration, duration: Duration) -> Self {
         Self {
             iterator,
@@ -332,10 +346,13 @@ where
         }
     }
 
+    /** Returns the time elapsed by the filter function and the iterator. **/
     pub fn elapsed(&self) -> Duration {
         self.sigma
     }
 
+
+    /** Returns the remaining time. **/
     pub fn remaining(&self) -> Duration {
         if self.sigma > self.duration {
             Duration::new(0, 0)
@@ -344,6 +361,8 @@ where
         }
     }
 
+
+    /** Returns true if the iterator timed out. The iterator will always return None if this value is true. **/
     pub fn timed_out(&self) -> bool {
         self.sigma > self.duration
     }
@@ -411,6 +430,7 @@ impl<J> Sigma<J>
 where
     J: Iterator,
 {
+    /** Creates a new SigmaFilter iterator, with the given duration. **/
     pub fn new(iterator: J, duration: Duration) -> Self {
         Self {
             iterator,
@@ -419,6 +439,7 @@ where
         }
     }
 
+    /** Creates a new SigmaFilter iterator, with a given duration and start. **/
     pub fn with_sigma(iterator: J, sigma: Duration, duration: Duration) -> Self {
         Self {
             iterator,
@@ -427,10 +448,12 @@ where
         }
     }
 
+    /** Returns the time taken by the iterator. **/
     pub fn elapsed(&self) -> Duration {
         self.sigma
     }
 
+    /** Returns the remaining time. **/
     pub fn remaining(&self) -> Duration {
         if self.sigma > self.duration {
             Duration::new(0, 0)
@@ -439,6 +462,7 @@ where
         }
     }
 
+    /** Returns true if the iterator timed out. The iterator will always return None if this value is true. **/
     pub fn timed_out(&self) -> bool {
         self.sigma > self.duration
     }
