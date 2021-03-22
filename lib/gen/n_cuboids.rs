@@ -22,10 +22,15 @@ pub fn hc_contains(hypercuboid: HC, point: HashMap<Layer, usize>) -> bool {
     true
 }
 
+
+/**
+    Given a cross section, cut it out of a hypercuboid, returning a list of disjoint hypercuboids that are
+    subsets of the original.
+**/
 fn cut(mut hypercuboid: HC, sections: HashMap<Layer, Vec<usize>>) -> Vec<HC> {
     let mut res: Vec<HC> = Vec::with_capacity(sections.len());
 
-    for (index, section) in sections {
+    for section in sections {
         let (with_hc, without_hc) = split(hypercuboid, section);
         res.push(without_hc);
         hypercuboid = with_hc;
@@ -34,6 +39,9 @@ fn cut(mut hypercuboid: HC, sections: HashMap<Layer, Vec<usize>>) -> Vec<HC> {
     res
 }
 
+/**
+    split a hypercuboid into two 
+**/
 fn split(hypercuboid: HC, section: (Layer, Vec<usize>)) -> (HC, HC) {
     let mut with_hc = hypercuboid.clone();
     let mut without_hc = hypercuboid;
@@ -48,6 +56,7 @@ fn split(hypercuboid: HC, section: (Layer, Vec<usize>)) -> (HC, HC) {
 
     (with_hc, without_hc)
 }
+
 
 #[derive(Clone)]
 pub enum AxisLoc {
@@ -79,7 +88,8 @@ impl<'a> Search<'a> {
         let mut elements: Vec<AxisLoc> = Vec::new();
 
         for board in partial_game.own_boards(game) {
-            axes.insert(board.l(), Vec::new());
+            axes.insert(board.l(), vec![elements.len()]);
+            elements.push(AxisLoc::Pass(board.l(),Some(board.t())) );
         }
 
         for board in partial_game.own_boards(game) {
@@ -139,6 +149,8 @@ impl<'a> Search<'a> {
             };
 
             axes.insert(new_l, branching_axis.clone());
+            axes.get_mut(&new_l).unwrap().push(elements.len());
+            elements.push(AxisLoc::Pass(new_l,None));
         }
 
         Some(Self {
