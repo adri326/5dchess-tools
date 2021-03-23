@@ -13,12 +13,27 @@ use scoped_threadpool::Pool;
 
 #[cfg(feature = "countnodes")]
 lazy_static! {
+    /**
+        Counts the number of nodes traversed by DFS (only if the countnodes feature is enabled)
+    **/
     pub static ref NODES: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
+    /**
+        Counts the time spent by DFS (only if the countnodes feature is enabled)
+    **/
     pub static ref SIGMA: std::sync::Mutex<Duration> = std::sync::Mutex::new(Duration::new(0, 0));
 }
 
+/// Value returned by DFS if all of the children moves were pruned by the goal
 const PRUNE_VALUE: Eval = Eval::NEG_INFINITY;
 
+/**
+    Multi-threaded variation of DFS; tasks are generated using a BFS algorithm and distributed to all of the threads.
+    See `Tasks` and `TasksOptions` for more details.
+    The search is then carried out up to the given `depth`, at which point it evaluates the position.
+    The node returned will be the node with the best score, if the search succeeded within the given time window.
+
+    Note that the score is relative to the current player: higher is better, regardless of the color.
+**/
 pub fn dfs_schedule<F: EvalFn, G: Goal>(
     game: &Game,
     depth: usize,
@@ -60,8 +75,9 @@ pub fn dfs_schedule<F: EvalFn, G: Goal>(
     tasks.best_move()
 }
 
-
-// TODO: actually make this threaded
+/**
+    Variant of `dfs_schedule`, with a `MaxBranching(max_branches)` goal.
+**/
 pub fn dfs_bl_schedule<F: EvalFn, G: Goal>(
     game: &Game,
     depth: usize,
@@ -78,6 +94,13 @@ pub fn dfs_bl_schedule<F: EvalFn, G: Goal>(
     )
 }
 
+/**
+    Depth-First Search algorithm (DFS), implemented using negamax (https://en.wikipedia.org/wiki/Negamax) and alpha-beta pruning (https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning).
+    This function makes the initial call to `dfs_rec`, which in turns traverses the tree up to a given depth.
+    Terminal nodes are evaluated and the node with the best score is returned.
+
+    Note that the score is relative to the current player: higher is better, regardless of the color.
+**/
 pub fn dfs<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
@@ -116,7 +139,9 @@ pub fn dfs<'a, F: EvalFn, G: Goal>(
     Some((res.0, res.1))
 }
 
-
+/**
+    Variant of `dfs`, which adds a `MaxBranching(max_branches)` goal.
+**/
 pub fn dfs_bl<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
@@ -156,6 +181,9 @@ pub fn dfs_bl<'a, F: EvalFn, G: Goal>(
     Some((res.0, res.1))
 }
 
+/**
+    Recursive function called by `dfs`.
+**/
 fn dfs_rec<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
@@ -290,6 +318,14 @@ fn dfs_rec<'a, F: EvalFn, G: Goal>(
 
 // == IDDFS ==
 
+/**
+    Iterative Deepening Depth-First Search (IDDFS), implemented with negamax and alpha-beta pruning.
+    This search method combines the memory efficiency of DFS with the ability to return early of BFS (Breadth-First Search).
+    It recursively calls `dfs`, increasing for each call the depth factor.
+    Should it return early (usually when the duration `max_duration` is reached), it will return the best node of the last complete call.
+
+    Setting `max_duration` to None will make it effectively find the shortest mate.
+**/
 pub fn iddfs<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
@@ -318,7 +354,15 @@ pub fn iddfs<'a, F: EvalFn, G: Goal>(
             goal,
             approx,
         ) {
-            best = Some(best_node);
+            if best_node.1 == Eval::NEG_INFINITY {
+                if let Some((_n, ref mut s)) = &mut best {
+                    *s = Eval::NEG_INFINITY;
+                } else {
+                    best = Some(best_node)
+                }
+            } else {
+                best = Some(best_node);
+            }
             depth += 1;
         } else {
             break
@@ -328,6 +372,9 @@ pub fn iddfs<'a, F: EvalFn, G: Goal>(
     best
 }
 
+/**
+    A variant of iddfs, which adds a `MaxBranching(max_branches)` goal.
+**/
 pub fn iddfs_bl<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     node: TreeNode<'a>,
@@ -347,6 +394,16 @@ pub fn iddfs_bl<'a, F: EvalFn, G: Goal>(
     )
 }
 
+/**
+    Multi-threaded Iterative Deepening Depth-First Search (IDDFS), using negamax and alpha-beta pruning.
+    Tasks are generated using a Breadth-First Search algorithm (BFS), which generates a minimum number of nodes (the "pool").
+    The nodes are then used by the threads to run up to an iteratively increasing depth.
+    Losing nodes are discarded between runs; if the pool runs short, it will be re-filled.
+    If this algorithm runs out of time, it will return the best result of the last complete run.
+
+    The size of the pool is critical for the efficiency of the algorithm: setting it too low (less than 2*n_threads) will result in time wasted waiting on one or two threads.
+    Setting it too high (more than 8*n_threads) will result in time wasted because the algorithm currently cannot derive better values of α and β while mid-run.
+**/
 pub fn iddfs_schedule<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     eval_fn: F,
@@ -431,6 +488,9 @@ pub fn iddfs_schedule<'a, F: EvalFn, G: Goal>(
     best
 }
 
+/**
+    A variant of `iddfs_schedule`, which adds the `MaxBranching(max_branches)` goal.
+**/
 pub fn iddfs_bl_schedule<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     max_branches: usize,
@@ -445,7 +505,9 @@ pub fn iddfs_bl_schedule<'a, F: EvalFn, G: Goal>(
     )
 }
 
-
+/**
+    A wrapper around a task node, to be sent to each thread.
+**/
 struct DFSExecutor<'a, F, G>
 where
     F: EvalFn,
@@ -466,6 +528,7 @@ where
     F: EvalFn,
     G: Goal,
  {
+     /// Creates a new DFSExecutor instance
     fn new(
         game: &'a Game,
         task: TreeNode<'a>,
@@ -488,6 +551,7 @@ where
         }
     }
 
+    /// Method to be called by the worker thread, which will call
     fn execute(self, start: Instant) -> Option<Eval> {
         let (_node, value) = if self.task.path.len() > self.depth {
             match self.goal.verify(&self.task.path, &self.game, &self.task.partial_game, Some(self.task.path.len() + self.depth)) {

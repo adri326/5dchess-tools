@@ -13,25 +13,31 @@ use std::time::{Duration, Instant};
 // TODO: have some sort of tree structure to keep track of negamax
 
 // Actors would make this *much* easier to implement
+/// A "handle" into the search tree; use it to report the value returned by your algorithm, so that `Tasks` can compute what the best move is.
+/// You must drop the guard to the mutexes before calling `Tasks::update_tree` or `Tasks::best_move`!
 #[derive(Debug)]
 pub struct TreeHandle(usize, Arc<Mutex<Option<Eval>>>, Option<usize>); // handle index, handle value, parent handle index
 
 impl TreeHandle {
+    /// Report your algorithm's score for the node
     pub fn report(&self, value: Eval) {
         let mut guard = self.1.lock().unwrap();
         *guard = Some(value);
         // drop guard
     }
 
+    /// Returns the score of that TreeHandle
     pub fn score(&self) -> Option<Eval> {
         let guard = self.1.lock().ok()?;
         *guard
     }
 
+    /// Returns the index associated with that TreeHandle
     pub fn index(&self) -> usize {
         self.0
     }
 
+    /// Returns the index to the parent of that TreeHandle
     pub fn parent(&self) -> Option<usize> {
         self.2
     }
@@ -80,6 +86,9 @@ pub struct Tasks<'a, G: Goal> {
 }
 
 impl<'a, G: Goal> Tasks<'a, G> {
+    /**
+        Creates a new `Tasks` instance with the given game and options
+    **/
     pub fn new(
         game: &'a Game,
         options: TasksOptions<G>,
@@ -350,6 +359,9 @@ impl<'a, G: Goal> Tasks<'a, G> {
         }
     }
 
+    /**
+        Pops a TreeNode from the pool
+    **/
     fn pop_cached(&mut self) -> Option<(TreeNode<'static>, TreeHandle)> {
         match self.pool.pop_front() {
             Some((elem, handle_index)) => {
@@ -361,6 +373,10 @@ impl<'a, G: Goal> Tasks<'a, G> {
         }
     }
 
+    /**
+        Traverses the tree from the bottom up to update the scores of each node.
+        You must call this function before calling `best_move`!
+    **/
     pub fn update_tree(&mut self) {
         // TODO: cache the guard of the parent entries
         for handle in self.tree.iter().rev() {
@@ -411,6 +427,10 @@ impl<'a, G: Goal> Tasks<'a, G> {
         // }
     }
 
+    /**
+        Returns the move with the best score.
+        You must call `update_tree` beforehand!
+    **/
     pub fn best_move(&self) -> Option<(EvalNode, Eval)> {
         let mut best_move: Option<&TreeNode> = None;
         let mut best_score: Option<Eval> = None;
@@ -436,10 +456,19 @@ impl<'a, G: Goal> Tasks<'a, G> {
         best_move.map(|bm| (bm.into(), best_score.unwrap()))
     }
 
+    /**
+        Returns the score of the best node, by looking at the score of the root node.
+    **/
     pub fn root_eval(&self) -> Option<Eval> {
         self.tree[0].1.try_lock().ok().map(|x| *x).flatten()
     }
 
+    /**
+        Resets a `Tasks`. This function can only be called if `recyclable` is set to true, and will otherwise do nothing.
+        The nodes with non-∞ values will have their values set to None, while the nodes with an infinite value will be trimmed if `prune` is set to true.
+        If `prune_empty` is also set to true, nodes which had a `None` value will also be removed.
+        `depth` is used if `refill_pool` must be called.
+    **/
     pub fn reset(&mut self, prune: bool, prune_empty: bool, depth: usize) {
         if self.recyclable {
             self.index = 0;
