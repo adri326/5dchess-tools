@@ -17,7 +17,6 @@ lazy_static! {
     pub static ref SIGMA: std::sync::Mutex<Duration> = std::sync::Mutex::new(Duration::new(0, 0));
 }
 
-const APPROX_MIN_NODES: usize = 16;
 const PRUNE_VALUE: Eval = Eval::NEG_INFINITY;
 
 pub fn dfs_schedule<F: EvalFn, G: Goal>(
@@ -25,8 +24,8 @@ pub fn dfs_schedule<F: EvalFn, G: Goal>(
     depth: usize,
     eval_fn: F,
     options: TasksOptions<G>,
-    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
+    let approx = options.approx;
     let start = Instant::now();
 
     let mut tasks = Tasks::new(game, options);
@@ -69,7 +68,6 @@ pub fn dfs_bl_schedule<F: EvalFn, G: Goal>(
     max_branches: usize,
     eval_fn: F,
     options: TasksOptions<G>,
-    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let g = options.goal.or(MaxBranching::new(&game.info, max_branches));
     dfs_schedule(
@@ -77,7 +75,6 @@ pub fn dfs_bl_schedule<F: EvalFn, G: Goal>(
         depth,
         eval_fn,
         options.goal(g),
-        approx,
     )
 }
 
@@ -208,7 +205,7 @@ fn dfs_rec<'a, F: EvalFn, G: Goal>(
                     if approx && yielded >= APPROX_MIN_NODES {
                         if child_ms.moves().iter().find(|mv|
                             mv.from.1.t() > node.partial_game.info.present
-                            || !node.partial_game.info.is_active(mv.from.1.l())
+                            || !child_pos.info.is_active(mv.from.1.l())
                         ).is_some() {
                             // println!("Pruned @ {:?}", child_ms);
                             break
@@ -354,8 +351,8 @@ pub fn iddfs_schedule<'a, F: EvalFn, G: Goal>(
     game: &'a Game,
     eval_fn: F,
     options: TasksOptions<G>,
-    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
+    let approx = options.approx;
     let start = Instant::now();
     let max_duration = options.max_duration;
 
@@ -439,14 +436,12 @@ pub fn iddfs_bl_schedule<'a, F: EvalFn, G: Goal>(
     max_branches: usize,
     eval_fn: F,
     options: TasksOptions<G>,
-    approx: bool,
 ) -> Option<(EvalNode, Eval)> {
     let g = options.goal.or(MaxBranching::new(&game.info, max_branches));
     iddfs_schedule(
         game,
         eval_fn,
         options.goal(g),
-        approx,
     )
 }
 

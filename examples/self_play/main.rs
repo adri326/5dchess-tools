@@ -9,13 +9,15 @@ use std::time::{Duration, Instant};
 use std::env;
 
 // const DEPTH: usize = 3;
-const MAX_BRANCHES: usize = 3;
+const MAX_BRANCHES: usize = 2;
 const MAX_TIMELINES: usize = 8;
-const TIMEOUT: u64 = 60 * 60;
-const POOL_SIZE: usize = 128;
+const TIMEOUT: u64 = 60 * 1;
+const POOL_SIZE: usize = 32;
 const MAX_POOL_SIZE: usize = 100000;
-const N_THREADS: u32 = 16;
+const N_THREADS: u32 = 15;
 const APPROX: bool = true;
+const BRANCHING_DEPTH: usize = 3;
+const ONE_MOVE: bool = true;
 
 fn main() {
     let path = env::args().last().unwrap();
@@ -84,11 +86,11 @@ fn main() {
                 .max_duration(Some(Duration::new(TIMEOUT, 0)))
                 .goal(
                     MaxBranching::new(&game.info, MAX_BRANCHES)
-                    .or(InefficientBranching::new(5))
-                    .or(BranchBefore::new(5))
+                    .or(InefficientBranching::new(BRANCHING_DEPTH))
+                    .or(BranchBefore::new(BRANCHING_DEPTH))
                     .or(InactiveTimeline::default())
-                ),
-            APPROX,
+                )
+                .approx(APPROX),
         ) {
             let new_partial_game = {
                 let partial_game = no_partial_game(&game);
@@ -113,8 +115,10 @@ fn main() {
                 break
             }
         } else {
+            panic!("Couldn't yield any moves!");
+        }
+        if ONE_MOVE {
             break
         }
-        break
     }
 }

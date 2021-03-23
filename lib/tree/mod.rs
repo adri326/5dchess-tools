@@ -7,6 +7,9 @@ pub use schedule::{Tasks};
 pub mod dfs;
 pub use dfs::*;
 
+/// The number of nodes before movesets including future or inactive boards are discarded
+pub const APPROX_MIN_NODES: usize = 16;
+
 /**
     A node in a tree search
 **/
@@ -104,6 +107,7 @@ pub struct TasksOptions<G: Goal> {
     pub max_pool_size: usize,
     pub goal: G,
     pub max_duration: Option<std::time::Duration>,
+    pub approx: bool,
 }
 
 impl<G: Goal> TasksOptions<G> {
@@ -130,6 +134,11 @@ impl<G: Goal> TasksOptions<G> {
     pub fn goal<G2: Goal>(self, value: G2) -> TasksOptions<G2> {
         (value, self).into()
     }
+
+    pub fn approx(mut self, value: bool) -> Self {
+        self.approx = value;
+        self
+    }
 }
 
 impl<G: Goal> From<G> for TasksOptions<G> {
@@ -140,6 +149,7 @@ impl<G: Goal> From<G> for TasksOptions<G> {
             max_pool_size: 10000,
             goal,
             max_duration: None,
+            approx: false,
         }
     }
 }
@@ -152,6 +162,7 @@ impl<G: Goal, H: Goal> From<(G, TasksOptions<H>)> for TasksOptions<G> {
             max_pool_size: options.max_pool_size,
             goal,
             max_duration: options.max_duration,
+            approx: options.approx,
         }
     }
 }
@@ -164,6 +175,7 @@ impl Default for TasksOptions<ContinueGoal> {
             max_pool_size: 10000,
             goal: ContinueGoal,
             max_duration: None,
+            approx: false,
         }
     }
 }

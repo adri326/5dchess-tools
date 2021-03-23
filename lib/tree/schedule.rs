@@ -4,6 +4,7 @@ use crate::eval::Eval;
 use crate::check::is_in_check;
 use super::{TreeNode, EvalNode};
 use super::TasksOptions;
+use super::APPROX_MIN_NODES;
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
@@ -73,6 +74,8 @@ pub struct Tasks<'a, G: Goal> {
     recyclable: bool,
     index: usize,
 
+    approx: bool,
+
     goal: G,
 }
 
@@ -109,6 +112,8 @@ impl<'a, G: Goal> Tasks<'a, G> {
             tree,
             recyclable: true,
             index: 0,
+
+            approx: options.approx,
 
             goal: options.goal,
         }
@@ -188,9 +193,20 @@ impl<'a, G: Goal> Tasks<'a, G> {
             );
             loop {
                 // Add all of the items in gen into the pool
-                let mut yielded = false;
+                let mut yielded = 0;
                 for (ms, partial_game) in &mut gen {
-                    yielded = true;
+                    if self.approx && yielded >= APPROX_MIN_NODES {
+                        if ms.moves().iter().find(|mv|
+                            mv.from.1.t() > current_partial_game.info.present
+                            || !partial_game.info.is_active(mv.from.1.l())
+                        ).is_some() {
+                            // println!("Pruned @ {:?}", child_ms);
+                            break
+                        }
+                    }
+
+                    yielded += 1;
+
                     if self.sigma + start.elapsed() > self.max_duration {
                         self.sigma += start.elapsed();
                         return false
@@ -226,7 +242,7 @@ impl<'a, G: Goal> Tasks<'a, G> {
                     }
                 }
 
-                if !yielded && !gen.timed_out() {
+                if yielded == 0 && !gen.timed_out() {
                     match is_in_check(self.game, &current_partial_game) {
                         Some((true, _)) => *self.tree[parent_index].1.lock().unwrap() = Some(Eval::NEG_INFINITY),
                         Some((false, _)) => *self.tree[parent_index].1.lock().unwrap() = Some(0.0),
@@ -497,6 +513,7 @@ impl<'a, G: Goal> Clone for Tasks<'a, G> {
             recyclable: self.recyclable,
             index: self.index,
 
+            approx: self.approx,
             goal: self.goal,
         }
     }

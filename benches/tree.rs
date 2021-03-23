@@ -44,7 +44,7 @@ fn bench_dfs<M: Measurement>(
                     max_branches,
                     Some(Duration::new(10, 0)),
                     NoEvalFn::new(),
-                    FalseGoal,
+                    ContinueGoal,
                     false
                 ).expect("dfs timed out!")
             };
