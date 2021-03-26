@@ -247,8 +247,8 @@ fn dfs_rec<'a, F: EvalFn, G: Goal>(
                     let child_node = TreeNode::extend(&node, child_ms, child_pos);
 
                     let (child_best, child_score, child_nodes) = match goal.verify(&child_node.path, game, &child_node.partial_game, Some(depth)) {
-                        GoalResult::Win => (child_node.into(), Eval::INFINITY, 1),
-                        GoalResult::Loss => (child_node.into(), Eval::NEG_INFINITY, 1),
+                        GoalResult::Win => (child_node.into(), Eval::NEG_INFINITY, 1),
+                        GoalResult::Loss => (child_node.into(), Eval::INFINITY, 1),
                         GoalResult::Error => return None,
                         GoalResult::Score(s) => (child_node.into(), s, 1),
                         GoalResult::Stop => {

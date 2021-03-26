@@ -270,7 +270,6 @@ pub fn is_mate<'a>(
                                 if attacked_pieces.len() > 0 {
                                     return Mate::Checkmate
                                 } else {
-                                    println!("Huh? {}", l);
                                     return Mate::Stalemate
                                 }
                             }
@@ -279,7 +278,6 @@ pub fn is_mate<'a>(
                                 if attacked_pieces.len() > 0 {
                                     return Mate::Checkmate
                                 } else {
-                                    println!("Huh? {}", l);
                                     return Mate::Stalemate
                                 }
                             }
