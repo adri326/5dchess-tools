@@ -40,7 +40,7 @@ impl Goal for NoBranching {
 /**
     Verifies that no branching moveset is done.
 
-    **Note:** this filter loses accuracy.
+    **Note:** this filter loses accuracy, especially in drawish or branch-heavy positions.
 **/
 #[derive(Copy, Clone)]
 pub struct MaxBranching {
@@ -88,7 +88,7 @@ impl Goal for MaxBranching {
 
     TODO: flag in Moveset to indicate that a time travel was forced? (how would you even compute that?)
 
-    **Note:** this filter loses accuracy.
+    **Note:** this filter loses a lot of accuracy.
 **/
 #[derive(Copy, Clone)]
 pub struct InefficientBranching {
@@ -124,9 +124,9 @@ impl Goal for InefficientBranching {
 }
 
 /**
-    Stop lines where a branching occurred before the DFS depth was down to `depth`, useful for use with IDDFS.
+    Stop lines where a branching occurred before the DFS depth was down to `depth`, useful for use with IDDFS together with `InefficientBranching`.
 
-    **Note:** this filter loses accuracy.
+    **Note:** this filter loses a lot of accuracy.
 **/
 #[derive(Copy, Clone)]
 pub struct BranchBefore {
@@ -166,7 +166,7 @@ impl Goal for BranchBefore {
 /**
     Ignores lines where an inactive timeline is created, unless said timeline is created with a king (adjustable).
 
-    **Note:** this filter loses more accuracy than `InefficientBranching`, with little returns.
+    **Note:** this filter loses more accuracy than `InefficientBranching`, with little returns over `InefficientBranching` on small depth.
 **/
 #[derive(Copy, Clone)]
 pub struct InactiveTimeline {
