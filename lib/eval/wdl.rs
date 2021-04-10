@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 
 const DEFAULT_COUNT: usize = 1;
 
+/// Win/Draw/Loss primitive
 #[derive(Clone, Copy, Debug)]
 pub struct WDL {
     pub win: usize,

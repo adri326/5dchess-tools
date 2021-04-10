@@ -6,24 +6,42 @@ use std::time::{Instant, Duration};
 
 // TODO: add goals?
 
+/**
+    "Selective deepening" (see https://www.chessprogramming.org/Selectivity): does a narrow search ahead to look further into positions and determine how well they score.
+**/
 #[derive(Clone, Copy)]
 pub struct Deepen<E: EvalFn, I: EvalFn> {
+    /// How deep the search will go (default `2`)
     pub depth: usize,
+    /// How many child moves per node to consider and sort (default `15`)
     pub breadth_wide: usize,
+    /// The top N child moves for a node to recursively search through (default `5`)
     pub breadth_narrow: usize,
 
+    /// Value returned by the evaluation function if that position is a win (based on the narrow search)
+    /// This value should not be set to infinity, as the search result might be inaccurate (default `5.0`)
     pub win_value: Eval,
+    /// Value returned by the evaluation function if that position is a draw (default `0.0`)
     pub draw_value: Eval,
+    /// Evaluation function used at the leaf nodes, whose best result is multiplied by `none_mult`
     pub eval: E,
+    /// Multiplier for the best node value if it isn't infinity or draw (default `0.1`)
     pub none_mult: Eval,
+    /// Evaluation function used at non-leaf nodes, to sort the paths and only take the N best moves
     pub intermediary_eval: I,
 
+    /// Value to return if a node timed out and was in check (default `3.0`)
     pub timeout_win_value: Eval,
+    /// Value to return if a node timed out and wasn't in check (default `-0.05`)
     pub timeout_draw_value: Eval,
 
+    /// Value to return if the deepening search timed out (default `Some(-0.05)`)
     pub timeout_default: Option<Eval>,
 
+    /// Maximum duration that the deepening search can take (default `100μs`)
     pub max_time: Duration,
+    /// Maximum duration that a node of the deepening search can take. (default `10μs`)
+    /// You should give this the same value as `max_time` if you do not wish to use `timeout_win_value` or `timeout_draw_value`.
     pub node_max_time: Duration,
 }
 
@@ -115,6 +133,7 @@ impl<E: EvalFn, E2: EvalFn, I: EvalFn, I2: EvalFn> From<(Deepen<E, I>, E2, I2)> 
     }
 }
 
+/// Function called by the `Deepen` struct
 fn deepen<E: EvalFn, I: EvalFn>(game: &Game, node: &TreeNode, depth: usize, settings: &Deepen<E, I>, mut alpha: Eval, beta: Eval, deadline: Instant) -> Option<(Eval, Eval)> {
     deadline.checked_duration_since(Instant::now())?;
 

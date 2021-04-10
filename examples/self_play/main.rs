@@ -9,15 +9,15 @@ use std::time::{Duration, Instant};
 use std::env;
 
 // const DEPTH: usize = 3;
-const MAX_BRANCHES: usize = 2;
+const MAX_BRANCHES: usize = 3;
 const MAX_TIMELINES: usize = 8;
-const TIMEOUT: u64 = 60 * 1;
+const TIMEOUT: u64 = 60 * 15;
 const POOL_SIZE: usize = 32;
 const MAX_POOL_SIZE: usize = 100000;
 const N_THREADS: u32 = 15;
 const APPROX: bool = true;
-const BRANCHING_DEPTH: usize = 3;
-const ONE_MOVE: bool = true;
+const BRANCHING_DEPTH: usize = 5;
+const ONE_MOVE: bool = false;
 
 fn main() {
     let path = env::args().last().unwrap();
@@ -34,7 +34,7 @@ fn main() {
             PieceValues::default()
             .inactive_multiplier(0.05)
             .add(
-                KingSafety::default()
+                KingSafety2D::default()
                 .diagonal_empty(-0.02)
                 .diagonal_opponent(-0.75)
                 .orthogonal_empty(-0.02)
@@ -66,7 +66,7 @@ fn main() {
                 .intermediary_value(
                     PieceValues::default()
                     .add(
-                        KingSafety::default()
+                        KingSafety2D::default()
                         .diagonal_empty(-0.02)
                         .diagonal_opponent(-0.5)
                         .orthogonal_empty(-0.02)

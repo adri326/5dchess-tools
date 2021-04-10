@@ -1,10 +1,14 @@
 use super::*;
 
+/// Evaluation giving a score based on how far pawns/brawns have progressed so far
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PawnProgression {
+    /// Value per tile for the distance travelled by a pawn (default `0.1`)
     pub pawn_delta: Eval,
+    /// Value per tile for the distance travelled by a brawn (default `0.1`)
     pub brawn_delta: Eval,
 
+    /// Multiplier for inactive boards (default `0.25`)
     pub inactive_multiplier: Eval,
 }
 

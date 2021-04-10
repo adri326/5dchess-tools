@@ -1,23 +1,36 @@
 use super::*;
 
+/**
+    Gives a score based on the safety of the king. Gives penalties if a king's orthogonals or diagonals are open or occupied by an opponent's piece.
+    Can be used to approximate check penalty.
+**/
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct KingSafety {
+pub struct KingSafety2D {
+    /// The maximum distance that a defending pieces on the king's orthogonals or diagonals can be, beyond which the ortogonal or diagonal is considered empty (, default `1`)
     pub allowed_distance: Physical,
+    /// Evaluation value if a 1D orthogonal is empty (lower gives a stronger penalty, default `-4.0`)
     pub orthogonal_empty: Eval,
+    /// Evaluation value if a 1D orthogonal is occupied by an opponent's piece (lower gives a stronger penalty, default `-6.0`)
     pub orthogonal_opponent: Eval,
+    /// Evaluation value if a 2D diagonal is empty (lower gives a stronger penalty, default `-2.0`)
     pub diagonal_empty: Eval,
+    /// Evaluation value if a 2D diagonal is occupied by an opponent's pieces (lower gives a stronger penalty, default `-4.0`)
     pub diagonal_opponent: Eval,
 
+    /// Evaluation value if a 2D knight-jump is empty (ignores allowed_distance, lower gives a stronger penalty, default `0.0`)
     pub knight_empty: Eval,
+    /// Evaluation value if a 2D knight-jump is occupied by an opponent's pieces (ignores allowed_distance, lower gives a stronger penalty, default `-3.0`)
     pub knight_opponent: Eval,
 
+    /// Evaluation value if there are more than one king on one board (lower gives a stronger penalty, default `-4.0`)
     pub additional_king: Eval,
 
+    /// Multiplier for inactive timelines (default `0.25`)
     pub inactive_multiplier: Eval,
-    // TODO: triagonals?
 }
+// TODO: triagonals? -> in a KingSafety4D struct
 
-impl KingSafety {
+impl KingSafety2D {
     pub fn allowed_distance(mut self, value: Physical) -> Self {
         self.allowed_distance = value;
         self
@@ -64,7 +77,7 @@ impl KingSafety {
     }
 }
 
-impl Default for KingSafety {
+impl Default for KingSafety2D {
     fn default() -> Self {
         Self {
             allowed_distance: 1,
@@ -135,7 +148,7 @@ mod macros {
     }
 }
 
-impl EvalBoardFn for KingSafety {
+impl EvalBoardFn for KingSafety2D {
     fn eval_board(&self, _game: &Game, node: &TreeNode, board: &Board) -> Option<Eval> {
         let partial_game = &node.partial_game;
         let mut sum: Eval = 0.0;

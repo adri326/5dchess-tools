@@ -1,26 +1,32 @@
 use crate::prelude::*;
 use crate::tree::TreeNode;
 
+/// Module containing the Win/Draw/Loss primitive
 pub mod wdl;
 
+/// Module containing the PieceValues struct, used to rate the value of pieces
 pub mod value;
 pub use value::PieceValues;
 
+/// Module containing the KingSafety2D struct, used to rate the safety of kings
 pub mod king_safety;
-pub use king_safety::KingSafety;
+pub use king_safety::KingSafety2D;
 
+/// Module containing the TimelineAdvantage struct, used to rate timeline advantage and debt
 pub mod timeline_advantage;
 pub use timeline_advantage::TimelineAdvantage;
 
+/// Module containing the PawnProgression struct, used to rate pawn/brawn structures and positions
 pub mod pawn_progression;
 pub use pawn_progression::PawnProgression;
 
+/// Module containing the Deepen struct, used for selective search
 pub mod deepen;
 pub use deepen::Deepen;
 
 pub type Eval = f32;
 
-// TODO: move to prelude?
+// TODO: move EvalFn to prelude?
 
 pub trait EvalFn: Copy + Send {
     fn eval(&self, game: &Game, node: &TreeNode) -> Option<Eval>;
