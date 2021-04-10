@@ -2,6 +2,13 @@ use crate::*;
 use crate::gen::*;
 use super::threat::*;
 
+/**
+    Returns false iff the given move does not fulfill the legality condition of Theorem 3:
+
+    > If, when partially applying a single, non-spatial move, the resulting position with only the new source board is illegal or the new target board bar the remainder of the position is illegal, then any action containing that move is illegal.
+
+    This is used to quickly reduce the search space.
+**/
 pub fn is_legal_move<'a>(
     mv: Move,
     game: &'a Game,
@@ -47,6 +54,10 @@ pub fn is_legal_move<'a>(
     }
 }
 
+/**
+    Similar to `is_legal_move`, but returns true if there are less than two boards to play on or there are three boards to play on and less than 8 opponent boards.
+    This is based on the estimation that the number of legal moves on a board do not exceed `100`.
+**/
 pub fn is_legal_move_optional<'a>(
     mv: Move,
     game: &'a Game,
@@ -134,7 +145,8 @@ fn filter_non_physical_move<'a>(game: &'a Game, partial_game: &'a PartialGame<'a
 }
 
 /**
-    Iterator that filters moves from a parent iterator that are legal.
+    Iterator that filters moves from a parent iterator that will always yield illegal movesets.
+    See `is_legal_move` for more information.
 **/
 #[derive(Clone)]
 pub struct FilterLegalMove<'a, I>
