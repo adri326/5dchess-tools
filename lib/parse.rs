@@ -2,7 +2,11 @@ use crate::prelude::{
     Board, Coords, Game, Layer, Physical, Piece, PieceKind, Tile, Time, TimelineInfo,
 };
 use crate::traversal::bubble_down_mut;
+use regex::Regex;
 use serde::Deserialize;
+use std::collections::HashMap;
+use std::fmt;
+use std::str::FromStr;
 
 /// Represents a game state
 #[derive(Debug, Deserialize)]
@@ -64,7 +68,6 @@ pub fn parse(raw: &str) -> Option<Game> {
         })
         .collect();
 
-
     let mut res = Game::new(
         game_raw.width as Physical,
         game_raw.height as Physical,
@@ -84,8 +87,15 @@ pub fn parse(raw: &str) -> Option<Game> {
                 .map(|piece_raw| de_piece(*piece_raw))
                 .collect();
 
-            let board: Board =
-                Board::new(game_raw.width, game_raw.height, layer, time, pieces, None, None);
+            let board: Board = Board::new(
+                game_raw.width,
+                game_raw.height,
+                layer,
+                time,
+                pieces,
+                None,
+                None,
+            );
             res.insert_board(board);
         }
     }
@@ -162,16 +172,26 @@ pub fn parse(raw: &str) -> Option<Game> {
                                 // If it is a king-like piece, fill in the castle field
                                 if piece.can_castle() {
                                     // Left
-                                    if
-                                        x > 1
-                                        && !cmp_pieces(previous_board.get((x - 1, y)), board.get((x - 1, y)))
-                                        && !cmp_pieces(previous_board.get((x - 2, y)), board.get((x - 2, y)))
+                                    if x > 1
+                                        && !cmp_pieces(
+                                            previous_board.get((x - 1, y)),
+                                            board.get((x - 1, y)),
+                                        )
+                                        && !cmp_pieces(
+                                            previous_board.get((x - 2, y)),
+                                            board.get((x - 2, y)),
+                                        )
                                     {
                                         board.set_castle(Some((x - 1, y, x - 2, y)));
-                                    } else if
-                                        x < game_raw.width - 2
-                                        && !cmp_pieces(previous_board.get((x + 1, y)), board.get((x + 1, y)))
-                                        && !cmp_pieces(previous_board.get((x + 2, y)), board.get((x + 2, y)))
+                                    } else if x < game_raw.width - 2
+                                        && !cmp_pieces(
+                                            previous_board.get((x + 1, y)),
+                                            board.get((x + 1, y)),
+                                        )
+                                        && !cmp_pieces(
+                                            previous_board.get((x + 2, y)),
+                                            board.get((x + 2, y)),
+                                        )
                                     {
                                         board.set_castle(Some((x + 1, y, x + 2, y)));
                                     }
@@ -200,6 +220,21 @@ pub fn de_layer(raw: f32, even_timelines: bool) -> Layer {
         (raw.ceil() - 1.0) as Layer
     } else {
         raw.floor() as Layer
+    }
+}
+
+pub fn de_str_layer(raw: &str, even_timelines: bool) -> Layer {
+    if raw == "-0" {
+        -1
+    } else if raw == "+0" {
+        0
+    } else {
+        let parsed = Layer::from_str(raw).unwrap();
+        if parsed < 0 && even_timelines {
+            parsed - 1
+        } else {
+            parsed
+        }
     }
 }
 
@@ -278,5 +313,237 @@ pub mod test {
         file.read_to_string(&mut contents).ok()?;
 
         parse(&contents)
+    }
+}
+
+/// Represents an error encountered while parsing a PGN string
+pub enum PGNParseError {
+    InvalidHeader(String),
+    FENDimensionX(String, Physical, usize),
+    FENDimensionY(String, Physical, usize),
+    FENUnexpected(String, String),
+}
+
+/// Parses a PGN string, returning the corresponding `Game` instance if possible
+pub fn parse_pgn(raw: &str) -> Result<Game, PGNParseError> {
+    let header_regexp = Regex::new("^(\\w+)\\s+\"([^\"]+)\"$").unwrap();
+    let mut headers: HashMap<String, String> = HashMap::new();
+    let mut fens = Vec::new();
+
+    for line in raw.split("\n") {
+        let line = line.trim();
+        if line.chars().next() == Some('[') && line.chars().last() == Some(']') {
+            if let Some(cap) = header_regexp.captures(&line[1..(line.len() - 1)]) {
+                let name = cap.get(1).unwrap().as_str().to_lowercase();
+                let value = cap.get(2).unwrap().as_str().to_string();
+                headers.insert(name, value);
+            } else {
+                let fen_parts = line[1..(line.len() - 1)].split(":").collect::<Vec<_>>();
+                if fen_parts.len() == 4 {
+                    fens.push(fen_parts);
+                } else {
+                    return Err(PGNParseError::InvalidHeader(line.to_string()));
+                }
+            }
+        }
+    }
+
+    println!("{:#?}", headers);
+    let (width, height) = if let Some(raw_size) = headers.get(&String::from("size")) {
+        let v = raw_size.split("x").collect::<Vec<_>>();
+        if v.len() == 2 {
+            v[0].parse::<Physical>()
+                .ok()
+                .map(|x| v[1].parse::<Physical>().ok().map(|y| (x, y)))
+                .flatten()
+                .unwrap_or((8, 8))
+        } else {
+            (8, 8)
+        }
+    } else {
+        (8, 8)
+    };
+
+    let mut game = Game::new(
+        width,
+        height,
+        false,
+        vec![TimelineInfo::new(0, None, 0, 0)],
+        vec![],
+    );
+
+    // Custom board: parse fen
+    if headers
+        .get(&String::from("board"))
+        .map(|x| x.to_lowercase())
+        == Some("custom".to_string())
+    {
+        for fen in &fens {
+            if fen[1] == "+0" || fen[1] == "-0" {
+                game.info.even_timelines = true;
+            }
+        }
+
+        for fen in fens {
+            parse_and_insert_fen(fen, &mut game)?;
+        }
+    }
+
+    Ok(game)
+}
+
+/// Parses a single FEN string (already split by the `:` character) and returns its corresponding `Board` if the FEN is valid
+pub fn parse_fen(fen: Vec<&str>, game: &Game) -> Result<Board, PGNParseError> {
+    let mut board = Board::new(
+        game.width,
+        game.height,
+        de_str_layer(fen[1], game.info.even_timelines),
+        (Time::from_str(fen[2]).unwrap() - 1) * 2 + (fen[3] != "w") as Time,
+        vec![Tile::Blank; game.width as usize * game.height as usize],
+        None,
+        None,
+    );
+    let rows = fen[0].split("/").collect::<Vec<_>>();
+
+    if rows.len() != game.height as usize {
+        return Err(PGNParseError::FENDimensionY(
+            fen[0].to_string(),
+            game.height,
+            rows.len(),
+        ));
+    }
+
+    // for each row...
+    for (y, row) in rows.into_iter().enumerate() {
+        let mut x = 0;
+        let mut skip = String::new();
+        // for each char...
+        for c in row.chars() {
+            if c >= '0' && c <= '9' {
+                skip.push(c);
+            } else {
+                if skip.len() > 0 {
+                    x += usize::from_str(&skip).unwrap();
+                    skip = String::new();
+                }
+                let kind = match c {
+                    'p' | 'P' => PieceKind::Pawn,
+                    'r' | 'R' => PieceKind::Rook,
+                    'b' | 'B' => PieceKind::Bishop,
+                    'u' | 'U' => PieceKind::Unicorn,
+                    'd' | 'D' => PieceKind::Dragon,
+                    'q' | 'Q' => PieceKind::Queen,
+                    's' | 'S' => PieceKind::Princess,
+                    'k' | 'K' => PieceKind::King,
+                    'c' | 'C' => PieceKind::CommonKing,
+                    'n' | 'N' => PieceKind::Knight,
+                    'w' | 'W' => PieceKind::Brawn,
+                    'y' | 'Y' => PieceKind::RoyalQueen,
+                    '*' => {
+                        if let Tile::Piece(ref mut p) =
+                            &mut board.pieces[y * game.width as usize + x - 1]
+                        {
+                            p.moved = false;
+                        } else {
+                            return Err(PGNParseError::FENUnexpected(
+                                String::from("*"),
+                                row.to_string(),
+                            ));
+                        }
+                        continue;
+                    }
+                    x => {
+                        return Err(PGNParseError::FENUnexpected(
+                            String::from(x),
+                            row.to_string(),
+                        ))
+                    }
+                };
+                let white = c.is_ascii_uppercase();
+                if x >= game.width as usize {
+                    return Err(PGNParseError::FENDimensionX(
+                        row.to_string(),
+                        game.width,
+                        x + 1,
+                    ));
+                }
+                board.pieces[y * game.width as usize + x] =
+                    Tile::Piece(Piece::new(kind, white, false));
+                x += 1;
+            }
+        }
+        if skip.len() > 0 {
+            x += usize::from_str(&skip).unwrap();
+        }
+        if x != game.width as usize {
+            return Err(PGNParseError::FENDimensionX(row.to_string(), game.width, x));
+        }
+    }
+
+    Ok(board)
+}
+
+/// Parses a FEN string using `parse_fen` and appends it to the Game.
+/// As there can be no gap in the timelines, empty timelines will be created.
+/// Most functions will expect timelines to be non-empty, so you should make sure that these eventually get filled in.
+pub fn parse_and_insert_fen(fen: Vec<&str>, game: &mut Game) -> Result<(), PGNParseError> {
+    let board = parse_fen(fen, game)?;
+
+    if let Some(ref mut tl) = game.info.get_timeline_mut(board.l) {
+        tl.last_board = tl.last_board.max(board.t);
+        tl.first_board = tl.first_board.min(board.t);
+    } else {
+        // create the timeline
+        if board.l >= 0 {
+            while game.info.timelines_white.len() + 1 < board.l as usize {
+                game.info.timelines_white.push(TimelineInfo::new(
+                    game.info.timelines_white.len() as Layer,
+                    None,
+                    0,
+                    0,
+                ));
+            }
+            game.info
+                .timelines_white
+                .push(TimelineInfo::new(board.l, None, board.t, board.t));
+        } else {
+            while game.info.timelines_black.len() + 2 < (-board.l) as usize {
+                game.info.timelines_black.push(TimelineInfo::new(
+                    -(game.info.timelines_black.len() as Layer) - 1,
+                    None,
+                    0,
+                    0,
+                ));
+            }
+            game.info
+                .timelines_black
+                .push(TimelineInfo::new(board.l, None, board.t, board.t));
+        }
+    }
+
+    game.insert_board(board);
+    println!("{:#?}", game);
+
+    Ok(())
+}
+
+impl fmt::Debug for PGNParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PGNParseError::InvalidHeader(s) => write!(f, "Invalid header: `{}`", s),
+            PGNParseError::FENDimensionX(s, expected, got) => write!(
+                f,
+                "Invalid FEN width dimension in `{}`: expected {}, got {}",
+                s, expected, got
+            ),
+            PGNParseError::FENDimensionY(s, expected, got) => write!(
+                f,
+                "Invalid FEN height dimension in `{}`: expected {}, got {}",
+                s, expected, got
+            ),
+            PGNParseError::FENUnexpected(s, t) => {
+                write!(f, "Invalid token in FEN: '{}' in `{}`", t, s)
+            }
+        }
     }
 }

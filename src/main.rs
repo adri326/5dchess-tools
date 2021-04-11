@@ -13,7 +13,8 @@ fn main() -> std::io::Result<()> {
     let mut contents = String::new();
 
     file.read_to_string(&mut contents)?;
-    let game = parse(&contents).unwrap();
+    let game = parse_pgn(&contents).unwrap();
+    // let game = parse(&contents).unwrap();
     let partial_game = no_partial_game(&game);
 
     // prints a few informations on the game
