@@ -1,3 +1,6 @@
 [submodule "tests/5dchess-notation"]
 	path = 5dchess-notation
 	url = https://github.com/adri326/5dchess-notation
+[submodule "5dchess-variants"]
+	path = 5dchess-variants
+	url = https://github.com/adri326/5dchess-variants

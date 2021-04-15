@@ -2,6 +2,7 @@
 use chess5dlib::{parse::*, prelude::*, check::*, gen::*, tree::{*, dfs::*}, eval::*};
 use std::env;
 use std::fs::File;
+use std::path::Path;
 use std::io::prelude::*;
 
 // TODO: move replay, game analysis, args
@@ -13,7 +14,7 @@ fn main() -> std::io::Result<()> {
     let mut contents = String::new();
 
     file.read_to_string(&mut contents)?;
-    let game = parse_pgn(&contents).unwrap();
+    let game = parse_pgn(&contents, Some(Path::new("./5dchess-variants/variants"))).unwrap();
     // let game = parse(&contents).unwrap();
     let partial_game = no_partial_game(&game);
 
@@ -35,7 +36,7 @@ fn main() -> std::io::Result<()> {
     println!("Is in check? {:?}", is_in_check(&game, &partial_game));
     println!("Is mate? {:?}", chess5dlib::mate::is_mate(&game, &partial_game, None));
 
-    const D: usize = 3;
+    const D: usize = 1;
     println!("DFS, d={}: {:?}", D, dfs_bl(&game, TreeNode::empty(&game), D, 3, None, PieceValues::default().into_eval(), ContinueGoal, false));
 
     // println!("Number of movesets: {}", GenMovesetIter::new(

@@ -7,6 +7,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
+use std::path::Path;
+use std::fs;
 
 /// Represents a game state
 #[derive(Debug, Deserialize)]
@@ -322,47 +324,18 @@ pub enum PGNParseError {
     FENDimensionX(String, Physical, usize),
     FENDimensionY(String, Physical, usize),
     FENUnexpected(String, String),
+    InvalidVariant(String),
 }
 
 /// Parses a PGN string, returning the corresponding `Game` instance if possible
-pub fn parse_pgn(raw: &str) -> Result<Game, PGNParseError> {
-    let header_regexp = Regex::new("^(\\w+)\\s+\"([^\"]+)\"$").unwrap();
+pub fn parse_pgn(raw: &str, variants: Option<&Path>) -> Result<Game, PGNParseError> {
+    let variant_regexp = Regex::new("^[a-zA-Z \\-]+$").unwrap();
     let mut headers: HashMap<String, String> = HashMap::new();
     let mut fens = Vec::new();
 
-    for line in raw.split("\n") {
-        let line = line.trim();
-        if line.chars().next() == Some('[') && line.chars().last() == Some(']') {
-            if let Some(cap) = header_regexp.captures(&line[1..(line.len() - 1)]) {
-                let name = cap.get(1).unwrap().as_str().to_lowercase();
-                let value = cap.get(2).unwrap().as_str().to_string();
-                headers.insert(name, value);
-            } else {
-                let fen_parts = line[1..(line.len() - 1)].split(":").collect::<Vec<_>>();
-                if fen_parts.len() == 4 {
-                    fens.push(fen_parts);
-                } else {
-                    return Err(PGNParseError::InvalidHeader(line.to_string()));
-                }
-            }
-        }
-    }
+    parse_headers(raw, &mut headers, &mut fens)?;
 
-    println!("{:#?}", headers);
-    let (width, height) = if let Some(raw_size) = headers.get(&String::from("size")) {
-        let v = raw_size.split("x").collect::<Vec<_>>();
-        if v.len() == 2 {
-            v[0].parse::<Physical>()
-                .ok()
-                .map(|x| v[1].parse::<Physical>().ok().map(|y| (x, y)))
-                .flatten()
-                .unwrap_or((8, 8))
-        } else {
-            (8, 8)
-        }
-    } else {
-        (8, 8)
-    };
+    let (mut width, mut height) = get_dimensions(&headers);
 
     let mut game = Game::new(
         width,
@@ -387,7 +360,60 @@ pub fn parse_pgn(raw: &str) -> Result<Game, PGNParseError> {
         for fen in fens {
             parse_and_insert_fen(fen, &mut game)?;
         }
+    } else if variants.is_some() && headers.get(&String::from("board")).map(|b| variant_regexp.is_match(b)) == Some(true) {
+        // Attempt to read the variant from the variants directory
+
+        let variant = headers.get(&String::from("board")).unwrap();
+        // Read the directory
+        if let Ok(mut files) = fs::read_dir(variants.unwrap()) {
+            // Find the directory of the variant
+            if files.find(|d| {
+                if let Ok(s) = d.as_ref().map(|d| d.path()) {
+                    s.file_name().map(|s| s.to_str()).flatten().map(|s| s == variant).unwrap_or(false)
+                } else {
+                    false
+                }
+            }).is_some() {
+                let mut path = variants.unwrap().join(variant);
+                path.push("variant.5dpgn");
+                let contents = std::fs::read_to_string(path).unwrap();
+                fens = Vec::new();
+
+                parse_headers(&contents, &mut headers, &mut fens)?;
+
+                let (n_width, n_height) = get_dimensions(&headers);
+                width = n_width;
+                height = n_height;
+                game = Game::new(
+                    width,
+                    height,
+                    false,
+                    vec![TimelineInfo::new(0, None, 0, 0)],
+                    vec![],
+                );
+
+                for fen in &fens {
+                    if fen[1] == "+0" || fen[1] == "-0" {
+                        game.info.even_timelines = true;
+                    }
+                }
+
+                for fen in fens {
+                    parse_and_insert_fen(fen, &mut game)?;
+                }
+            } else {
+                return Err(PGNParseError::InvalidVariant(variant.clone()));
+            }
+        } else {
+            return Err(PGNParseError::InvalidVariant(variant.clone()));
+        }
+    } else {
+        unimplemented!();
     }
+
+    println!("{:#?}", headers);
+
+    game.info.recalculate_present();
 
     Ok(game)
 }
@@ -415,6 +441,7 @@ pub fn parse_fen(fen: Vec<&str>, game: &Game) -> Result<Board, PGNParseError> {
 
     // for each row...
     for (y, row) in rows.into_iter().enumerate() {
+        let y = board.height() as usize - y - 1;
         let mut x = 0;
         let mut skip = String::new();
         // for each char...
@@ -467,8 +494,8 @@ pub fn parse_fen(fen: Vec<&str>, game: &Game) -> Result<Board, PGNParseError> {
                         x + 1,
                     ));
                 }
-                board.pieces[y * game.width as usize + x] =
-                    Tile::Piece(Piece::new(kind, white, false));
+                let tile = Tile::Piece(Piece::new(kind, white, false));
+                board.set((x as Physical, y as Physical), tile);
                 x += 1;
             }
         }
@@ -521,10 +548,61 @@ pub fn parse_and_insert_fen(fen: Vec<&str>, game: &mut Game) -> Result<(), PGNPa
         }
     }
 
+    // for (i, bb) in board.bitboards.white.iter().enumerate() {
+    //     println!("w{:2}: {:#066b}", i, bb);
+    // }
+    // println!("wr:  {:#066b}", board.bitboards.white_royal);
+    // println!("wm:  {:#066b}", board.bitboards.white_movable);
+    // for (i, bb) in board.bitboards.black.iter().enumerate() {
+    //     println!("b{:2}: {:#066b}", i, bb);
+    // }
+    // println!("br:  {:#066b}", board.bitboards.black_royal);
+    // println!("bm:  {:#066b}", board.bitboards.black_movable);
+
+    println!("{:?}", board);
     game.insert_board(board);
-    println!("{:#?}", game);
+    // println!("{:#?}", game);
 
     Ok(())
+}
+
+pub fn parse_headers<'a>(raw: &'a str, headers: &mut HashMap<String, String>, fens: &mut Vec<Vec<&'a str>>) -> Result<(), PGNParseError> {
+    let header_regexp = Regex::new("^(\\w+)\\s+\"([^\"]+)\"$").unwrap();
+    for line in raw.split("\n") {
+        let line = line.trim();
+        if line.chars().next() == Some('[') && line.chars().last() == Some(']') {
+            if let Some(cap) = header_regexp.captures(&line[1..(line.len() - 1)]) {
+                let name = cap.get(1).unwrap().as_str().to_lowercase();
+                let value = cap.get(2).unwrap().as_str().to_string();
+                headers.insert(name, value);
+            } else {
+                let fen_parts = line[1..(line.len() - 1)].split(":").collect::<Vec<_>>();
+                if fen_parts.len() == 4 {
+                    fens.push(fen_parts);
+                } else {
+                    return Err(PGNParseError::InvalidHeader(line.to_string()));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn get_dimensions(headers: &HashMap<String, String>) -> (Physical, Physical) {
+    if let Some(raw_size) = headers.get(&String::from("size")) {
+        let v = raw_size.split("x").collect::<Vec<_>>();
+        if v.len() == 2 {
+            v[0].parse::<Physical>()
+                .ok()
+                .map(|x| v[1].parse::<Physical>().ok().map(|y| (x, y)))
+                .flatten()
+                .unwrap_or((8, 8))
+        } else {
+            (8, 8)
+        }
+    } else {
+        (8, 8)
+    }
 }
 
 impl fmt::Debug for PGNParseError {
@@ -543,6 +621,9 @@ impl fmt::Debug for PGNParseError {
             ),
             PGNParseError::FENUnexpected(s, t) => {
                 write!(f, "Invalid token in FEN: '{}' in `{}`", t, s)
+            },
+            PGNParseError::InvalidVariant(v) => {
+                write!(f, "Invalid variant: `{}`", v)
             }
         }
     }

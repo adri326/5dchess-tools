@@ -1,4 +1,4 @@
-use chess5dlib::parse::test::read_and_parse_opt;
+use chess5dlib::parse::{parse_pgn, test::read_and_parse_opt};
 use chess5dlib::{
     prelude::*,
     eval::*,
@@ -7,11 +7,14 @@ use chess5dlib::{
 };
 use std::time::{Duration, Instant};
 use std::env;
+use std::fs::File;
+use std::path::Path;
+use std::io::prelude::*;
 
 // const DEPTH: usize = 3;
 const MAX_BRANCHES: usize = 3;
 const MAX_TIMELINES: usize = 8;
-const TIMEOUT: u64 = 60 * 15;
+const TIMEOUT: u64 = 60;
 const POOL_SIZE: usize = 32;
 const MAX_POOL_SIZE: usize = 100000;
 const N_THREADS: u32 = 15;
@@ -21,7 +24,12 @@ const ONE_MOVE: bool = false;
 
 fn main() {
     let path = env::args().last().unwrap();
-    let mut game = read_and_parse_opt(&path).unwrap();
+    let mut file = File::open(path).unwrap();
+    let mut contents = String::new();
+
+    file.read_to_string(&mut contents).unwrap();
+    let mut game = parse_pgn(&contents, Some(Path::new("./5dchess-variants/variants"))).unwrap();
+    // let mut game = read_and_parse_opt(&path).unwrap();
 
     let pg = no_partial_game(&game);
     for b in pg.own_boards(&game) {

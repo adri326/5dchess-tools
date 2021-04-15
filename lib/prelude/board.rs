@@ -26,7 +26,7 @@ impl fmt::Debug for Board {
         write!(f, "\n")?;
         for y in 0..self.height {
             for x in 0..self.width {
-                match self.get((x, y)) {
+                match self.get((x, self.height - y - 1)) {
                     Tile::Piece(x) => write!(f, "{:?}", x)?,
                     _ => write!(f, "{}", ".".white())?,
                 }
