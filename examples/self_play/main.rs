@@ -96,7 +96,7 @@ fn main() {
                     MaxBranching::new(&game.info, MAX_BRANCHES)
                     .or(InefficientBranching::new(BRANCHING_DEPTH))
                     .or(BranchBefore::new(BRANCHING_DEPTH))
-                    .or(InactiveTimeline::default())
+                    // .or(InactiveTimeline::default())
                 )
                 .approx(APPROX),
         ) {

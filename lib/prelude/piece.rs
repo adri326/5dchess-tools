@@ -108,6 +108,17 @@ impl Piece {
     }
 
     /**
+        Returns `true` if the piece can be described using pawn-specific algebraic notation
+    **/
+    #[inline]
+    pub fn is_pawnlike(&self) -> bool {
+        match self.kind {
+            PieceKind::Pawn | PieceKind::Brawn => true,
+            _ => false,
+        }
+    }
+
+    /**
         Returns the bitboard mask corresponding to that piece.
     **/
     #[inline]

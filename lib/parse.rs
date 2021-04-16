@@ -1,14 +1,15 @@
 use crate::prelude::{
-    Board, Coords, Game, Layer, Physical, Piece, PieceKind, Tile, Time, TimelineInfo,
+    Board, Coords, Game, Layer, Physical, Piece, PieceKind, Tile, Time, TimelineInfo, Move, no_partial_game,
 };
+use crate::gen::{GenMoves, PiecePosition};
 use crate::traversal::bubble_down_mut;
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt;
-use std::str::FromStr;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
+use std::str::FromStr;
 
 /// Represents a game state
 #[derive(Debug, Deserialize)]
@@ -217,7 +218,7 @@ pub fn parse(raw: &str) -> Option<Game> {
 }
 
 /** Deserializes a layer coordinate serialized as an `f32`-encoded number. **/
-pub fn de_layer(raw: f32, even_timelines: bool) -> Layer {
+fn de_layer(raw: f32, even_timelines: bool) -> Layer {
     if even_timelines && raw < 0.0 {
         (raw.ceil() - 1.0) as Layer
     } else {
@@ -225,19 +226,65 @@ pub fn de_layer(raw: f32, even_timelines: bool) -> Layer {
     }
 }
 
-pub fn de_str_layer(raw: &str, even_timelines: bool) -> Layer {
+fn de_str_layer(raw: &str, even_timelines: bool) -> Result<Layer, PGNParseError> {
     if raw == "-0" {
-        -1
+        Ok(-1)
     } else if raw == "+0" {
-        0
+        Ok(0)
     } else {
-        let parsed = Layer::from_str(raw).unwrap();
-        if parsed < 0 && even_timelines {
-            parsed - 1
-        } else {
-            parsed
+        match Layer::from_str(raw) {
+            Ok(parsed) => {
+                Ok(
+                    if parsed < 0 && even_timelines {
+                        parsed - 1
+                    } else {
+                        parsed
+                    }
+                )
+            }
+            Err(_) => Err(PGNParseError::InvalidL(raw.to_string()))
         }
     }
+}
+
+fn de_time(raw: &str, active_player: bool) -> Result<Time, PGNParseError> {
+    match Time::from_str(raw) {
+        Ok(t) => Ok((t - 1) * 2 - if active_player { 0 } else { 1 }),
+        Err(_) => Err(PGNParseError::InvalidT(raw.to_string())),
+    }
+}
+
+fn de_x(raw: char) -> Result<Physical, PGNParseError> {
+    if raw >= 'a' && raw <= 'w' {
+        Ok((raw.to_digit(33).unwrap() - 10) as Physical)
+    } else {
+        Err(PGNParseError::InvalidX(raw))
+    }
+}
+
+fn de_y(raw: &str) -> Result<Physical, PGNParseError> {
+    match Physical::from_str(raw) {
+        Ok(r) => Ok(r - 1),
+        Err(_) => Err(PGNParseError::InvalidY(raw.to_string())),
+    }
+}
+
+fn de_pgn_piece(raw: &str) -> Result<PieceKind, PGNParseError> {
+    Ok(match raw {
+        "BR" | "W" => PieceKind::Brawn,
+        "CK" | "C" => PieceKind::CommonKing,
+        "RQ" | "Y" => PieceKind::RoyalQueen,
+        "PR" | "S" => PieceKind::Princess,
+        "P" => PieceKind::Pawn,
+        "R" => PieceKind::Rook,
+        "B" => PieceKind::Bishop,
+        "U" => PieceKind::Unicorn,
+        "D" => PieceKind::Dragon,
+        "Q" => PieceKind::Queen,
+        "K" => PieceKind::King,
+        "N" => PieceKind::Knight,
+        _ => return Err(PGNParseError::InvalidPiece(raw.to_string()))
+    })
 }
 
 /** Deserializes a piece serialized as a `usize`-encoded number.
@@ -325,15 +372,40 @@ pub enum PGNParseError {
     FENDimensionY(String, Physical, usize),
     FENUnexpected(String, String),
     InvalidVariant(String),
+    InvalidPiece(String),
+    SyntaxError(String, String),
+    InvalidX(char),
+    InvalidY(String),
+    InvalidL(String),
+    InvalidT(String),
+    NoBoard(Layer, Time),
+    Ambiguous(PieceKind, Layer, Time, Option<Physical>, Option<Physical>),
 }
 
 /// Parses a PGN string, returning the corresponding `Game` instance if possible
 pub fn parse_pgn(raw: &str, variants: Option<&Path>) -> Result<Game, PGNParseError> {
+    // Remove comments
+    let raw = {
+        let mut in_comment = false;
+        raw.chars()
+            .filter(|c| {
+                if *c == '{' {
+                    in_comment = true;
+                }
+                if *c == '}' {
+                    in_comment = false;
+                    return false;
+                }
+                !in_comment
+            })
+            .collect::<String>()
+    };
+
     let variant_regexp = Regex::new("^[a-zA-Z \\-]+$").unwrap();
     let mut headers: HashMap<String, String> = HashMap::new();
     let mut fens = Vec::new();
 
-    parse_headers(raw, &mut headers, &mut fens)?;
+    parse_headers(&raw, &mut headers, &mut fens)?;
 
     let (mut width, mut height) = get_dimensions(&headers);
 
@@ -360,20 +432,32 @@ pub fn parse_pgn(raw: &str, variants: Option<&Path>) -> Result<Game, PGNParseErr
         for fen in fens {
             parse_and_insert_fen(fen, &mut game)?;
         }
-    } else if variants.is_some() && headers.get(&String::from("board")).map(|b| variant_regexp.is_match(b)) == Some(true) {
+    } else if variants.is_some()
+        && headers
+            .get(&String::from("board"))
+            .map(|b| variant_regexp.is_match(b))
+            == Some(true)
+    {
         // Attempt to read the variant from the variants directory
 
         let variant = headers.get(&String::from("board")).unwrap();
         // Read the directory
         if let Ok(mut files) = fs::read_dir(variants.unwrap()) {
             // Find the directory of the variant
-            if files.find(|d| {
-                if let Ok(s) = d.as_ref().map(|d| d.path()) {
-                    s.file_name().map(|s| s.to_str()).flatten().map(|s| s == variant).unwrap_or(false)
-                } else {
-                    false
-                }
-            }).is_some() {
+            if files
+                .find(|d| {
+                    if let Ok(s) = d.as_ref().map(|d| d.path()) {
+                        s.file_name()
+                            .map(|s| s.to_str())
+                            .flatten()
+                            .map(|s| s == variant)
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                })
+                .is_some()
+            {
                 let mut path = variants.unwrap().join(variant);
                 path.push("variant.5dpgn");
                 let contents = std::fs::read_to_string(path).unwrap();
@@ -401,6 +485,9 @@ pub fn parse_pgn(raw: &str, variants: Option<&Path>) -> Result<Game, PGNParseErr
                 for fen in fens {
                     parse_and_insert_fen(fen, &mut game)?;
                 }
+
+                game.info.recalculate_present();
+                parse_moves(&contents, &mut game)?;
             } else {
                 return Err(PGNParseError::InvalidVariant(variant.clone()));
             }
@@ -414,6 +501,7 @@ pub fn parse_pgn(raw: &str, variants: Option<&Path>) -> Result<Game, PGNParseErr
     println!("{:#?}", headers);
 
     game.info.recalculate_present();
+    parse_moves(&raw, &mut game)?;
 
     Ok(game)
 }
@@ -423,7 +511,7 @@ pub fn parse_fen(fen: Vec<&str>, game: &Game) -> Result<Board, PGNParseError> {
     let mut board = Board::new(
         game.width,
         game.height,
-        de_str_layer(fen[1], game.info.even_timelines),
+        de_str_layer(fen[1], game.info.even_timelines)?,
         (Time::from_str(fen[2]).unwrap() - 1) * 2 + (fen[3] != "w") as Time,
         vec![Tile::Blank; game.width as usize * game.height as usize],
         None,
@@ -566,7 +654,11 @@ pub fn parse_and_insert_fen(fen: Vec<&str>, game: &mut Game) -> Result<(), PGNPa
     Ok(())
 }
 
-pub fn parse_headers<'a>(raw: &'a str, headers: &mut HashMap<String, String>, fens: &mut Vec<Vec<&'a str>>) -> Result<(), PGNParseError> {
+pub fn parse_headers<'a>(
+    raw: &'a str,
+    headers: &mut HashMap<String, String>,
+    fens: &mut Vec<Vec<&'a str>>,
+) -> Result<(), PGNParseError> {
     let header_regexp = Regex::new("^(\\w+)\\s+\"([^\"]+)\"$").unwrap();
     for line in raw.split("\n") {
         let line = line.trim();
@@ -605,6 +697,234 @@ fn get_dimensions(headers: &HashMap<String, String>) -> (Physical, Physical) {
     }
 }
 
+pub fn parse_moves(raw: &str, game: &mut Game) -> Result<(), PGNParseError> {
+    let raw = {
+        let mut in_header = false;
+        raw.chars()
+            .filter(|c| {
+                if *c == '[' {
+                    in_header = true;
+                }
+                if *c == ']' {
+                    in_header = false;
+                    return false;
+                }
+                !in_header
+            })
+            .collect::<String>()
+    };
+
+    let mut partial_game = no_partial_game(game);
+
+    let regex = Regex::new("[ \\t\\n]+").unwrap();
+    let regex_turn = Regex::new("^(\\d+)\\.$").unwrap();
+    let regex_superphysical = Regex::new(r"^\(\s*L?\s*([+-]?\d+)\s*T\s*(\d+)\s*\)").unwrap();
+    let regex_piece = Regex::new(r"^(?:BR|CK|RQ|PR|[YPKNRQDUBSWC])").unwrap();
+    let regex_present = Regex::new(r"^\(~T(\d+)\)$").unwrap();
+    let regex_timeline = Regex::new(r"^\(>L([+\-]?\d+)\)$").unwrap();
+    let regex_jump = Regex::new(r"^([a-w])(\d+)(>>?)(x)?").unwrap();
+    let regex_coords = Regex::new(r"^([a-w])(\d+)").unwrap();
+    let regex_promotion = Regex::new(r"^=([RBUDQSNC])?").unwrap();
+    let regex_nonjump = Regex::new(r"^([a-w])?(\d+)?x?([a-w])(\d)").unwrap();
+    let regex_pawn_capture = Regex::new(r"^([a-w])x([a-w])(\d+)").unwrap();
+
+    for token in regex.split(&raw) {
+        let mut token = token.trim();
+        let base_token = token;
+        if token == "" {
+            continue;
+        } else if token == "/" {
+            game.info.active_player = false;
+        } else if regex_turn.is_match(token) {
+            game.info.active_player = true;
+        } else if regex_present.is_match(token) || regex_timeline.is_match(token) {
+            continue
+        } else {
+            let (from_l, from_t) = if let Some(caps) = regex_superphysical.captures(token) {
+                token = &token[caps.get(0).unwrap().end()..];
+                (
+                    de_str_layer(caps.get(1).unwrap().as_str(), game.info.even_timelines)?,
+                    de_time(caps.get(2).unwrap().as_str(), game.info.active_player)?,
+                )
+            } else {
+                (0, game.info.get_timeline(0).unwrap().last_board)
+            };
+
+            // "Normal" move
+            let mv = if let Some(caps) = regex_piece.captures(token) {
+                token = &token[caps.get(0).unwrap().end()..];
+                let piece = de_pgn_piece(caps.get(0).unwrap().as_str())?;
+
+                // Non-spatial move
+                if let Some(caps) = regex_jump.captures(token) {
+                    token = &token[caps.get(0).unwrap().end()..];
+                    let from_x = de_x(caps.get(1).unwrap().as_str().chars().nth(0).unwrap())?;
+                    let from_y = de_y(caps.get(2).unwrap().as_str())?;
+                    if let Some(caps) = regex_superphysical.captures(token) {
+                        token = &token[caps.get(0).unwrap().end()..];
+                        let to_l = de_str_layer(caps.get(1).unwrap().as_str(), game.info.even_timelines)?;
+                        let to_t = de_time(caps.get(2).unwrap().as_str(), game.info.active_player)?;
+
+                        if let Some(caps) = regex_coords.captures(token) {
+                            token = &token[caps.get(0).unwrap().end()..];
+                            let to_x = de_x(caps.get(1).unwrap().as_str().chars().nth(0).unwrap())?;
+                            let to_y = de_y(caps.get(2).unwrap().as_str())?;
+
+                            if let Some(caps) = regex_promotion.captures(token) {
+                                let _promote_into = de_pgn_piece(caps.get(1).unwrap().as_str()).unwrap_or(PieceKind::Queen);
+                                Move::new(game, &partial_game, Coords(from_l, from_t, from_x, from_y), Coords(to_l, to_t, to_x, to_y))
+                            } else {
+                                Move::new(game, &partial_game, Coords(from_l, from_t, from_x, from_y), Coords(to_l, to_t, to_x, to_y))
+                            }
+                        } else {
+                            return Err(PGNParseError::SyntaxError(token.to_string(), base_token.to_string()));
+                        }
+                    } else {
+                        return Err(PGNParseError::SyntaxError(token.to_string(), base_token.to_string()));
+                    }
+                } else if let Some(caps) = regex_nonjump.captures(token) {
+                    token = &token[caps.get(0).unwrap().end()..];
+                    let to_l = from_l;
+                    let to_t = from_t;
+                    let to_x = de_x(caps.get(3).unwrap().as_str().chars().nth(0).unwrap())?;
+                    let to_y = de_y(caps.get(4).unwrap().as_str())?;
+                    let from_x = match caps.get(1) {
+                        Some(raw) => {
+                            let raw = raw.as_str();
+                            if raw != "" {
+                                Some(de_x(raw.chars().nth(0).unwrap())?)
+                            } else {
+                                None
+                            }
+                        }
+                        None => None
+                    };
+                    let from_y = match caps.get(2) {
+                        Some(raw) => {
+                            let raw = raw.as_str();
+                            if raw != "" {
+                                Some(de_y(raw)?)
+                            } else {
+                                None
+                            }
+                        }
+                        None => None
+                    };
+
+                    let (from_x, from_y) = if from_x.is_none() || from_y.is_none() {
+                        let board = match game.get_board((from_t, from_l)) {
+                            Some(b) => b,
+                            None => return Err(PGNParseError::NoBoard(from_t, from_l))
+                        };
+
+                        let tile = Tile::Piece(Piece::new(piece, game.info.active_player, false));
+
+                        let mut candidates = board.pieces.iter().enumerate().filter(|(i, t)| {
+                            let x = (i % game.width as usize) as Physical;
+                            let y = (i / game.width as usize) as Physical;
+                            if from_x.is_some() && Some(x) != from_x {
+                                return false
+                            }
+                            if from_y.is_some() && Some(y) != from_y {
+                                return false
+                            }
+                            cmp_pieces(**t, tile)
+                        }).collect::<Vec<_>>();
+
+                        if candidates.len() == 1 {
+                            let x = (candidates[0].0 % game.width as usize) as Physical;
+                            let y = (candidates[0].0 / game.width as usize) as Physical;
+                            (x, y)
+                        } else {
+                            candidates.retain(|(i, t)| {
+                                let x = (i % game.width as usize) as Physical;
+                                let y = (i / game.width as usize) as Physical;
+                                let piece_pos = PiecePosition(t.piece().unwrap(), Coords(from_l, from_t, x, y));
+                                for mv in piece_pos.generate_moves(game, &partial_game).unwrap() {
+                                    if mv.to.1 == Coords(from_t, from_t, to_x, to_y) {
+                                        return true
+                                    }
+                                }
+                                false
+                            });
+
+                            if candidates.len() == 1 {
+                                let x = (candidates[0].0 % game.width as usize) as Physical;
+                                let y = (candidates[0].0 / game.width as usize) as Physical;
+                                (x, y)
+                            } else {
+                                return Err(PGNParseError::Ambiguous(piece, from_l, from_t, from_x, from_y))
+                            }
+                        }
+                    } else {
+                        (from_x.unwrap(), from_y.unwrap())
+                    };
+
+                    if let Some(caps) = regex_promotion.captures(token) {
+                        let _promote_into = de_pgn_piece(caps.get(1).unwrap().as_str()).unwrap_or(PieceKind::Queen);
+                        Move::new(game, &partial_game, Coords(from_l, from_t, from_x, from_y), Coords(to_l, to_t, to_x, to_y))
+                    } else {
+                        Move::new(game, &partial_game, Coords(from_l, from_t, from_x, from_y), Coords(to_l, to_t, to_x, to_y))
+                    }
+                } else {
+                    return Err(PGNParseError::SyntaxError(token.to_string(), base_token.to_string()));
+                }
+            } else if let Some(caps) = regex_pawn_capture.captures(token) {
+                token = &token[caps.get(0).unwrap().end()..];
+                let from_x = de_x(caps.get(1).unwrap().as_str().chars().nth(0).unwrap())?;
+                let to_x = de_x(caps.get(2).unwrap().as_str().chars().nth(0).unwrap())?;
+                let to_y = de_y(caps.get(3).unwrap().as_str())?;
+                let from_y = if game.info.active_player {
+                    to_y - 1
+                } else {
+                    to_y + 1
+                };
+
+                if let Some(caps) = regex_promotion.captures(token) {
+                    let _promote_into = de_pgn_piece(caps.get(1).unwrap().as_str()).unwrap_or(PieceKind::Queen);
+                    Move::new(game, &partial_game, Coords(from_l, from_t, from_x, from_y), Coords(from_l, from_t, to_x, to_y))
+                } else {
+                    Move::new(game, &partial_game, Coords(from_l, from_t, from_x, from_y), Coords(from_l, from_t, to_x, to_y))
+                }
+            } else if let Some(caps) = regex_coords.captures(token) {
+                token = &token[caps.get(0).unwrap().end()..];
+                let to_x = de_x(caps.get(1).unwrap().as_str().chars().nth(0).unwrap())?;
+                let to_y = de_y(caps.get(2).unwrap().as_str())?;
+                let from_y = if game.info.active_player {
+                    if game.get(Coords(from_l, from_t, to_x, to_y - 1)).piece().map(|p| p.kind == PieceKind::Pawn && p.white).unwrap_or(false) {
+                        to_y - 1
+                    } else if game.get(Coords(from_l, from_t, to_x, to_y - 2)).piece().map(|p| p.is_pawnlike() && p.can_kickstart() && !p.moved && p.white).unwrap_or(false) {
+                        to_y - 2
+                    } else {
+                        return Err(PGNParseError::Ambiguous(PieceKind::Pawn, from_l, from_t, Some(to_x), None))
+                    }
+                } else {
+                    if game.get(Coords(from_l, from_t, to_x, to_y + 1)).piece().map(|p| p.kind == PieceKind::Pawn && !p.white).unwrap_or(false) {
+                        to_y + 1
+                    } else if game.get(Coords(from_l, from_t, to_x, to_y + 1)).piece().map(|p| p.is_pawnlike() && p.can_kickstart() && !p.moved && !p.white).unwrap_or(false) {
+                        to_y + 2
+                    } else {
+                        return Err(PGNParseError::Ambiguous(PieceKind::Pawn, from_l, from_t, Some(to_x), None))
+                    }
+                };
+
+                if let Some(caps) = regex_promotion.captures(token) {
+                    let _promote_into = de_pgn_piece(caps.get(1).unwrap().as_str()).unwrap_or(PieceKind::Queen);
+                    Move::new(game, &partial_game, Coords(from_l, from_t, to_x, from_y), Coords(from_l, from_t, to_x, to_y))
+                } else {
+                    Move::new(game, &partial_game, Coords(from_l, from_t, to_x, from_y), Coords(from_l, from_t, to_x, to_y))
+                }
+            } else {
+                return Err(PGNParseError::SyntaxError(token.to_string(), base_token.to_string()));
+            };
+
+            println!("{:?}", mv);
+        }
+    }
+
+    Ok(())
+}
+
 impl fmt::Debug for PGNParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -621,9 +941,33 @@ impl fmt::Debug for PGNParseError {
             ),
             PGNParseError::FENUnexpected(s, t) => {
                 write!(f, "Invalid token in FEN: '{}' in `{}`", t, s)
-            },
+            }
             PGNParseError::InvalidVariant(v) => {
                 write!(f, "Invalid variant: `{}`", v)
+            }
+            PGNParseError::InvalidPiece(p) => {
+                write!(f, "Invalid piece: `{}`", p)
+            }
+            PGNParseError::SyntaxError(p, s) => {
+                write!(f, "Syntax error: at `{}` in `{}`", p, s)
+            }
+            PGNParseError::InvalidX(x) => {
+                write!(f, "Invalid X coordinate: `{}`", x)
+            }
+            PGNParseError::InvalidY(y) => {
+                write!(f, "Invalid Y coordinate: `{}`", y)
+            }
+            PGNParseError::InvalidT(t) => {
+                write!(f, "Invalid T coordinate: `{}`", t)
+            }
+            PGNParseError::InvalidL(l) => {
+                write!(f, "Invalid L coordinate: `{}`", l)
+            }
+            PGNParseError::NoBoard(l, t) => {
+                write!(f, "No board currently at `{}`:`{}`!", l, t)
+            }
+            PGNParseError::Ambiguous(_p, l, t, x, y) => {
+                write!(f, "Ambiguous on `{}`:`{}` ({},{})!", l, t, x.map(|x| format!("{}", x)).unwrap_or(String::from("?")), y.map(|y| format!("{}", y)).unwrap_or(String::from("?")))
             }
         }
     }
