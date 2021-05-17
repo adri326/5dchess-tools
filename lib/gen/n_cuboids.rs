@@ -74,17 +74,6 @@ pub enum AxisLoc {
     Pass(Layer, Option<Time>),
 }
 
-impl AxisLoc {
-    pub fn get_layer(&self) -> Layer {
-        return match self {
-            AxisLoc::Physical(_, mv) => mv.to.1.l(),
-            AxisLoc::Arrive(_, mv) => mv.to.1.l(),
-            AxisLoc::Leave(_, cors) => cors.l(),
-            AxisLoc::Pass(l, _) => *l,
-        };
-    }
-}
-
 #[derive(Clone, PartialEq, Debug)]
 pub enum Sec {
     Single(HashMap<Layer, Vec<usize>>),
