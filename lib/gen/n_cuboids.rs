@@ -76,6 +76,17 @@ pub enum AxisLoc {
     Pass(Layer, Option<Time>),
 }
 
+impl AxisLoc {
+    pub fn get_layer(&self) -> Layer {
+        return match self{
+            AxisLoc::Physical(_, mv) => mv.to.1.l(),
+            AxisLoc::Arrive(_, mv) => mv.to.1.l(),
+            AxisLoc::Leave(_, cors) => cors.l(),
+            AxisLoc::Pass(l, _) => *l,
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum Sec {
     Single(HashMap<Layer, Vec<usize>>),
@@ -272,4 +283,71 @@ impl<'a> Search<'a> {
 
         Some(hypercuboid)
     }
+
+    pub fn find_problems(&self, point : HashMap<Layer, usize>) -> Option<Sec> {
+        let mut  cell : HashMap<Layer,&AxisLoc> = HashMap::new();
+        for (k,v) in &point{
+          cell.insert(*k,&self.elements[*v]);
+        }
+                    self.arrives_match_leaves(&cell,&point)
+        .or_else(|| self.jump_order_consistent(&cell,&point))
+        .or_else(|| self.test_present(&cell,&point))
+        .or_else(|| self.find_check(&cell,&point)) //'newState' is only used by this, so can be computed within the function
+    }
+    /**
+    Helper function for arrives_match_leaves
+    */
+    pub fn make_sec(&self, leaving : Coords, point : &HashMap<Layer, usize>) -> Sec{
+        let mut others : HashMap<Layer, Vec<usize>> = HashMap::new();
+        for (i,c) in self.elements.iter().enumerate(){
+            match c{
+                AxisLoc::Arrive(_,m) => if m.from.1 == leaving {
+                    match others.get_mut(&m.to.1.l()){
+                        None => {
+                            others.insert(m.to.1.l(), Vec::new());
+                            others.get_mut(&m.to.1.l()).unwrap().push(i)
+                        },
+                        Some(v) => {v.push(i)}
+                    };
+                },
+                _ => {}
+            }
+        }
+        return Sec::MatchesOne((leaving.l(), vec![*point.get(&leaving.l()).unwrap()]), others)
+    }
+    pub fn arrives_match_leaves(&self, cell : &HashMap<Layer,&AxisLoc>, point : &HashMap<Layer, usize>) -> Option<Sec> {
+        let jumps : Vec<(&Layer,&Coords)> = cell.iter().filter_map(|(l,al)| match al {
+          AxisLoc::Arrive(_,m) => Some((l,&m.from.1)),
+          _ => None} ).collect();
+
+        //TODO: check no jumps share a source
+        
+        for (_,jsrc) in jumps {
+            match cell.get(&jsrc.l()){
+                Some(AxisLoc::Leave(_,lsrc)) => if lsrc != jsrc {
+                    return Some(self.make_sec(*jsrc,point))
+                }
+                _ => {return Some(self.make_sec(*jsrc,point))}
+            }
+        }
+        // TODO: check that there are no unmatched Leaves
+        None
+    }
+    pub fn jump_order_consistent(&self, cell : &HashMap<Layer,&AxisLoc>, point : &HashMap<Layer, usize>) -> Option<Sec> {
+        //TODO
+        None
+    }
+    pub fn test_present(&self, cell : &HashMap<Layer,&AxisLoc>, point : &HashMap<Layer, usize>) -> Option<Sec> {
+        //TODO
+        None
+    }
+    pub fn find_check(&self, cell : &HashMap<Layer,&AxisLoc>, point : &HashMap<Layer, usize>) -> Option<Sec> {
+        //TODO
+        // If moves which will always give check have already been eliminated,
+        //   then we only need to consider checks which involve at least 2 new boards.
+        // Note that neither the royal piece nor the piece that gives check need to be on the new boards
+        //   if the new boards allow a piece to move through them
+        None
+    }
+    
 }
