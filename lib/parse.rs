@@ -901,7 +901,7 @@ pub fn parse_moves(raw: &str, game: &mut Game) -> Result<(), PGNParseError> {
                 } else {
                     if game.get(Coords(from_l, from_t, to_x, to_y + 1)).piece().map(|p| p.kind == PieceKind::Pawn && !p.white).unwrap_or(false) {
                         to_y + 1
-                    } else if game.get(Coords(from_l, from_t, to_x, to_y + 1)).piece().map(|p| p.is_pawnlike() && p.can_kickstart() && !p.moved && !p.white).unwrap_or(false) {
+                    } else if game.get(Coords(from_l, from_t, to_x, to_y + 2)).piece().map(|p| p.is_pawnlike() && p.can_kickstart() && !p.moved && !p.white).unwrap_or(false) {
                         to_y + 2
                     } else {
                         return Err(PGNParseError::Ambiguous(PieceKind::Pawn, from_l, from_t, Some(to_x), None))
