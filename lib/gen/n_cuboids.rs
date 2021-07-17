@@ -16,12 +16,11 @@ pub fn hc_contains(hypercuboid: HC, point: HashMap<Layer, usize>) -> bool {
     for (l, axis) in hypercuboid.iter() {
         let value = point[l];
         if axis.iter().find(|index| **index == value).is_none() {
-            return false
+            return false;
         }
     }
     true
 }
-
 
 /**
     Given a cross section, cut it out of a hypercuboid, returning a list of disjoint hypercuboids that are
@@ -66,7 +65,6 @@ fn split_without(hypercuboid: &mut HC, section: (&Layer, &Vec<usize>)) {
         .unwrap()
         .retain(|index| section.1.iter().find(|target| *target == index).is_none());
 }
-
 
 #[derive(Clone, Debug)]
 pub enum AxisLoc {
@@ -117,7 +115,7 @@ impl<'a> Search<'a> {
 
         for board in partial_game.own_boards(game) {
             axes.insert(board.l(), vec![elements.len()]);
-            elements.push(AxisLoc::Pass(board.l(),Some(board.t())));
+            elements.push(AxisLoc::Pass(board.l(), Some(board.t())));
             n_playable += 1;
         }
 
@@ -129,12 +127,14 @@ impl<'a> Search<'a> {
                     let new_arriving_board = mv.generate_target_board(game, partial_game)?;
 
                     // Prevent duplicates
-                    if axes[&mv.from.1.l()].iter().find(|index| {
-                        match &elements[**index] {
+                    if axes[&mv.from.1.l()]
+                        .iter()
+                        .find(|index| match &elements[**index] {
                             AxisLoc::Leave(_, coords) => mv.from.1 == *coords,
-                            _ => false
-                        }
-                    }).is_none() {
+                            _ => false,
+                        })
+                        .is_none()
+                    {
                         if let Some(axis) = axes.get_mut(&mv.from.1.l()) {
                             axis.push(elements.len());
                             elements.push(AxisLoc::Leave(new_leaving_board, mv.from.1));
@@ -143,7 +143,13 @@ impl<'a> Search<'a> {
                         }
                     }
 
-                    if partial_game.info.get_timeline(mv.to.1.l()).unwrap().last_board == mv.to.1.t() {
+                    if partial_game
+                        .info
+                        .get_timeline(mv.to.1.l())
+                        .unwrap()
+                        .last_board
+                        == mv.to.1.t()
+                    {
                         if let Some(axis) = axes.get_mut(&mv.to.1.l()) {
                             axis.push(elements.len());
                             elements.push(AxisLoc::Arrive(new_arriving_board.clone(), mv));
@@ -179,7 +185,7 @@ impl<'a> Search<'a> {
 
             axes.insert(new_l, branching_axis.clone());
             axes.get_mut(&new_l).unwrap().push(elements.len());
-            elements.push(AxisLoc::Pass(new_l,None));
+            elements.push(AxisLoc::Pass(new_l, None));
         }
 
         Some(Self {
@@ -239,7 +245,7 @@ impl<'a> Search<'a> {
         for l in self.partial_game.info.min_timeline()..=self.partial_game.info.max_timeline() {
             let axis = hypercuboid.get(&l)?;
             if axis.len() == 0 {
-                return None
+                return None;
             }
         }
 
@@ -266,10 +272,103 @@ impl<'a> Search<'a> {
             }
 
             if axis.len() == 0 {
-                return None
+                return None;
             }
         }
 
         Some(hypercuboid)
+    }
+
+    pub fn find_problems(&self, point: HashMap<Layer, usize>) -> Option<Sec> {
+        let mut cell: HashMap<Layer, &AxisLoc> = HashMap::new();
+        for (k, v) in &point {
+            cell.insert(*k, &self.elements[*v]);
+        }
+        self.arrives_match_leaves(&cell, &point)
+            .or_else(|| self.jump_order_consistent(&cell, &point))
+            .or_else(|| self.test_present(&cell, &point))
+            .or_else(|| self.find_check(&cell, &point)) //'newState' is only used by this, so can be computed within the function
+    }
+    /**
+    Helper function for arrives_match_leaves
+    */
+    pub fn make_sec(&self, leaving: Coords, point: &HashMap<Layer, usize>) -> Sec {
+        let mut others: HashMap<Layer, Vec<usize>> = HashMap::new();
+        for (i, c) in self.elements.iter().enumerate() {
+            match c {
+                AxisLoc::Arrive(_, m) => {
+                    if m.from.1 == leaving {
+                        match others.get_mut(&m.to.1.l()) {
+                            None => {
+                                others.insert(m.to.1.l(), Vec::new());
+                                others.get_mut(&m.to.1.l()).unwrap().push(i)
+                            }
+                            Some(v) => v.push(i),
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        return Sec::MatchesOne(
+            (leaving.l(), vec![*point.get(&leaving.l()).unwrap()]),
+            others,
+        );
+    }
+    pub fn arrives_match_leaves(
+        &self,
+        cell: &HashMap<Layer, &AxisLoc>,
+        point: &HashMap<Layer, usize>,
+    ) -> Option<Sec> {
+        let jumps: Vec<(&Layer, &Coords)> = cell
+            .iter()
+            .filter_map(|(l, al)| match al {
+                AxisLoc::Arrive(_, m) => Some((l, &m.from.1)),
+                _ => None,
+            })
+            .collect();
+
+        //TODO: check no jumps share a source
+
+        for (_, jsrc) in jumps {
+            match cell.get(&jsrc.l()) {
+                Some(AxisLoc::Leave(_, lsrc)) => {
+                    if lsrc != jsrc {
+                        return Some(self.make_sec(*jsrc, point));
+                    }
+                }
+                _ => return Some(self.make_sec(*jsrc, point)),
+            }
+        }
+        // TODO: check that there are no unmatched Leaves
+        None
+    }
+    pub fn jump_order_consistent(
+        &self,
+        cell: &HashMap<Layer, &AxisLoc>,
+        point: &HashMap<Layer, usize>,
+    ) -> Option<Sec> {
+        //TODO
+        None
+    }
+    pub fn test_present(
+        &self,
+        cell: &HashMap<Layer, &AxisLoc>,
+        point: &HashMap<Layer, usize>,
+    ) -> Option<Sec> {
+        //TODO
+        None
+    }
+    pub fn find_check(
+        &self,
+        cell: &HashMap<Layer, &AxisLoc>,
+        point: &HashMap<Layer, usize>,
+    ) -> Option<Sec> {
+        //TODO
+        // If moves which will always give check have already been eliminated,
+        //   then we only need to consider checks which involve at least 2 new boards.
+        // Note that neither the royal piece nor the piece that gives check need to be on the new boards
+        //   if the new boards allow a piece to move through them
+        None
     }
 }
